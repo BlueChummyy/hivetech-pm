@@ -66,7 +66,7 @@ export function GanttChart({ tasks, isLoading }: GanttChartProps) {
     if (a.dueDate && !b.dueDate) return -1;
     if (!a.dueDate && b.dueDate) return 1;
     if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate);
-    return a.sortOrder - b.sortOrder;
+    return a.position - b.position;
   });
 
   return (

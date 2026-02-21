@@ -89,7 +89,7 @@ export class TasksService {
   }
 
   async list(filters: {
-    projectId: string;
+    projectId?: string;
     statusId?: string;
     assigneeId?: string;
     priority?: string;
@@ -103,9 +103,9 @@ export class TasksService {
     const skip = (page - 1) * limit;
 
     const where: any = {
-      projectId: filters.projectId,
       deletedAt: null,
     };
+    if (filters.projectId) where.projectId = filters.projectId;
     if (filters.statusId) where.statusId = filters.statusId;
     if (filters.assigneeId) where.assigneeId = filters.assigneeId;
     if (filters.priority) where.priority = filters.priority;

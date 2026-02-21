@@ -2,11 +2,11 @@ export enum WorkspaceRole {
   OWNER = 'OWNER',
   ADMIN = 'ADMIN',
   MEMBER = 'MEMBER',
-  GUEST = 'GUEST',
+  VIEWER = 'VIEWER',
 }
 
 export enum ProjectRole {
-  LEAD = 'LEAD',
+  ADMIN = 'ADMIN',
   MEMBER = 'MEMBER',
   VIEWER = 'VIEWER',
 }
@@ -20,27 +20,25 @@ export enum Priority {
 }
 
 export enum StatusCategory {
-  BACKLOG = 'BACKLOG',
-  TODO = 'TODO',
-  IN_PROGRESS = 'IN_PROGRESS',
+  NOT_STARTED = 'NOT_STARTED',
+  ACTIVE = 'ACTIVE',
   DONE = 'DONE',
   CANCELLED = 'CANCELLED',
 }
 
 export enum DependencyType {
-  BLOCKS = 'BLOCKS',
-  IS_BLOCKED_BY = 'IS_BLOCKED_BY',
-  RELATES_TO = 'RELATES_TO',
-  DUPLICATES = 'DUPLICATES',
+  FINISH_TO_START = 'FINISH_TO_START',
+  START_TO_START = 'START_TO_START',
+  FINISH_TO_FINISH = 'FINISH_TO_FINISH',
+  START_TO_FINISH = 'START_TO_FINISH',
 }
 
 export enum NotificationType {
   TASK_ASSIGNED = 'TASK_ASSIGNED',
+  COMMENT_ADDED = 'COMMENT_ADDED',
   TASK_UPDATED = 'TASK_UPDATED',
-  TASK_COMMENTED = 'TASK_COMMENTED',
-  MENTION = 'MENTION',
-  PROJECT_INVITE = 'PROJECT_INVITE',
-  WORKSPACE_INVITE = 'WORKSPACE_INVITE',
+  MENTIONED = 'MENTIONED',
+  STATUS_CHANGED = 'STATUS_CHANGED',
 }
 
 export interface User {
@@ -70,7 +68,6 @@ export interface WorkspaceMember {
   user?: User;
   workspace?: Workspace;
   createdAt: string;
-  updatedAt: string;
 }
 
 export interface Project {
@@ -93,7 +90,6 @@ export interface ProjectMember {
   user?: User;
   project?: Project;
   createdAt: string;
-  updatedAt: string;
 }
 
 export interface ProjectStatus {
@@ -103,9 +99,9 @@ export interface ProjectStatus {
   category: StatusCategory;
   color: string;
   position: number;
+  isDefault?: boolean;
   project?: Project;
   createdAt: string;
-  updatedAt: string;
 }
 
 export interface Task {
@@ -113,26 +109,31 @@ export interface Task {
   projectId: string;
   statusId: string;
   assigneeId: string | null;
-  creatorId: string;
+  reporterId: string;
   parentId: string | null;
+  taskNumber: number;
   title: string;
   description: string | null;
   priority: Priority;
-  identifier: string;
-  sortOrder: number;
+  position: number;
   dueDate: string | null;
-  completedAt: string | null;
+  estimatedHours: number | null;
+  deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
   project?: Project;
   status?: ProjectStatus;
   assignee?: User;
-  creator?: User;
+  reporter?: User;
   parent?: Task;
   subtasks?: Task[];
   labels?: TaskLabel[];
   comments?: Comment[];
   attachments?: Attachment[];
+  _count?: {
+    subtasks: number;
+    comments: number;
+  };
 }
 
 export interface TaskDependency {
@@ -166,9 +167,9 @@ export interface TaskLabel {
 export interface Comment {
   id: string;
   taskId: string;
-  userId: string;
+  authorId: string;
   content: string;
-  user?: User;
+  author?: User;
   task?: Task;
   createdAt: string;
   updatedAt: string;
@@ -177,12 +178,13 @@ export interface Comment {
 export interface Attachment {
   id: string;
   taskId: string;
-  uploaderId: string;
-  fileName: string;
-  fileUrl: string;
-  fileSize: number;
+  uploadedById: string;
+  filename: string;
+  originalName: string;
   mimeType: string;
-  uploader?: User;
+  size: number;
+  storagePath: string;
+  uploadedBy?: User;
   task?: Task;
   createdAt: string;
 }
@@ -195,7 +197,7 @@ export interface Notification {
   message: string;
   resourceId: string | null;
   resourceType: string | null;
-  read: boolean;
+  isRead: boolean;
   user?: User;
   createdAt: string;
 }

@@ -50,9 +50,9 @@ export function CommentSection({ taskId }: CommentSectionProps) {
         <div className="space-y-4 max-h-80 overflow-y-auto">
           {comments.map((comment: Comment) => (
             <div key={comment.id} className="flex gap-3">
-              {comment.user?.avatarUrl ? (
+              {comment.author?.avatarUrl ? (
                 <img
-                  src={comment.user.avatarUrl}
+                  src={comment.author.avatarUrl}
                   alt=""
                   className="h-8 w-8 shrink-0 rounded-full object-cover"
                 />
@@ -62,7 +62,7 @@ export function CommentSection({ taskId }: CommentSectionProps) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-baseline gap-2">
                   <span className="text-sm font-medium text-surface-200">
-                    {comment.user?.name || 'Unknown'}
+                    {comment.author?.name || 'Unknown'}
                   </span>
                   <span className="text-xs text-surface-500">
                     {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}

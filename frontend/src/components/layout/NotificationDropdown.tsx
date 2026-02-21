@@ -5,20 +5,18 @@ import { cn } from '@/utils/cn';
 import { useNotifications, useMarkAsRead, useMarkAllAsRead } from '@/hooks/useNotifications';
 import { NotificationType } from '@/types/models.types';
 
-function getNotificationIcon(type: NotificationType): string {
+function getNotificationLabel(type: NotificationType): string {
   switch (type) {
     case NotificationType.TASK_ASSIGNED:
       return 'Assigned';
     case NotificationType.TASK_UPDATED:
       return 'Updated';
-    case NotificationType.TASK_COMMENTED:
+    case NotificationType.COMMENT_ADDED:
       return 'Comment';
-    case NotificationType.MENTION:
+    case NotificationType.MENTIONED:
       return 'Mention';
-    case NotificationType.PROJECT_INVITE:
-      return 'Invite';
-    case NotificationType.WORKSPACE_INVITE:
-      return 'Invite';
+    case NotificationType.STATUS_CHANGED:
+      return 'Status';
     default:
       return 'Notification';
   }
@@ -41,7 +39,7 @@ export function NotificationDropdown() {
   const markAsRead = useMarkAsRead();
   const markAllAsRead = useMarkAllAsRead();
 
-  const unreadCount = notifications?.filter((n) => !n.read).length ?? 0;
+  const unreadCount = notifications?.filter((n) => !n.isRead).length ?? 0;
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -105,10 +103,10 @@ export function NotificationDropdown() {
                   key={notification.id}
                   className={cn(
                     'flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-700/50',
-                    !notification.read && 'bg-primary-600/5',
+                    !notification.isRead && 'bg-primary-600/5',
                   )}
                   onClick={() => {
-                    if (!notification.read) {
+                    if (!notification.isRead) {
                       markAsRead.mutate(notification.id);
                     }
                   }}
@@ -116,9 +114,9 @@ export function NotificationDropdown() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-medium uppercase tracking-wider text-surface-500">
-                        {getNotificationIcon(notification.type)}
+                        {getNotificationLabel(notification.type)}
                       </span>
-                      {!notification.read && (
+                      {!notification.isRead && (
                         <span className="h-1.5 w-1.5 rounded-full bg-primary-500" />
                       )}
                     </div>

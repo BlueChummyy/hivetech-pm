@@ -61,7 +61,7 @@ export function ListPage() {
       result = result.filter(
         (t) =>
           t.title.toLowerCase().includes(query) ||
-          t.identifier.toLowerCase().includes(query),
+          String(t.taskNumber).includes(query),
       );
     }
 

@@ -43,8 +43,8 @@ export function KanbanCard({ task, overlay }: KanbanCardProps) {
   };
 
   const subtasks = task.subtasks ?? [];
-  const completedSubtasks = subtasks.filter((s) => s.completedAt).length;
-  const commentCount = task.comments?.length ?? 0;
+  const completedSubtasks = subtasks.filter((s) => s.status?.category === 'DONE').length;
+  const commentCount = task.comments?.length ?? task._count?.comments ?? 0;
 
   const handleClick = () => {
     useUIStore.getState().openTaskPanel(task.id);
@@ -93,8 +93,8 @@ export function KanbanCard({ task, overlay }: KanbanCardProps) {
       {/* Title */}
       <p className="text-sm font-medium text-white leading-snug">{task.title}</p>
 
-      {/* Identifier */}
-      <p className="mt-1 text-xs text-gray-400">{task.identifier}</p>
+      {/* Task number */}
+      <p className="mt-1 text-xs text-gray-400">#{task.taskNumber}</p>
 
       {/* Bottom row: metadata */}
       <div className="mt-3 flex items-center gap-3">

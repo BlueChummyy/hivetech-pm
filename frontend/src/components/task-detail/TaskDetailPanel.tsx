@@ -224,7 +224,7 @@ export function TaskDetailPanel() {
             {/* Header */}
             <div className="flex items-center justify-between border-b border-surface-700 px-4 py-3">
               <span className="rounded bg-surface-700 px-2 py-0.5 text-xs font-mono text-surface-400">
-                {task.identifier}
+                #{task.taskNumber}
               </span>
               <button
                 onClick={closeTaskPanel}
@@ -427,7 +427,7 @@ export function TaskDetailPanel() {
                             {dep.type === 'BLOCKS' ? 'Blocks' : dep.type === 'IS_BLOCKED_BY' ? 'Blocked by' : dep.type.toLowerCase().replace('_', ' ')}
                           </span>
                           <span className="font-mono">
-                            {dep.dependsOnTask?.identifier || dep.task?.identifier || '...'}
+                            {dep.dependsOnTask?.taskNumber ? `#${dep.dependsOnTask.taskNumber}` : dep.task?.taskNumber ? `#${dep.task.taskNumber}` : '...'}
                           </span>
                         </button>
                       ))}
@@ -533,9 +533,9 @@ export function TaskDetailPanel() {
                         Updated {formatDistanceToNow(new Date(task.updatedAt), { addSuffix: true })}
                       </p>
                     )}
-                    {task.completedAt && (
+                    {task.status?.category === 'DONE' && (
                       <p className="text-xs text-surface-500">
-                        Completed {format(new Date(task.completedAt), 'MMM d, yyyy')}
+                        Status: Done
                       </p>
                     )}
                   </div>

@@ -29,12 +29,12 @@ export interface UpdateTaskData {
   priority?: string;
   assigneeId?: string | null;
   dueDate?: string | null;
-  sortOrder?: number;
+  position?: number;
 }
 
 export interface UpdatePositionData {
   statusId: string;
-  sortOrder: number;
+  position: number;
 }
 
 export const tasksApi = {

@@ -176,9 +176,9 @@ export function TaskTableRow({ task, statuses }: TaskTableRowProps) {
       onClick={handleRowClick}
       className="group cursor-pointer border-b border-white/[0.04] transition-colors hover:bg-white/[0.03]"
     >
-      {/* Identifier */}
+      {/* Task number */}
       <td className="whitespace-nowrap px-4 py-2.5 text-xs text-gray-400">
-        {task.identifier}
+        #{task.taskNumber}
       </td>
 
       {/* Title */}

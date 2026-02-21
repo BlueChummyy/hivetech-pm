@@ -17,17 +17,15 @@ const PRESET_COLORS = [
 ];
 
 const CATEGORY_OPTIONS = [
-  { value: StatusCategory.BACKLOG, label: 'Backlog' },
-  { value: StatusCategory.TODO, label: 'To Do' },
-  { value: StatusCategory.IN_PROGRESS, label: 'In Progress' },
+  { value: StatusCategory.NOT_STARTED, label: 'Not Started' },
+  { value: StatusCategory.ACTIVE, label: 'Active' },
   { value: StatusCategory.DONE, label: 'Done' },
   { value: StatusCategory.CANCELLED, label: 'Cancelled' },
 ];
 
 const CATEGORY_BADGE_STYLES: Record<string, string> = {
-  BACKLOG: 'bg-surface-600/20 text-surface-400',
-  TODO: 'bg-blue-600/20 text-blue-400',
-  IN_PROGRESS: 'bg-amber-600/20 text-amber-400',
+  NOT_STARTED: 'bg-surface-600/20 text-surface-400',
+  ACTIVE: 'bg-amber-600/20 text-amber-400',
   DONE: 'bg-emerald-600/20 text-emerald-400',
   CANCELLED: 'bg-red-600/20 text-red-400',
 };
@@ -46,7 +44,7 @@ export function StatusManager({ projectId }: StatusManagerProps) {
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState('');
   const [newColor, setNewColor] = useState(PRESET_COLORS[4]);
-  const [newCategory, setNewCategory] = useState<StatusCategory>(StatusCategory.TODO);
+  const [newCategory, setNewCategory] = useState<StatusCategory>(StatusCategory.NOT_STARTED);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);

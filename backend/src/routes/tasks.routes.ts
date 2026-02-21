@@ -34,7 +34,7 @@ router.get(
   '/',
   validate({
     query: z.object({
-      projectId: z.string(),
+      projectId: z.string().optional(),
       statusId: z.string().optional(),
       assigneeId: z.string().optional(),
       priority: z.string().optional(),

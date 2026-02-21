@@ -16,7 +16,7 @@ interface WorkspaceMembersProps {
 const ROLE_OPTIONS = [
   { value: WorkspaceRole.ADMIN, label: 'Admin' },
   { value: WorkspaceRole.MEMBER, label: 'Member' },
-  { value: WorkspaceRole.GUEST, label: 'Guest' },
+  { value: WorkspaceRole.VIEWER, label: 'Viewer' },
 ];
 
 export function WorkspaceMembers({ workspaceId, members }: WorkspaceMembersProps) {

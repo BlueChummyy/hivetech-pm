@@ -23,11 +23,11 @@ interface KanbanBoardProps {
   projectId: string;
 }
 
-function calculateSortOrder(tasks: Task[], overIndex: number): number {
+function calculatePosition(tasks: Task[], overIndex: number): number {
   if (tasks.length === 0) return 1000;
-  if (overIndex === 0) return tasks[0].sortOrder / 2;
-  if (overIndex >= tasks.length) return tasks[tasks.length - 1].sortOrder + 1000;
-  return (tasks[overIndex - 1].sortOrder + tasks[overIndex].sortOrder) / 2;
+  if (overIndex === 0) return tasks[0].position / 2;
+  if (overIndex >= tasks.length) return tasks[tasks.length - 1].position + 1000;
+  return (tasks[overIndex - 1].position + tasks[overIndex].position) / 2;
 }
 
 export function KanbanBoard({ tasks, statuses, projectId }: KanbanBoardProps) {
@@ -52,9 +52,9 @@ export function KanbanBoard({ tasks, statuses, projectId }: KanbanBoardProps) {
         grouped[task.statusId].push(task);
       }
     }
-    // Sort each column by sortOrder
+    // Sort each column by position
     for (const key of Object.keys(grouped)) {
-      grouped[key].sort((a, b) => a.sortOrder - b.sortOrder);
+      grouped[key].sort((a, b) => a.position - b.position);
     }
     return grouped;
   }, [localTasks, statuses]);
@@ -144,14 +144,14 @@ export function KanbanBoard({ tasks, statuses, projectId }: KanbanBoardProps) {
         overId === statusId
           ? finalColumnTasks.length
           : finalColumnTasks.findIndex((t) => t.id === overId);
-      const sortOrder = calculateSortOrder(
+      const position = calculatePosition(
         finalColumnTasks,
         overIndex === -1 ? finalColumnTasks.length : overIndex,
       );
 
       updatePosition.mutate({
         id: activeId,
-        data: { statusId, sortOrder },
+        data: { statusId, position },
       });
     },
     [localTasks, tasksByStatus, updatePosition],

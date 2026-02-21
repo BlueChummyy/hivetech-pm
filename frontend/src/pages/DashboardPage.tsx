@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   CheckSquare,
@@ -6,6 +7,7 @@ import {
   FolderKanban,
   Plus,
   ArrowRight,
+  Building2,
 } from 'lucide-react';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -14,8 +16,11 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { PageError } from '@/components/ui/PageError';
 import { useAuthStore } from '@/store/auth.store';
 import { useWorkspaceStore } from '@/store/workspace.store';
+import { useWorkspaces } from '@/hooks/useWorkspaces';
 import { useProjects } from '@/hooks/useProjects';
 import { useTasks } from '@/hooks/useTasks';
+import { CreateWorkspaceModal } from '@/components/CreateWorkspaceModal';
+import { CreateProjectModal } from '@/components/CreateProjectModal';
 
 function StatCard({
   icon,
@@ -52,6 +57,10 @@ function StatCard({
 export function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
+  const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
+  const [projectModalOpen, setProjectModalOpen] = useState(false);
+
+  const { data: workspaces, isLoading: workspacesLoading } = useWorkspaces();
 
   const {
     data: projects,
@@ -60,6 +69,7 @@ export function DashboardPage() {
     error: projectsErr,
     refetch: refetchProjects,
   } = useProjects(activeWorkspaceId || '');
+
   const {
     data: myTasks,
     isLoading: tasksLoading,
@@ -71,17 +81,19 @@ export function DashboardPage() {
   );
 
   const overdueTasks = myTasks?.filter((t) => {
-    if (!t.dueDate || t.completedAt) return false;
+    if (!t.dueDate) return false;
     return new Date(t.dueDate) < new Date();
   }) ?? [];
 
   const upcomingTasks = myTasks?.filter((t) => {
-    if (!t.dueDate || t.completedAt) return false;
+    if (!t.dueDate) return false;
     const due = new Date(t.dueDate);
     const now = new Date();
     const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     return due >= now && due <= weekFromNow;
   }) ?? [];
+
+  const hasNoWorkspace = !workspacesLoading && (!workspaces || workspaces.length === 0);
 
   if (tasksError && projectsError) {
     return (
@@ -94,14 +106,48 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-surface-100">
-          Welcome back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}
-        </h1>
-        <p className="mt-1 text-sm text-surface-400">
-          Here&apos;s an overview of your work.
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-surface-100">
+            Welcome back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}
+          </h1>
+          <p className="mt-1 text-sm text-surface-400">
+            Here&apos;s an overview of your work.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {!hasNoWorkspace && activeWorkspaceId && (
+            <Button variant="secondary" size="sm" onClick={() => setProjectModalOpen(true)}>
+              <Plus className="h-4 w-4" />
+              New Project
+            </Button>
+          )}
+          <Button variant="primary" size="sm" onClick={() => setWorkspaceModalOpen(true)}>
+            <Building2 className="h-4 w-4" />
+            New Workspace
+          </Button>
+        </div>
       </div>
+
+      {hasNoWorkspace && (
+        <Card className="border-dashed border-primary-600/40 bg-primary-600/5">
+          <CardBody>
+            <div className="flex flex-col items-center py-4 text-center">
+              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary-600/15">
+                <Building2 className="h-6 w-6 text-primary-400" />
+              </div>
+              <h3 className="mb-1 text-sm font-semibold text-surface-100">Create your first workspace</h3>
+              <p className="mb-4 max-w-xs text-xs text-surface-400">
+                A workspace is where your team collaborates. Create one to start adding projects and tasks.
+              </p>
+              <Button size="sm" onClick={() => setWorkspaceModalOpen(true)}>
+                <Plus className="h-4 w-4" />
+                Create Workspace
+              </Button>
+            </div>
+          </CardBody>
+        </Card>
+      )}
 
       {tasksError ? (
         <PageError
@@ -137,14 +183,25 @@ export function DashboardPage() {
       <div>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-surface-200">Recent Projects</h2>
-          {activeWorkspaceId && (
-            <Link
-              to={`/workspaces/${activeWorkspaceId}/projects`}
-              className="flex items-center gap-1 text-xs font-medium text-primary-400 hover:text-primary-300 transition-colors"
-            >
-              View all <ArrowRight className="h-3 w-3" />
-            </Link>
-          )}
+          <div className="flex items-center gap-3">
+            {activeWorkspaceId && (
+              <>
+                <button
+                  onClick={() => setProjectModalOpen(true)}
+                  className="flex items-center gap-1 text-xs font-medium text-surface-400 hover:text-surface-200 transition-colors"
+                >
+                  <Plus className="h-3 w-3" />
+                  New
+                </button>
+                <Link
+                  to={`/workspaces/${activeWorkspaceId}/projects`}
+                  className="flex items-center gap-1 text-xs font-medium text-primary-400 hover:text-primary-300 transition-colors"
+                >
+                  View all <ArrowRight className="h-3 w-3" />
+                </Link>
+              </>
+            )}
+          </div>
         </div>
 
         {projectsLoading ? (
@@ -167,7 +224,18 @@ export function DashboardPage() {
           <EmptyState
             icon={<FolderKanban className="h-10 w-10" />}
             title="No projects yet"
-            description="Create a workspace and your first project to get started."
+            description={
+              hasNoWorkspace
+                ? 'Create a workspace first, then add your first project.'
+                : 'Create your first project to start tracking work.'
+            }
+            action={
+              hasNoWorkspace
+                ? { label: 'Create Workspace', onClick: () => setWorkspaceModalOpen(true) }
+                : activeWorkspaceId
+                  ? { label: 'New Project', onClick: () => setProjectModalOpen(true) }
+                  : undefined
+            }
           />
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -198,12 +266,18 @@ export function DashboardPage() {
         )}
       </div>
 
-      <div className="flex items-center gap-3">
-        <Button variant="primary" size="sm" disabled>
-          <Plus className="h-4 w-4" />
-          Quick Create Task
-        </Button>
-      </div>
+      <CreateWorkspaceModal
+        open={workspaceModalOpen}
+        onClose={() => setWorkspaceModalOpen(false)}
+      />
+
+      {activeWorkspaceId && (
+        <CreateProjectModal
+          workspaceId={activeWorkspaceId}
+          open={projectModalOpen}
+          onClose={() => setProjectModalOpen(false)}
+        />
+      )}
     </div>
   );
 }

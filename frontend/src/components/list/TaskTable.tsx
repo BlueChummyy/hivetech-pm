@@ -4,7 +4,8 @@ import { cn } from '@/utils/cn';
 import { TaskTableRow } from './TaskTableRow';
 import type { Task, ProjectStatus } from '@/types/models.types';
 
-type SortField = 'identifier' | 'title' | 'status' | 'priority' | 'assignee' | 'dueDate';
+type SortField = 'taskNumber' | 'title' | 'status' | 'priority' | 'assignee' | 'dueDate';
+
 type SortDirection = 'asc' | 'desc';
 
 interface TaskTableProps {
@@ -21,7 +22,7 @@ const PRIORITY_ORDER: Record<string, number> = {
 };
 
 const columns: { key: SortField; label: string; sortable: boolean }[] = [
-  { key: 'identifier', label: 'ID', sortable: true },
+  { key: 'taskNumber', label: 'ID', sortable: true },
   { key: 'title', label: 'Title', sortable: true },
   { key: 'status', label: 'Status', sortable: true },
   { key: 'priority', label: 'Priority', sortable: true },
@@ -30,7 +31,7 @@ const columns: { key: SortField; label: string; sortable: boolean }[] = [
 ];
 
 export function TaskTable({ tasks, statuses }: TaskTableProps) {
-  const [sortField, setSortField] = useState<SortField>('identifier');
+  const [sortField, setSortField] = useState<SortField>('taskNumber');
   const [sortDir, setSortDir] = useState<SortDirection>('asc');
 
   const handleSort = (field: SortField) => {
@@ -48,8 +49,8 @@ export function TaskTable({ tasks, statuses }: TaskTableProps) {
 
     sorted.sort((a, b) => {
       switch (sortField) {
-        case 'identifier':
-          return dir * a.identifier.localeCompare(b.identifier, undefined, { numeric: true });
+        case 'taskNumber':
+          return dir * (a.taskNumber - b.taskNumber);
         case 'title':
           return dir * a.title.localeCompare(b.title);
         case 'status': {
