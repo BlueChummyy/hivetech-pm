@@ -21,7 +21,7 @@ export function Header() {
   };
 
   return (
-    <header className="flex h-14 items-center gap-4 border-b border-surface-700 bg-surface-900 px-4">
+    <header role="banner" className="flex h-14 items-center gap-4 border-b border-surface-700 bg-surface-900 px-4">
       <button
         onClick={toggleSidebar}
         aria-label="Toggle sidebar"
@@ -32,10 +32,11 @@ export function Header() {
 
       <div className="flex-1">
         <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-500" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-500" aria-hidden="true" />
           <input
             type="text"
             placeholder="Search..."
+            aria-label="Search"
             className="w-full rounded-lg border border-surface-700 bg-surface-800 py-1.5 pl-9 pr-3 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
@@ -46,7 +47,7 @@ export function Header() {
 
         <DropdownMenu
           trigger={
-            <button aria-label="User menu" className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:ring-2 hover:ring-surface-600">
+            <button aria-label="User menu" aria-haspopup="menu" className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:ring-2 hover:ring-surface-600">
               <Avatar src={user?.avatarUrl} name={user?.name} size="sm" />
             </button>
           }

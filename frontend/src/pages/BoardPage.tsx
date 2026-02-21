@@ -1,5 +1,6 @@
 import { useParams } from 'react-router-dom';
 import { KanbanBoard } from '@/components/board/KanbanBoard';
+import { PageError } from '@/components/ui/PageError';
 import { useTasks } from '@/hooks/useTasks';
 import { useStatuses } from '@/hooks/useStatuses';
 
@@ -31,15 +32,41 @@ function BoardSkeleton() {
 
 export function BoardPage() {
   const { projectId } = useParams<{ projectId: string }>();
-  const { data: tasks, isLoading: tasksLoading } = useTasks({
+  const {
+    data: tasks,
+    isLoading: tasksLoading,
+    isError: tasksError,
+    error: tasksErr,
+    refetch: refetchTasks,
+  } = useTasks({
     projectId: projectId ?? '',
   });
-  const { data: statuses, isLoading: statusesLoading } = useStatuses(
-    projectId ?? '',
-  );
+  const {
+    data: statuses,
+    isLoading: statusesLoading,
+    isError: statusesError,
+    error: statusesErr,
+    refetch: refetchStatuses,
+  } = useStatuses(projectId ?? '');
 
   if (tasksLoading || statusesLoading) {
     return <BoardSkeleton />;
+  }
+
+  if (tasksError || statusesError) {
+    return (
+      <PageError
+        message={
+          (tasksErr as Error)?.message ||
+          (statusesErr as Error)?.message ||
+          'Failed to load board data'
+        }
+        onRetry={() => {
+          refetchTasks();
+          refetchStatuses();
+        }}
+      />
+    );
   }
 
   if (!statuses || statuses.length === 0) {

@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
 import { useWorkspace, useUpdateWorkspace, useWorkspaceMembers } from '@/hooks/useWorkspaces';
 import { WorkspaceMembers } from '@/components/settings/WorkspaceMembers';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { PageError } from '@/components/ui/PageError';
+import { useToast } from '@/components/ui/Toast';
 import { cn } from '@/utils/cn';
 
 type Tab = 'general' | 'members';
@@ -14,11 +16,30 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'members', label: 'Members' },
 ];
 
+function SettingsSkeleton() {
+  return (
+    <div className="mx-auto max-w-3xl space-y-6">
+      <Skeleton className="h-8 w-52" />
+      <div className="flex gap-1 border-b border-surface-700 pb-1">
+        {[1, 2].map((i) => (
+          <Skeleton key={i} className="h-9 w-20" />
+        ))}
+      </div>
+      <div className="rounded-xl border border-surface-700 bg-surface-800 p-6 space-y-4">
+        <Skeleton className="h-10 w-full max-w-md" />
+        <Skeleton className="h-24 w-full max-w-md" />
+        <Skeleton className="h-10 w-32" />
+      </div>
+    </div>
+  );
+}
+
 export function WorkspaceSettingsPage() {
   const { workspaceId } = useParams<{ workspaceId: string }>();
-  const { data: workspace, isLoading } = useWorkspace(workspaceId || '');
+  const { data: workspace, isLoading, isError, error, refetch } = useWorkspace(workspaceId || '');
   const { data: members } = useWorkspaceMembers(workspaceId || '');
   const updateWorkspace = useUpdateWorkspace();
+  const { toast } = useToast();
 
   const [activeTab, setActiveTab] = useState<Tab>('general');
   const [name, setName] = useState('');
@@ -33,17 +54,32 @@ export function WorkspaceSettingsPage() {
 
   function handleSave() {
     if (!workspaceId || !name.trim()) return;
-    updateWorkspace.mutate({
-      id: workspaceId,
-      data: { name: name.trim(), description },
-    });
+    updateWorkspace.mutate(
+      {
+        id: workspaceId,
+        data: { name: name.trim(), description },
+      },
+      {
+        onSuccess: () => {
+          toast({ type: 'success', title: 'Workspace settings saved' });
+        },
+        onError: (err) => {
+          toast({ type: 'error', title: 'Failed to save settings', description: (err as Error).message });
+        },
+      },
+    );
   }
 
   if (isLoading) {
+    return <SettingsSkeleton />;
+  }
+
+  if (isError) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-surface-500" />
-      </div>
+      <PageError
+        message={(error as Error)?.message || 'Failed to load workspace settings'}
+        onRetry={refetch}
+      />
     );
   }
 

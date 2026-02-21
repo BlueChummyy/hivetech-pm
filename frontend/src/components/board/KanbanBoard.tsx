@@ -170,7 +170,7 @@ export function KanbanBoard({ tasks, statuses, projectId }: KanbanBoardProps) {
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex h-full gap-4 overflow-x-auto p-4">
+      <div aria-label="Kanban board" className="flex h-full gap-4 overflow-x-auto p-4">
         {sortedStatuses.map((status) => (
           <KanbanColumn
             key={status.id}

@@ -24,6 +24,7 @@ import { PrioritySelector } from './PrioritySelector';
 import { AssigneeSelector } from './AssigneeSelector';
 import { SubtaskList } from './SubtaskList';
 import { CommentSection } from './CommentSection';
+import { useToast } from '@/components/ui/Toast';
 import { cn } from '@/utils/cn';
 import { StatusCategory } from '@/types/models.types';
 import type { Priority } from '@/types/models.types';
@@ -45,6 +46,8 @@ export function TaskDetailPanel() {
   const detachLabel = useDetachLabel();
   const uploadAttachment = useUploadAttachment();
   const deleteAttachment = useDeleteAttachment();
+
+  const { toast } = useToast();
 
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState('');
@@ -93,54 +96,88 @@ export function TaskDetailPanel() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [labelDropdownOpen]);
 
+  const onMutationError = useCallback(
+    (err: Error) => {
+      toast({ type: 'error', title: 'Failed to update task', description: err.message });
+    },
+    [toast],
+  );
+
   function saveTitle() {
     if (!task || !titleValue.trim() || titleValue === task.title) {
       setEditingTitle(false);
       return;
     }
-    updateTask.mutate({ id: task.id, data: { title: titleValue.trim() } });
+    updateTask.mutate(
+      { id: task.id, data: { title: titleValue.trim() } },
+      { onError: onMutationError },
+    );
     setEditingTitle(false);
   }
 
   function saveDescription() {
     if (!task || descValue === (task.description || '')) return;
-    updateTask.mutate({ id: task.id, data: { description: descValue } });
+    updateTask.mutate(
+      { id: task.id, data: { description: descValue } },
+      { onError: onMutationError },
+    );
   }
 
   function handleStatusChange(statusId: string) {
     if (!task) return;
-    updateTask.mutate({ id: task.id, data: { statusId } });
+    updateTask.mutate(
+      { id: task.id, data: { statusId } },
+      { onError: onMutationError },
+    );
   }
 
   function handlePriorityChange(priority: Priority) {
     if (!task) return;
-    updateTask.mutate({ id: task.id, data: { priority } });
+    updateTask.mutate(
+      { id: task.id, data: { priority } },
+      { onError: onMutationError },
+    );
   }
 
   function handleAssigneeChange(assigneeId: string | null) {
     if (!task) return;
-    updateTask.mutate({ id: task.id, data: { assigneeId } });
+    updateTask.mutate(
+      { id: task.id, data: { assigneeId } },
+      { onError: onMutationError },
+    );
   }
 
   function handleDueDateChange(date: string) {
     if (!task) return;
-    updateTask.mutate({ id: task.id, data: { dueDate: date || null } });
+    updateTask.mutate(
+      { id: task.id, data: { dueDate: date || null } },
+      { onError: onMutationError },
+    );
   }
 
   function handleLabelToggle(labelId: string) {
     if (!task) return;
     const isAttached = task.labels?.some((tl) => tl.labelId === labelId);
     if (isAttached) {
-      detachLabel.mutate({ taskId: task.id, labelId });
+      detachLabel.mutate(
+        { taskId: task.id, labelId },
+        { onError: (err) => toast({ type: 'error', title: 'Failed to remove label', description: (err as Error).message }) },
+      );
     } else {
-      attachLabel.mutate({ taskId: task.id, labelId });
+      attachLabel.mutate(
+        { taskId: task.id, labelId },
+        { onError: (err) => toast({ type: 'error', title: 'Failed to add label', description: (err as Error).message }) },
+      );
     }
   }
 
   function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file || !task) return;
-    uploadAttachment.mutate({ taskId: task.id, file });
+    uploadAttachment.mutate(
+      { taskId: task.id, file },
+      { onError: (err) => toast({ type: 'error', title: 'Failed to upload file', description: (err as Error).message }) },
+    );
     e.target.value = '';
   }
 
@@ -160,6 +197,9 @@ export function TaskDetailPanel() {
 
       {/* Panel */}
       <div
+        role="complementary"
+        aria-label="Task details"
+        aria-hidden={!taskPanelOpen}
         className={cn(
           'fixed right-0 top-0 z-50 h-full w-full bg-surface-800 border-l border-surface-700 shadow-2xl transition-transform duration-200 ease-in-out sm:w-[480px]',
           taskPanelOpen ? 'translate-x-0' : 'translate-x-full',
@@ -291,6 +331,7 @@ export function TaskDetailPanel() {
                           {tl.label?.name}
                           <button
                             onClick={() => handleLabelToggle(tl.labelId)}
+                            aria-label={`Remove ${tl.label?.name} label`}
                             className="ml-0.5 hover:text-surface-200"
                           >
                             <X className="h-3 w-3" />
@@ -441,17 +482,29 @@ export function TaskDetailPanel() {
                           <a
                             href={att.fileUrl}
                             download
+                            aria-label={`Download ${att.fileName}`}
                             className="rounded-md p-1 text-surface-400 hover:text-surface-200"
                           >
                             <Download className="h-4 w-4" />
                           </a>
                           <button
                             onClick={() =>
-                              deleteAttachment.mutate({
-                                taskId: task.id,
-                                attachmentId: att.id,
-                              })
+                              deleteAttachment.mutate(
+                                {
+                                  taskId: task.id,
+                                  attachmentId: att.id,
+                                },
+                                {
+                                  onError: (err) =>
+                                    toast({
+                                      type: 'error',
+                                      title: 'Failed to delete attachment',
+                                      description: (err as Error).message,
+                                    }),
+                                },
+                              )
                             }
+                            aria-label={`Delete ${att.fileName}`}
                             className="rounded-md p-1 text-surface-400 hover:text-red-400"
                           >
                             <Trash2 className="h-4 w-4" />

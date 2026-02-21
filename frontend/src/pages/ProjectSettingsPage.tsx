@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
 import { useProject, useUpdateProject } from '@/hooks/useProjects';
 import { useProjectMembers } from '@/hooks/useMembers';
 import { ProjectMembers } from '@/components/settings/ProjectMembers';
@@ -8,6 +7,9 @@ import { LabelManager } from '@/components/settings/LabelManager';
 import { StatusManager } from '@/components/settings/StatusManager';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { PageError } from '@/components/ui/PageError';
+import { useToast } from '@/components/ui/Toast';
 import { cn } from '@/utils/cn';
 
 type Tab = 'general' | 'members' | 'labels' | 'statuses';
@@ -19,11 +21,30 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'statuses', label: 'Statuses' },
 ];
 
+function SettingsSkeleton() {
+  return (
+    <div className="mx-auto max-w-3xl space-y-6">
+      <Skeleton className="h-8 w-48" />
+      <div className="flex gap-1 border-b border-surface-700 pb-1">
+        {[1, 2, 3, 4].map((i) => (
+          <Skeleton key={i} className="h-9 w-20" />
+        ))}
+      </div>
+      <div className="rounded-xl border border-surface-700 bg-surface-800 p-6 space-y-4">
+        <Skeleton className="h-10 w-full max-w-md" />
+        <Skeleton className="h-24 w-full max-w-md" />
+        <Skeleton className="h-10 w-32" />
+      </div>
+    </div>
+  );
+}
+
 export function ProjectSettingsPage() {
   const { projectId } = useParams<{ projectId: string }>();
-  const { data: project, isLoading } = useProject(projectId || '');
+  const { data: project, isLoading, isError, error, refetch } = useProject(projectId || '');
   const { data: members } = useProjectMembers(projectId || '');
   const updateProject = useUpdateProject();
+  const { toast } = useToast();
 
   const [activeTab, setActiveTab] = useState<Tab>('general');
   const [name, setName] = useState('');
@@ -38,14 +59,29 @@ export function ProjectSettingsPage() {
 
   function handleSave() {
     if (!projectId || !name.trim()) return;
-    updateProject.mutate({ id: projectId, data: { name: name.trim(), description } });
+    updateProject.mutate(
+      { id: projectId, data: { name: name.trim(), description } },
+      {
+        onSuccess: () => {
+          toast({ type: 'success', title: 'Project settings saved' });
+        },
+        onError: (err) => {
+          toast({ type: 'error', title: 'Failed to save settings', description: (err as Error).message });
+        },
+      },
+    );
   }
 
   if (isLoading) {
+    return <SettingsSkeleton />;
+  }
+
+  if (isError) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-surface-500" />
-      </div>
+      <PageError
+        message={(error as Error)?.message || 'Failed to load project settings'}
+        onRetry={refetch}
+      />
     );
   }
 

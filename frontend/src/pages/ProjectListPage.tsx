@@ -3,6 +3,8 @@ import { Link, useParams } from 'react-router-dom';
 import { Plus, FolderKanban } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { Button } from '@/components/ui/Button';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { PageError } from '@/components/ui/PageError';
 import { useProjects } from '@/hooks/useProjects';
 import { CreateProjectModal } from '@/components/CreateProjectModal';
 import type { Project } from '@/types/models.types';
@@ -37,24 +39,6 @@ function ProjectCard({ project }: { project: Project }) {
   );
 }
 
-function EmptyState({ onCreateClick }: { onCreateClick: () => void }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-20">
-      <div className="rounded-xl bg-white/[0.04] p-4">
-        <FolderKanban className="h-10 w-10 text-gray-500" />
-      </div>
-      <h3 className="mt-4 text-lg font-medium text-white">No projects yet</h3>
-      <p className="mt-1 text-sm text-gray-400">
-        Create your first project to start tracking work.
-      </p>
-      <Button className="mt-6" onClick={onCreateClick}>
-        <Plus className="h-4 w-4" />
-        New Project
-      </Button>
-    </div>
-  );
-}
-
 function ProjectCardSkeleton() {
   return (
     <div className="overflow-hidden rounded-lg border border-white/[0.08] bg-[#18181E]">
@@ -71,7 +55,7 @@ function ProjectCardSkeleton() {
 export function ProjectListPage() {
   const { workspaceId } = useParams<{ workspaceId: string }>();
   const [modalOpen, setModalOpen] = useState(false);
-  const { data: projects, isLoading } = useProjects(workspaceId ?? '');
+  const { data: projects, isLoading, isError, error, refetch } = useProjects(workspaceId ?? '');
 
   return (
     <div>
@@ -94,8 +78,18 @@ export function ProjectListPage() {
             <ProjectCardSkeleton key={i} />
           ))}
         </div>
+      ) : isError ? (
+        <PageError
+          message={(error as Error)?.message || 'Failed to load projects'}
+          onRetry={refetch}
+        />
       ) : !projects || projects.length === 0 ? (
-        <EmptyState onCreateClick={() => setModalOpen(true)} />
+        <EmptyState
+          icon={<FolderKanban className="h-10 w-10" />}
+          title="No projects yet"
+          description="Create your first project to start tracking work."
+          action={{ label: 'New Project', onClick: () => setModalOpen(true) }}
+        />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {projects.map((project) => (

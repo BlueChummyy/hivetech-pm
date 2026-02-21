@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bell, CheckCheck, Loader2 } from 'lucide-react';
+import { Bell, CheckCheck } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import {
   useNotifications,
@@ -8,6 +8,8 @@ import {
 } from '@/hooks/useNotifications';
 import { NotificationType } from '@/types/models.types';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { PageError } from '@/components/ui/PageError';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { Button } from '@/components/ui/Button';
 
 function getNotificationLabel(type: NotificationType): string {
@@ -39,8 +41,27 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
+function NotificationsSkeleton() {
+  return (
+    <div className="mx-auto max-w-2xl space-y-6">
+      <Skeleton className="h-8 w-40" />
+      <div className="space-y-1 rounded-xl border border-surface-700 bg-surface-800 overflow-hidden">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="flex items-start gap-3 px-4 py-3">
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function NotificationsPage() {
-  const { data: notifications, isLoading } = useNotifications();
+  const { data: notifications, isLoading, isError, error, refetch } = useNotifications();
   const markAsRead = useMarkAsRead();
   const markAllAsRead = useMarkAllAsRead();
 
@@ -54,10 +75,15 @@ export function NotificationsPage() {
   const unreadCount = notifications?.filter((n) => !n.read).length ?? 0;
 
   if (isLoading) {
+    return <NotificationsSkeleton />;
+  }
+
+  if (isError) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-surface-500" />
-      </div>
+      <PageError
+        message={(error as Error)?.message || 'Failed to load notifications'}
+        onRetry={refetch}
+      />
     );
   }
 

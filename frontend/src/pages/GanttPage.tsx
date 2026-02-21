@@ -1,12 +1,28 @@
 import { useParams } from 'react-router-dom';
 import { useTasks } from '@/hooks/useTasks';
 import { useProject } from '@/hooks/useProjects';
+import { PageError } from '@/components/ui/PageError';
 import { GanttChart } from '@/components/gantt/GanttChart';
 
 export function GanttPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const { data: project } = useProject(projectId || '');
-  const { data: tasks, isLoading } = useTasks({ projectId: projectId ?? '' });
+  const {
+    data: tasks,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useTasks({ projectId: projectId ?? '' });
+
+  if (isError) {
+    return (
+      <PageError
+        message={(error as Error)?.message || 'Failed to load timeline data'}
+        onRetry={refetch}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4">

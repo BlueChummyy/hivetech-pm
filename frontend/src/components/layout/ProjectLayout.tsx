@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useParams } from 'react-router-dom';
+import { NavLink, Outlet, useParams, useLocation } from 'react-router-dom';
 import { Columns3, List, GanttChart, Settings, Loader2 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useProject } from '@/hooks/useProjects';
@@ -13,6 +13,7 @@ const tabs = [
 
 export function ProjectLayout() {
   const { projectId } = useParams<{ projectId: string }>();
+  const location = useLocation();
   const { data: project, isLoading } = useProject(projectId ?? '');
 
   useProjectSocketEvents(projectId);
@@ -44,24 +45,27 @@ export function ProjectLayout() {
             </span>
           </div>
         </div>
-        <nav className="flex gap-1 px-6 pt-3">
-          {tabs.map((tab) => (
-            <NavLink
-              key={tab.path}
-              to={tab.path}
-              className={({ isActive }) =>
-                cn(
-                  'flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition-colors',
+        <nav className="flex gap-1 px-6 pt-3 overflow-x-auto scrollbar-hide" role="tablist" aria-label="Project views">
+          {tabs.map((tab) => {
+            const isActive = location.pathname.endsWith(`/${tab.path}`);
+            return (
+              <NavLink
+                key={tab.path}
+                to={tab.path}
+                role="tab"
+                aria-selected={isActive}
+                className={cn(
+                  'flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition-colors',
                   isActive
                     ? 'border-indigo-500 text-white'
                     : 'border-transparent text-gray-400 hover:text-gray-200',
-                )
-              }
-            >
-              <tab.icon className="h-4 w-4" />
-              {tab.label}
-            </NavLink>
-          ))}
+                )}
+              >
+                <tab.icon className="h-4 w-4" aria-hidden="true" />
+                {tab.label}
+              </NavLink>
+            );
+          })}
         </nav>
       </div>
       <div className="flex-1 overflow-hidden">

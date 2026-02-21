@@ -44,6 +44,8 @@ export function PrioritySelector({ currentPriority, onChange }: PrioritySelector
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
         className="flex items-center gap-2 rounded-md border border-surface-700 bg-surface-800 px-3 py-1.5 text-sm text-surface-200 hover:border-surface-600 transition-colors w-full"
       >
         <span
@@ -54,12 +56,14 @@ export function PrioritySelector({ currentPriority, onChange }: PrioritySelector
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[160px] rounded-lg border border-surface-700 bg-surface-800 py-1 shadow-xl">
+        <div role="listbox" className="absolute left-0 top-full z-50 mt-1 w-full min-w-[160px] rounded-lg border border-surface-700 bg-surface-800 py-1 shadow-xl">
           {PRIORITY_ORDER.map((priority) => {
             const config = PRIORITY_CONFIG[priority];
             return (
               <button
                 key={priority}
+                role="option"
+                aria-selected={priority === currentPriority}
                 onClick={() => {
                   onChange(priority);
                   setOpen(false);

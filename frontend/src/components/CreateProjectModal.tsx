@@ -5,6 +5,7 @@ import { cn } from '@/utils/cn';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useCreateProject } from '@/hooks/useProjects';
+import { useToast } from '@/components/ui/Toast';
 
 interface CreateProjectModalProps {
   workspaceId: string;
@@ -26,6 +27,7 @@ function generateKey(name: string): string {
 export function CreateProjectModal({ workspaceId, open, onClose }: CreateProjectModalProps) {
   const navigate = useNavigate();
   const createProject = useCreateProject();
+  const { toast } = useToast();
 
   const [name, setName] = useState('');
   const [key, setKey] = useState('');
@@ -99,8 +101,12 @@ export function CreateProjectModal({ workspaceId, open, onClose }: CreateProject
       if (project?.id) {
         navigate(`/projects/${project.id}/board`);
       }
-    } catch {
-      // Error is handled by React Query -- mutation error state
+    } catch (err) {
+      toast({
+        type: 'error',
+        title: 'Failed to create project',
+        description: (err as Error).message || 'Please try again.',
+      });
     }
   };
 
@@ -108,16 +114,20 @@ export function CreateProjectModal({ workspaceId, open, onClose }: CreateProject
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="fixed inset-0 bg-black/60" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-project-title"
         className={cn(
           'relative z-10 w-full max-w-md rounded-xl border border-white/[0.08] bg-[#18181E] shadow-2xl',
         )}
       >
         <div className="flex items-center justify-between border-b border-white/[0.08] px-6 py-4">
-          <h2 className="text-lg font-semibold text-white">New Project</h2>
+          <h2 id="create-project-title" className="text-lg font-semibold text-white">New Project</h2>
           <button
             onClick={onClose}
+            aria-label="Close dialog"
             className="rounded-md p-1 text-gray-400 transition-colors hover:bg-white/[0.08] hover:text-gray-200"
           >
             <X className="h-5 w-5" />

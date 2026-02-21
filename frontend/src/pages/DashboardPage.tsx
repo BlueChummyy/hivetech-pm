@@ -11,6 +11,7 @@ import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { PageError } from '@/components/ui/PageError';
 import { useAuthStore } from '@/store/auth.store';
 import { useWorkspaceStore } from '@/store/workspace.store';
 import { useProjects } from '@/hooks/useProjects';
@@ -52,8 +53,20 @@ export function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
 
-  const { data: projects, isLoading: projectsLoading } = useProjects(activeWorkspaceId || '');
-  const { data: myTasks, isLoading: tasksLoading } = useTasks(
+  const {
+    data: projects,
+    isLoading: projectsLoading,
+    isError: projectsError,
+    error: projectsErr,
+    refetch: refetchProjects,
+  } = useProjects(activeWorkspaceId || '');
+  const {
+    data: myTasks,
+    isLoading: tasksLoading,
+    isError: tasksError,
+    error: tasksErr,
+    refetch: refetchTasks,
+  } = useTasks(
     user?.id ? { assigneeId: user.id } : {},
   );
 
@@ -70,6 +83,15 @@ export function DashboardPage() {
     return due >= now && due <= weekFromNow;
   }) ?? [];
 
+  if (tasksError && projectsError) {
+    return (
+      <PageError
+        message={(projectsErr as Error)?.message || 'Failed to load dashboard data'}
+        onRetry={() => { refetchProjects(); refetchTasks(); }}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -81,29 +103,36 @@ export function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard
-          icon={<CheckSquare className="h-5 w-5 text-primary-400" />}
-          label="My Tasks"
-          value={myTasks?.length ?? 0}
-          color="bg-primary-600/15"
-          loading={tasksLoading}
+      {tasksError ? (
+        <PageError
+          message={(tasksErr as Error)?.message || 'Failed to load tasks'}
+          onRetry={refetchTasks}
         />
-        <StatCard
-          icon={<AlertTriangle className="h-5 w-5 text-red-400" />}
-          label="Overdue"
-          value={overdueTasks.length}
-          color="bg-red-500/15"
-          loading={tasksLoading}
-        />
-        <StatCard
-          icon={<CalendarClock className="h-5 w-5 text-amber-400" />}
-          label="Due This Week"
-          value={upcomingTasks.length}
-          color="bg-amber-500/15"
-          loading={tasksLoading}
-        />
-      </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <StatCard
+            icon={<CheckSquare className="h-5 w-5 text-primary-400" />}
+            label="My Tasks"
+            value={myTasks?.length ?? 0}
+            color="bg-primary-600/15"
+            loading={tasksLoading}
+          />
+          <StatCard
+            icon={<AlertTriangle className="h-5 w-5 text-red-400" />}
+            label="Overdue"
+            value={overdueTasks.length}
+            color="bg-red-500/15"
+            loading={tasksLoading}
+          />
+          <StatCard
+            icon={<CalendarClock className="h-5 w-5 text-amber-400" />}
+            label="Due This Week"
+            value={upcomingTasks.length}
+            color="bg-amber-500/15"
+            loading={tasksLoading}
+          />
+        </div>
+      )}
 
       <div>
         <div className="mb-4 flex items-center justify-between">
@@ -129,6 +158,11 @@ export function DashboardPage() {
               </Card>
             ))}
           </div>
+        ) : projectsError ? (
+          <PageError
+            message={(projectsErr as Error)?.message || 'Failed to load projects'}
+            onRetry={refetchProjects}
+          />
         ) : !projects || projects.length === 0 ? (
           <EmptyState
             icon={<FolderKanban className="h-10 w-10" />}

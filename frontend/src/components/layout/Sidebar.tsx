@@ -58,6 +58,8 @@ export function Sidebar() {
 
   return (
     <aside
+      role="navigation"
+      aria-label="Main navigation"
       className={cn(
         'flex h-screen flex-col border-r border-surface-700 bg-surface-900 transition-all duration-300',
         sidebarCollapsed ? 'w-16' : 'w-64',
@@ -98,6 +100,7 @@ export function Sidebar() {
             <Link
               key={item.label}
               to={item.path}
+              aria-current={isActive ? 'page' : undefined}
               className={cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                 isActive

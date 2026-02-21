@@ -57,6 +57,15 @@ export function KanbanCard({ task, overlay }: KanbanCardProps) {
       {...(overlay ? {} : attributes)}
       {...(overlay ? {} : listeners)}
       onClick={handleClick}
+      role="article"
+      aria-label={task.title}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleClick();
+        }
+      }}
       className={cn(
         'cursor-pointer rounded-lg border border-white/[0.08] bg-[#1E1E26] p-3 transition-colors hover:bg-[#252530]',
         isDragging && 'opacity-50',
@@ -85,7 +94,7 @@ export function KanbanCard({ task, overlay }: KanbanCardProps) {
       <p className="text-sm font-medium text-white leading-snug">{task.title}</p>
 
       {/* Identifier */}
-      <p className="mt-1 text-xs text-gray-500">{task.identifier}</p>
+      <p className="mt-1 text-xs text-gray-400">{task.identifier}</p>
 
       {/* Bottom row: metadata */}
       <div className="mt-3 flex items-center gap-3">
@@ -93,13 +102,13 @@ export function KanbanCard({ task, overlay }: KanbanCardProps) {
         {task.priority !== 'NONE' && (
           <div className="flex items-center gap-1" title={PRIORITY_LABELS[task.priority]}>
             <span className={cn('h-2 w-2 rounded-full', PRIORITY_COLORS[task.priority])} />
-            <span className="text-[10px] text-gray-500">{PRIORITY_LABELS[task.priority]}</span>
+            <span className="text-[10px] text-gray-400">{PRIORITY_LABELS[task.priority]}</span>
           </div>
         )}
 
         {/* Due date */}
         {task.dueDate && (
-          <div className="flex items-center gap-1 text-gray-500">
+          <div className="flex items-center gap-1 text-gray-400">
             <Calendar className="h-3 w-3" />
             <span className="text-[10px]">{format(new Date(task.dueDate), 'MMM d')}</span>
           </div>
@@ -107,14 +116,14 @@ export function KanbanCard({ task, overlay }: KanbanCardProps) {
 
         {/* Subtask progress */}
         {subtasks.length > 0 && (
-          <span className="text-[10px] text-gray-500">
+          <span className="text-[10px] text-gray-400">
             {completedSubtasks}/{subtasks.length}
           </span>
         )}
 
         {/* Comments */}
         {commentCount > 0 && (
-          <div className="flex items-center gap-1 text-gray-500">
+          <div className="flex items-center gap-1 text-gray-400">
             <MessageSquare className="h-3 w-3" />
             <span className="text-[10px]">{commentCount}</span>
           </div>

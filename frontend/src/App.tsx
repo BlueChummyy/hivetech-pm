@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ProjectLayout } from '@/components/layout/ProjectLayout';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { LoginPage } from '@/pages/LoginPage';
 import { RegisterPage } from '@/pages/RegisterPage';
 import { DashboardPage } from '@/pages/DashboardPage';
@@ -63,6 +64,14 @@ function PageLoader() {
   );
 }
 
+function withErrorBoundary(Component: React.ComponentType) {
+  return (
+    <ErrorBoundary>
+      <Component />
+    </ErrorBoundary>
+  );
+}
+
 export function App() {
   return (
     <Suspense fallback={<PageLoader />}>
@@ -73,24 +82,24 @@ export function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/dashboard" element={withErrorBoundary(DashboardPage)} />
             <Route
               path="/workspaces/:workspaceId/projects"
-              element={<ProjectListPage />}
+              element={withErrorBoundary(ProjectListPage)}
             />
             <Route path="/projects/:projectId" element={<ProjectLayout />}>
               <Route index element={<Navigate to="board" replace />} />
-              <Route path="board" element={<BoardPage />} />
-              <Route path="list" element={<ListPage />} />
-              <Route path="gantt" element={<GanttPage />} />
-              <Route path="settings" element={<ProjectSettingsPage />} />
+              <Route path="board" element={withErrorBoundary(BoardPage)} />
+              <Route path="list" element={withErrorBoundary(ListPage)} />
+              <Route path="gantt" element={withErrorBoundary(GanttPage)} />
+              <Route path="settings" element={withErrorBoundary(ProjectSettingsPage)} />
             </Route>
             <Route
               path="/workspaces/:workspaceId/settings"
-              element={<WorkspaceSettingsPage />}
+              element={withErrorBoundary(WorkspaceSettingsPage)}
             />
-            <Route path="/settings/profile" element={<ProfileSettingsPage />} />
-            <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/settings/profile" element={withErrorBoundary(ProfileSettingsPage)} />
+            <Route path="/notifications" element={withErrorBoundary(NotificationsPage)} />
             <Route
               path="/my-tasks"
               element={<PlaceholderPage title="My Tasks" />}

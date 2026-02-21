@@ -40,6 +40,8 @@ function FilterDropdown({ label, children }: DropdownProps) {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        aria-haspopup="listbox"
         className={cn(
           'flex items-center gap-1 rounded-md border border-white/[0.08] px-3 py-1.5 text-sm transition-colors',
           open
@@ -48,7 +50,7 @@ function FilterDropdown({ label, children }: DropdownProps) {
         )}
       >
         {label}
-        <ChevronDown className="h-3.5 w-3.5" />
+        <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
       </button>
       {open && (
         <div className="absolute left-0 top-full z-20 mt-1 min-w-[180px] rounded-lg border border-white/[0.08] bg-[#1E1E26] py-1 shadow-xl">
@@ -93,10 +95,11 @@ export function FilterBar({ filters, onFiltersChange, statuses }: FilterBarProps
     <div className="flex items-center gap-3">
       {/* Search */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" aria-hidden="true" />
         <input
           type="text"
           placeholder="Search tasks..."
+          aria-label="Search tasks"
           value={filters.search}
           onChange={(e) => onFiltersChange({ ...filters, search: e.target.value })}
           className="w-56 rounded-md border border-white/[0.08] bg-[#1E1E26] py-1.5 pl-9 pr-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -193,7 +196,7 @@ export function FilterBar({ filters, onFiltersChange, statuses }: FilterBarProps
                   style={{ backgroundColor: s.color }}
                 />
                 {s.name}
-                <button onClick={() => toggleStatus(sid)} className="ml-0.5 text-gray-500 hover:text-gray-300">
+                <button onClick={() => toggleStatus(sid)} aria-label={`Remove ${s.name} filter`} className="ml-0.5 text-gray-500 hover:text-gray-300">
                   <X className="h-3 w-3" />
                 </button>
               </span>
@@ -211,7 +214,7 @@ export function FilterBar({ filters, onFiltersChange, statuses }: FilterBarProps
                   style={{ backgroundColor: pi.color }}
                 />
                 {pi.label}
-                <button onClick={() => togglePriority(p)} className="ml-0.5 text-gray-500 hover:text-gray-300">
+                <button onClick={() => togglePriority(p)} aria-label={`Remove ${pi.label} filter`} className="ml-0.5 text-gray-500 hover:text-gray-300">
                   <X className="h-3 w-3" />
                 </button>
               </span>

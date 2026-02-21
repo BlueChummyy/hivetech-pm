@@ -5,6 +5,7 @@ import { Plus } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { KanbanCard } from './KanbanCard';
 import { useCreateTask } from '@/hooks/useTasks';
+import { useToast } from '@/components/ui/Toast';
 import type { Task, ProjectStatus } from '@/types/models.types';
 
 interface KanbanColumnProps {
@@ -17,6 +18,7 @@ export function KanbanColumn({ status, tasks, projectId }: KanbanColumnProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const createTask = useCreateTask();
+  const { toast } = useToast();
 
   const { setNodeRef, isOver } = useDroppable({ id: status.id });
 
@@ -35,8 +37,12 @@ export function KanbanColumn({ status, tasks, projectId }: KanbanColumnProps) {
       });
       setNewTitle('');
       setIsAdding(false);
-    } catch {
-      // Error handled by React Query
+    } catch (err) {
+      toast({
+        type: 'error',
+        title: 'Failed to create task',
+        description: (err as Error).message || 'Please try again.',
+      });
     }
   };
 
@@ -53,6 +59,8 @@ export function KanbanColumn({ status, tasks, projectId }: KanbanColumnProps) {
 
   return (
     <div
+      role="group"
+      aria-label={status.name}
       className={cn(
         'flex h-full w-72 shrink-0 flex-col rounded-lg bg-[#14141A]',
         isOver && 'ring-1 ring-indigo-500/40',
@@ -65,7 +73,7 @@ export function KanbanColumn({ status, tasks, projectId }: KanbanColumnProps) {
           style={{ backgroundColor: status.color }}
         />
         <h3 className="text-sm font-medium text-gray-300">{status.name}</h3>
-        <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-xs text-gray-500">
+        <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-xs text-gray-400">
           {tasks.length}
         </span>
       </div>
@@ -89,7 +97,8 @@ export function KanbanColumn({ status, tasks, projectId }: KanbanColumnProps) {
             onBlur={handleAddTask}
             onKeyDown={handleKeyDown}
             placeholder="Task title..."
-            className="w-full rounded-md border border-white/[0.08] bg-[#1E1E26] px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            aria-label={`New task in ${status.name}`}
+            className="w-full rounded-md border border-white/[0.08] bg-[#1E1E26] px-3 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
         ) : (
           <button

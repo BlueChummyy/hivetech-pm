@@ -4,11 +4,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { useUpdateProfile, useChangePassword } from '@/hooks/useUsers';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { useToast } from '@/components/ui/Toast';
 
 export function ProfileSettingsPage() {
   const { user } = useAuth();
   const updateProfile = useUpdateProfile();
   const changePassword = useChangePassword();
+  const { toast } = useToast();
 
   const [name, setName] = useState(user?.name || '');
   const [currentPassword, setCurrentPassword] = useState('');
@@ -19,7 +21,17 @@ export function ProfileSettingsPage() {
 
   function handleProfileSave() {
     if (!name.trim()) return;
-    updateProfile.mutate({ name: name.trim() });
+    updateProfile.mutate(
+      { name: name.trim() },
+      {
+        onSuccess: () => {
+          toast({ type: 'success', title: 'Profile updated successfully' });
+        },
+        onError: (err) => {
+          toast({ type: 'error', title: 'Failed to update profile', description: (err as Error).message });
+        },
+      },
+    );
   }
 
   function handlePasswordChange() {
@@ -47,6 +59,7 @@ export function ProfileSettingsPage() {
           setCurrentPassword('');
           setNewPassword('');
           setConfirmPassword('');
+          toast({ type: 'success', title: 'Password changed successfully' });
         },
         onError: () => {
           setPasswordError('Failed to change password. Check your current password.');

@@ -61,6 +61,8 @@ export function Select({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
         className={cn(
           'flex w-full items-center justify-between rounded-lg border border-surface-700 bg-surface-800 px-3 py-2 text-sm transition-colors hover:border-surface-600',
           open && 'ring-2 ring-primary-500 ring-offset-1 ring-offset-surface-900',
@@ -70,10 +72,10 @@ export function Select({
           {selected?.icon}
           {selected?.label || placeholder}
         </span>
-        <ChevronDown className={cn('h-4 w-4 text-surface-400 transition-transform', open && 'rotate-180')} />
+        <ChevronDown className={cn('h-4 w-4 text-surface-400 transition-transform', open && 'rotate-180')} aria-hidden="true" />
       </button>
       {open && (
-        <div className="absolute z-50 mt-1 w-full rounded-lg border border-surface-700 bg-surface-800 py-1 shadow-xl">
+        <div role="listbox" className="absolute z-50 mt-1 w-full rounded-lg border border-surface-700 bg-surface-800 py-1 shadow-xl">
           {searchable && (
             <div className="px-2 pb-1 pt-1">
               <div className="relative">
@@ -97,6 +99,8 @@ export function Select({
               <button
                 key={option.value}
                 type="button"
+                role="option"
+                aria-selected={option.value === value}
                 onClick={() => {
                   onChange(option.value);
                   setOpen(false);

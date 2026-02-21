@@ -64,19 +64,24 @@ function StatusBadge({
           e.stopPropagation();
           setOpen(!open);
         }}
+        aria-haspopup="listbox"
+        aria-expanded={open}
         className="flex items-center gap-1.5 rounded px-2 py-0.5 text-xs font-medium transition-colors hover:bg-white/[0.06]"
       >
         <span
           className="h-2 w-2 rounded-full"
           style={{ backgroundColor: currentStatus?.color ?? '#6B7280' }}
+          aria-hidden="true"
         />
         {currentStatus?.name ?? 'Unknown'}
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-20 mt-1 min-w-[160px] rounded-lg border border-white/[0.08] bg-[#1E1E26] py-1 shadow-xl">
+        <div role="listbox" className="absolute left-0 top-full z-20 mt-1 min-w-[160px] rounded-lg border border-white/[0.08] bg-[#1E1E26] py-1 shadow-xl">
           {statuses.map((s) => (
             <button
               key={s.id}
+              role="option"
+              aria-selected={s.id === task.statusId}
               onClick={(e) => {
                 e.stopPropagation();
                 handleSelect(s.id);
@@ -89,6 +94,7 @@ function StatusBadge({
               <span
                 className="h-2 w-2 rounded-full"
                 style={{ backgroundColor: s.color }}
+                aria-hidden="true"
               />
               {s.name}
             </button>
@@ -127,16 +133,20 @@ function PriorityBadge({ task }: { task: Task }) {
           e.stopPropagation();
           setOpen(!open);
         }}
+        aria-haspopup="listbox"
+        aria-expanded={open}
         className="flex items-center gap-1.5 rounded px-2 py-0.5 text-xs font-medium transition-colors hover:bg-white/[0.06]"
       >
-        <span className={cn('h-2 w-2 rounded-full', PRIORITY_COLORS[task.priority])} />
+        <span className={cn('h-2 w-2 rounded-full', PRIORITY_COLORS[task.priority])} aria-hidden="true" />
         {PRIORITY_LABELS[task.priority]}
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-20 mt-1 min-w-[140px] rounded-lg border border-white/[0.08] bg-[#1E1E26] py-1 shadow-xl">
+        <div role="listbox" className="absolute left-0 top-full z-20 mt-1 min-w-[140px] rounded-lg border border-white/[0.08] bg-[#1E1E26] py-1 shadow-xl">
           {ALL_PRIORITIES.map((p) => (
             <button
               key={p}
+              role="option"
+              aria-selected={p === task.priority}
               onClick={(e) => {
                 e.stopPropagation();
                 handleSelect(p);
@@ -146,7 +156,7 @@ function PriorityBadge({ task }: { task: Task }) {
                 p === task.priority && 'text-white',
               )}
             >
-              <span className={cn('h-2 w-2 rounded-full', PRIORITY_COLORS[p])} />
+              <span className={cn('h-2 w-2 rounded-full', PRIORITY_COLORS[p])} aria-hidden="true" />
               {PRIORITY_LABELS[p]}
             </button>
           ))}
@@ -167,7 +177,7 @@ export function TaskTableRow({ task, statuses }: TaskTableRowProps) {
       className="group cursor-pointer border-b border-white/[0.04] transition-colors hover:bg-white/[0.03]"
     >
       {/* Identifier */}
-      <td className="whitespace-nowrap px-4 py-2.5 text-xs text-gray-500">
+      <td className="whitespace-nowrap px-4 py-2.5 text-xs text-gray-400">
         {task.identifier}
       </td>
 
@@ -222,7 +232,7 @@ export function TaskTableRow({ task, statuses }: TaskTableRowProps) {
             <span className="text-sm text-gray-300">{task.assignee.name}</span>
           </div>
         ) : (
-          <span className="text-sm text-gray-500">Unassigned</span>
+          <span className="text-sm text-gray-400">Unassigned</span>
         )}
       </td>
 

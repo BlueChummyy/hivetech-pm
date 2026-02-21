@@ -99,6 +99,14 @@ export function TaskTable({ tasks, statuses }: TaskTableProps) {
             {columns.map((col) => (
               <th
                 key={col.key}
+                scope="col"
+                aria-sort={
+                  col.sortable && sortField === col.key
+                    ? sortDir === 'asc'
+                      ? 'ascending'
+                      : 'descending'
+                    : undefined
+                }
                 className={cn(
                   'px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500',
                   col.sortable && 'cursor-pointer select-none hover:text-gray-300',
@@ -110,12 +118,12 @@ export function TaskTable({ tasks, statuses }: TaskTableProps) {
                   {col.sortable &&
                     (sortField === col.key ? (
                       sortDir === 'asc' ? (
-                        <ArrowUp className="h-3 w-3" />
+                        <ArrowUp className="h-3 w-3" aria-hidden="true" />
                       ) : (
-                        <ArrowDown className="h-3 w-3" />
+                        <ArrowDown className="h-3 w-3" aria-hidden="true" />
                       )
                     ) : (
-                      <ArrowUpDown className="h-3 w-3 opacity-0 group-hover:opacity-100" />
+                      <ArrowUpDown className="h-3 w-3 opacity-0 group-hover:opacity-100" aria-hidden="true" />
                     ))}
                 </div>
               </th>

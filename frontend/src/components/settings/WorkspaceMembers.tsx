@@ -6,6 +6,7 @@ import { usersApi } from '@/api/users';
 import type { WorkspaceMember } from '@/types/models.types';
 import { WorkspaceRole } from '@/types/models.types';
 import { Button } from '@/components/ui/Button';
+import { useToast } from '@/components/ui/Toast';
 
 interface WorkspaceMembersProps {
   workspaceId: string;
@@ -23,6 +24,7 @@ export function WorkspaceMembers({ workspaceId, members }: WorkspaceMembersProps
   const [search, setSearch] = useState('');
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const qc = useQueryClient();
+  const { toast } = useToast();
 
   const { data: searchResults } = useQuery({
     queryKey: ['users', { search }],
@@ -38,6 +40,9 @@ export function WorkspaceMembers({ workspaceId, members }: WorkspaceMembersProps
       setAdding(false);
       setSearch('');
     },
+    onError: (err) => {
+      toast({ type: 'error', title: 'Failed to add member', description: (err as Error).message });
+    },
   });
 
   const updateRole = useMutation({
@@ -45,6 +50,9 @@ export function WorkspaceMembers({ workspaceId, members }: WorkspaceMembersProps
       workspacesApi.updateMember(workspaceId, memberId, { role }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['workspaces', workspaceId, 'members'] });
+    },
+    onError: (err) => {
+      toast({ type: 'error', title: 'Failed to update role', description: (err as Error).message });
     },
   });
 
@@ -54,6 +62,9 @@ export function WorkspaceMembers({ workspaceId, members }: WorkspaceMembersProps
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['workspaces', workspaceId, 'members'] });
       setConfirmRemove(null);
+    },
+    onError: (err) => {
+      toast({ type: 'error', title: 'Failed to remove member', description: (err as Error).message });
     },
   });
 

@@ -4,6 +4,7 @@ import type { Task } from '@/types/models.types';
 import { StatusCategory } from '@/types/models.types';
 import { useUIStore } from '@/store/ui.store';
 import { useCreateTask, useUpdateTask } from '@/hooks/useTasks';
+import { useToast } from '@/components/ui/Toast';
 import { cn } from '@/utils/cn';
 
 interface SubtaskListProps {
@@ -19,6 +20,7 @@ export function SubtaskList({ parentTask, subtasks, doneStatusId }: SubtaskListP
   const openTaskPanel = useUIStore((s) => s.openTaskPanel);
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
+  const { toast } = useToast();
 
   const completedCount = subtasks.filter(
     (t) => t.status?.category === StatusCategory.DONE || t.status?.category === StatusCategory.CANCELLED,
@@ -58,6 +60,9 @@ export function SubtaskList({ parentTask, subtasks, doneStatusId }: SubtaskListP
         onSuccess: () => {
           setNewTitle('');
           setAdding(false);
+        },
+        onError: (err) => {
+          toast({ type: 'error', title: 'Failed to create subtask', description: (err as Error).message });
         },
       },
     );

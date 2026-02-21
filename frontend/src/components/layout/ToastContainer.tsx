@@ -31,10 +31,11 @@ export function ToastContainer() {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 max-w-sm">
+    <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 max-w-sm" aria-live="polite" aria-atomic="false">
       {toasts.map(toast => (
         <div
           key={toast.id}
+          role="alert"
           className={cn(
             'flex items-start gap-3 rounded-lg border border-white/[0.08] bg-[#1E1E26] p-4 shadow-xl',
             'animate-in slide-in-from-right-5 duration-200',
@@ -42,7 +43,7 @@ export function ToastContainer() {
           )}
           onClick={() => toast.resourceId && handleClick(toast)}
         >
-          <div className="shrink-0 mt-0.5">
+          <div className="shrink-0 mt-0.5" aria-hidden="true">
             {toast.type === 'success' ? (
               <CheckCircle2 className="h-5 w-5 text-green-400" />
             ) : (
@@ -55,6 +56,7 @@ export function ToastContainer() {
           </div>
           <button
             onClick={(e) => { e.stopPropagation(); dismiss(toast.id); }}
+            aria-label="Dismiss notification"
             className="shrink-0 rounded p-1 text-gray-500 hover:text-gray-300 transition-colors"
           >
             <X className="h-4 w-4" />

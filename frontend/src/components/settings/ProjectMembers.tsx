@@ -6,7 +6,7 @@ import { usersApi } from '@/api/users';
 import type { ProjectMember } from '@/types/models.types';
 import { ProjectRole } from '@/types/models.types';
 import { Button } from '@/components/ui/Button';
-import { cn } from '@/utils/cn';
+import { useToast } from '@/components/ui/Toast';
 
 interface ProjectMembersProps {
   projectId: string;
@@ -19,17 +19,12 @@ const ROLE_OPTIONS = [
   { value: ProjectRole.VIEWER, label: 'Viewer' },
 ];
 
-const ROLE_COLORS: Record<string, string> = {
-  LEAD: 'bg-primary-600/20 text-primary-400',
-  MEMBER: 'bg-accent-teal/20 text-accent-teal',
-  VIEWER: 'bg-surface-600/20 text-surface-400',
-};
-
 export function ProjectMembers({ projectId, members }: ProjectMembersProps) {
   const [adding, setAdding] = useState(false);
   const [search, setSearch] = useState('');
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const qc = useQueryClient();
+  const { toast } = useToast();
 
   const { data: searchResults } = useQuery({
     queryKey: ['users', { search }],
@@ -45,6 +40,9 @@ export function ProjectMembers({ projectId, members }: ProjectMembersProps) {
       setAdding(false);
       setSearch('');
     },
+    onError: (err) => {
+      toast({ type: 'error', title: 'Failed to add member', description: (err as Error).message });
+    },
   });
 
   const updateRole = useMutation({
@@ -53,6 +51,9 @@ export function ProjectMembers({ projectId, members }: ProjectMembersProps) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['members', projectId] });
     },
+    onError: (err) => {
+      toast({ type: 'error', title: 'Failed to update role', description: (err as Error).message });
+    },
   });
 
   const removeMember = useMutation({
@@ -60,6 +61,9 @@ export function ProjectMembers({ projectId, members }: ProjectMembersProps) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['members', projectId] });
       setConfirmRemove(null);
+    },
+    onError: (err) => {
+      toast({ type: 'error', title: 'Failed to remove member', description: (err as Error).message });
     },
   });
 

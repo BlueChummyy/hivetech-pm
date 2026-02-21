@@ -4,6 +4,7 @@ import { formatDistanceToNow } from 'date-fns';
 import type { Comment } from '@/types/models.types';
 import { useComments, useCreateComment } from '@/hooks/useComments';
 import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/components/ui/Toast';
 
 interface CommentSectionProps {
   taskId: string;
@@ -14,12 +15,18 @@ export function CommentSection({ taskId }: CommentSectionProps) {
   const { data: comments, isLoading } = useComments(taskId);
   const createComment = useCreateComment();
   const { user } = useAuth();
+  const { toast } = useToast();
 
   function handleSubmit() {
     if (!content.trim()) return;
     createComment.mutate(
       { taskId, data: { content: content.trim() } },
-      { onSuccess: () => setContent('') },
+      {
+        onSuccess: () => setContent(''),
+        onError: (err) => {
+          toast({ type: 'error', title: 'Failed to post comment', description: (err as Error).message });
+        },
+      },
     );
   }
 

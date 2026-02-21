@@ -9,6 +9,7 @@ import {
   useDeleteStatus,
 } from '@/hooks/useStatuses';
 import { Button } from '@/components/ui/Button';
+import { useToast } from '@/components/ui/Toast';
 
 const PRESET_COLORS = [
   '#6B7280', '#EF4444', '#F97316', '#EAB308', '#22C55E',
@@ -40,6 +41,7 @@ export function StatusManager({ projectId }: StatusManagerProps) {
   const createStatus = useCreateStatus();
   const updateStatus = useUpdateStatus();
   const deleteStatus = useDeleteStatus();
+  const { toast } = useToast();
 
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState('');
@@ -70,6 +72,9 @@ export function StatusManager({ projectId }: StatusManagerProps) {
           setNewCategory(StatusCategory.TODO);
           setAdding(false);
         },
+        onError: (err) => {
+          toast({ type: 'error', title: 'Failed to create status', description: (err as Error).message });
+        },
       },
     );
   }
@@ -78,16 +83,35 @@ export function StatusManager({ projectId }: StatusManagerProps) {
     if (!editName.trim()) return;
     updateStatus.mutate(
       { projectId, statusId, data: { name: editName.trim() } },
-      { onSuccess: () => setEditingId(null) },
+      {
+        onSuccess: () => setEditingId(null),
+        onError: (err) => {
+          toast({ type: 'error', title: 'Failed to update status', description: (err as Error).message });
+        },
+      },
     );
   }
 
   function handleCategoryChange(statusId: string, category: string) {
-    updateStatus.mutate({ projectId, statusId, data: { category } });
+    updateStatus.mutate(
+      { projectId, statusId, data: { category } },
+      {
+        onError: (err) => {
+          toast({ type: 'error', title: 'Failed to update status', description: (err as Error).message });
+        },
+      },
+    );
   }
 
   function handleColorChange(statusId: string, color: string) {
-    updateStatus.mutate({ projectId, statusId, data: { color } });
+    updateStatus.mutate(
+      { projectId, statusId, data: { color } },
+      {
+        onError: (err) => {
+          toast({ type: 'error', title: 'Failed to update status', description: (err as Error).message });
+        },
+      },
+    );
   }
 
   if (isLoading) {
@@ -221,7 +245,14 @@ export function StatusManager({ projectId }: StatusManagerProps) {
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => {
-                    deleteStatus.mutate({ projectId, statusId: status.id });
+                    deleteStatus.mutate(
+                      { projectId, statusId: status.id },
+                      {
+                        onError: (err) => {
+                          toast({ type: 'error', title: 'Failed to delete status', description: (err as Error).message });
+                        },
+                      },
+                    );
                     setConfirmDelete(null);
                   }}
                   className="rounded px-2 py-1 text-xs text-red-400 hover:bg-red-500/10"

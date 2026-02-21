@@ -8,6 +8,7 @@ import {
   useDeleteLabel,
 } from '@/hooks/useLabels';
 import { Button } from '@/components/ui/Button';
+import { useToast } from '@/components/ui/Toast';
 
 const PRESET_COLORS = [
   '#EF4444', '#F97316', '#EAB308', '#22C55E', '#14B8A6',
@@ -23,6 +24,7 @@ export function LabelManager({ projectId }: LabelManagerProps) {
   const createLabel = useCreateLabel();
   const updateLabel = useUpdateLabel();
   const deleteLabel = useDeleteLabel();
+  const { toast } = useToast();
 
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState('');
@@ -42,6 +44,9 @@ export function LabelManager({ projectId }: LabelManagerProps) {
           setNewColor(PRESET_COLORS[0]);
           setAdding(false);
         },
+        onError: (err) => {
+          toast({ type: 'error', title: 'Failed to create label', description: (err as Error).message });
+        },
       },
     );
   }
@@ -55,7 +60,12 @@ export function LabelManager({ projectId }: LabelManagerProps) {
   function saveEdit(labelId: string) {
     updateLabel.mutate(
       { projectId, labelId, data: { name: editName.trim(), color: editColor } },
-      { onSuccess: () => setEditingId(null) },
+      {
+        onSuccess: () => setEditingId(null),
+        onError: (err) => {
+          toast({ type: 'error', title: 'Failed to update label', description: (err as Error).message });
+        },
+      },
     );
   }
 
@@ -172,7 +182,14 @@ export function LabelManager({ projectId }: LabelManagerProps) {
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => {
-                        deleteLabel.mutate({ projectId, labelId: label.id });
+                        deleteLabel.mutate(
+                          { projectId, labelId: label.id },
+                          {
+                            onError: (err) => {
+                              toast({ type: 'error', title: 'Failed to delete label', description: (err as Error).message });
+                            },
+                          },
+                        );
                         setConfirmDelete(null);
                       }}
                       className="rounded px-2 py-1 text-xs text-red-400 hover:bg-red-500/10"

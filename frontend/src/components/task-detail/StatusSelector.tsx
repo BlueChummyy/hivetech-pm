@@ -29,6 +29,8 @@ export function StatusSelector({ statuses, currentStatusId, onChange }: StatusSe
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
         className="flex items-center gap-2 rounded-md border border-surface-700 bg-surface-800 px-3 py-1.5 text-sm text-surface-200 hover:border-surface-600 transition-colors w-full"
       >
         <span
@@ -39,13 +41,15 @@ export function StatusSelector({ statuses, currentStatusId, onChange }: StatusSe
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[180px] rounded-lg border border-surface-700 bg-surface-800 py-1 shadow-xl">
+        <div role="listbox" className="absolute left-0 top-full z-50 mt-1 w-full min-w-[180px] rounded-lg border border-surface-700 bg-surface-800 py-1 shadow-xl">
           {statuses
             .slice()
             .sort((a, b) => a.position - b.position)
             .map((status) => (
               <button
                 key={status.id}
+                role="option"
+                aria-selected={status.id === currentStatusId}
                 onClick={() => {
                   onChange(status.id);
                   setOpen(false);
