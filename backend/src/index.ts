@@ -1,4 +1,5 @@
 import http from 'node:http';
+import jwt from 'jsonwebtoken';
 import { Server as SocketIOServer } from 'socket.io';
 import { createApp } from './app.js';
 import { env } from './config/index.js';
@@ -19,8 +20,27 @@ const io = new SocketIOServer(server, {
 
 setSocketIO(io);
 
+// JWT authentication middleware for Socket.io
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token;
+  if (!token) {
+    return next(new Error('Authentication required'));
+  }
+  try {
+    const payload = jwt.verify(token, env.JWT_ACCESS_SECRET) as { sub: string; email: string };
+    socket.data.userId = payload.sub;
+    socket.data.email = payload.email;
+    next();
+  } catch {
+    next(new Error('Invalid token'));
+  }
+});
+
 io.on('connection', (socket) => {
-  logger.info({ socketId: socket.id }, 'Client connected');
+  logger.info({ socketId: socket.id, userId: socket.data.userId }, 'Client connected');
+
+  // Auto-join user's personal room for notifications
+  socket.join(`user:${socket.data.userId}`);
 
   // Join workspace rooms
   socket.on('join:workspace', (workspaceId: string) => {
@@ -34,11 +54,6 @@ io.on('connection', (socket) => {
     logger.debug({ socketId: socket.id, projectId }, 'Joined project room');
   });
 
-  // Join user room (for notifications)
-  socket.on('join:user', (userId: string) => {
-    socket.join(`user:${userId}`);
-  });
-
   // Leave rooms
   socket.on('leave:workspace', (workspaceId: string) => {
     socket.leave(`workspace:${workspaceId}`);
@@ -48,7 +63,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    logger.info({ socketId: socket.id }, 'Client disconnected');
+    logger.info({ socketId: socket.id, userId: socket.data.userId }, 'Client disconnected');
   });
 });
 

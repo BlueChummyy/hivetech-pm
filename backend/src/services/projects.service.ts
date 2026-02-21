@@ -1,6 +1,7 @@
 import { prisma } from '../prisma/client.js';
 import { ApiError } from '../utils/api-error.js';
 import { requireWorkspaceMember } from '../utils/authorization.js';
+import { emitToWorkspace, emitToProject } from '../utils/socket.js';
 
 export class ProjectsService {
   async create(data: { workspaceId: string; name: string; key: string; description?: string }, userId: string) {
@@ -51,6 +52,8 @@ export class ProjectsService {
         },
       });
     });
+
+    emitToWorkspace(project.workspaceId, 'project:created', project);
 
     return project;
   }
@@ -116,7 +119,7 @@ export class ProjectsService {
       throw ApiError.forbidden('Insufficient permissions');
     }
 
-    return prisma.project.update({
+    const updated = await prisma.project.update({
       where: { id },
       data,
       include: {
@@ -126,6 +129,10 @@ export class ProjectsService {
         },
       },
     });
+
+    emitToWorkspace(project.workspaceId, 'project:updated', updated);
+
+    return updated;
   }
 
   async delete(id: string, userId: string) {
@@ -147,6 +154,8 @@ export class ProjectsService {
     }
 
     await prisma.project.delete({ where: { id } });
+
+    emitToWorkspace(project.workspaceId, 'project:deleted', { id });
   }
 
   async addMember(projectId: string, data: { userId: string; role: string }, requesterId: string) {
@@ -184,7 +193,7 @@ export class ProjectsService {
       throw ApiError.conflict('User is already a member of this project');
     }
 
-    return prisma.projectMember.create({
+    const result = await prisma.projectMember.create({
       data: {
         projectId,
         userId: data.userId,
@@ -192,6 +201,11 @@ export class ProjectsService {
       },
       include: { user: { select: { id: true, email: true, displayName: true, avatarUrl: true } } },
     });
+
+    emitToProject(projectId, 'member:added', result);
+    emitToWorkspace(project.workspaceId, 'project:updated', { id: projectId });
+
+    return result;
   }
 
   async updateMember(projectId: string, targetUserId: string, role: string, requesterId: string) {
@@ -220,11 +234,15 @@ export class ProjectsService {
       throw ApiError.notFound('Member not found');
     }
 
-    return prisma.projectMember.update({
+    const result = await prisma.projectMember.update({
       where: { projectId_userId: { projectId, userId: targetUserId } },
       data: { role },
       include: { user: { select: { id: true, email: true, displayName: true, avatarUrl: true } } },
     });
+
+    emitToProject(projectId, 'member:updated', result);
+
+    return result;
   }
 
   async removeMember(projectId: string, targetUserId: string, requesterId: string) {
@@ -258,6 +276,8 @@ export class ProjectsService {
     await prisma.projectMember.delete({
       where: { projectId_userId: { projectId, userId: targetUserId } },
     });
+
+    emitToProject(projectId, 'member:removed', { projectId, userId: targetUserId });
   }
 
   async listStatuses(projectId: string) {
@@ -280,7 +300,7 @@ export class ProjectsService {
       position = maxStatus ? maxStatus.position + 1 : 1.0;
     }
 
-    return prisma.projectStatus.create({
+    const result = await prisma.projectStatus.create({
       data: {
         projectId,
         name: data.name,
@@ -289,14 +309,19 @@ export class ProjectsService {
         position,
       },
     });
+
+    emitToProject(projectId, 'status:created', result);
+
+    return result;
   }
 
   async updateStatus(statusId: string, data: { name?: string; color?: string; category?: string; position?: number; isDefault?: boolean }) {
     const status = await prisma.projectStatus.findUnique({ where: { id: statusId } });
     if (!status) throw ApiError.notFound('Status not found');
 
+    let result;
     if (data.isDefault === true) {
-      return prisma.$transaction(async (tx: any) => {
+      result = await prisma.$transaction(async (tx: any) => {
         await tx.projectStatus.updateMany({
           where: { projectId: status.projectId, isDefault: true },
           data: { isDefault: false },
@@ -306,12 +331,16 @@ export class ProjectsService {
           data,
         });
       });
+    } else {
+      result = await prisma.projectStatus.update({
+        where: { id: statusId },
+        data,
+      });
     }
 
-    return prisma.projectStatus.update({
-      where: { id: statusId },
-      data,
-    });
+    emitToProject(status.projectId, 'status:updated', result);
+
+    return result;
   }
 
   async deleteStatus(statusId: string, reassignToStatusId?: string) {
@@ -341,9 +370,13 @@ export class ProjectsService {
         });
         await tx.projectStatus.delete({ where: { id: statusId } });
       });
+
+      emitToProject(status.projectId, 'status:deleted', { id: statusId });
       return;
     }
 
     await prisma.projectStatus.delete({ where: { id: statusId } });
+
+    emitToProject(status.projectId, 'status:deleted', { id: statusId });
   }
 }

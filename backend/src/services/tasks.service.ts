@@ -1,6 +1,6 @@
 import { prisma } from '../prisma/client.js';
 import { ApiError } from '../utils/api-error.js';
-import { emitToProject } from '../utils/socket.js';
+import { emitToProject, emitToUser } from '../utils/socket.js';
 
 export class TasksService {
   async create(data: {
@@ -69,6 +69,21 @@ export class TasksService {
     });
 
     emitToProject(task.projectId, 'task:created', task);
+
+    // Notify assignee about task assignment
+    if (task.assigneeId && task.assigneeId !== data.reporterId) {
+      const notification = await prisma.notification.create({
+        data: {
+          userId: task.assigneeId,
+          type: 'TASK_ASSIGNED',
+          title: 'Task assigned to you',
+          message: `You've been assigned to "${task.title}"`,
+          resourceType: 'task',
+          resourceId: task.id,
+        },
+      });
+      emitToUser(task.assigneeId, 'notification:new', notification);
+    }
 
     return task;
   }
@@ -203,6 +218,21 @@ export class TasksService {
     });
 
     emitToProject(task.projectId, 'task:updated', task);
+
+    // Notify new assignee about task assignment (if assignee changed)
+    if (data.assigneeId && data.assigneeId !== existing.assigneeId && data.assigneeId !== existing.reporterId) {
+      const notification = await prisma.notification.create({
+        data: {
+          userId: data.assigneeId,
+          type: 'TASK_ASSIGNED',
+          title: 'Task assigned to you',
+          message: `You've been assigned to "${task.title}"`,
+          resourceType: 'task',
+          resourceId: task.id,
+        },
+      });
+      emitToUser(data.assigneeId, 'notification:new', notification);
+    }
 
     return task;
   }

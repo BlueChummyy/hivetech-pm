@@ -3,6 +3,7 @@ import path from 'node:path';
 import { prisma } from '../prisma/client.js';
 import { ApiError } from '../utils/api-error.js';
 import { env } from '../config/index.js';
+import { emitToProject } from '../utils/socket.js';
 
 export class AttachmentsService {
   async upload(taskId: string, userId: string, file: Express.Multer.File) {
@@ -30,7 +31,7 @@ export class AttachmentsService {
       fs.unlinkSync(file.path);
     }
 
-    return prisma.attachment.create({
+    const result = await prisma.attachment.create({
       data: {
         taskId,
         uploadedById: userId,
@@ -41,6 +42,10 @@ export class AttachmentsService {
         storagePath,
       },
     });
+
+    emitToProject(task.projectId, 'attachment:created', result);
+
+    return result;
   }
 
   async list(taskId: string) {
@@ -61,6 +66,12 @@ export class AttachmentsService {
     const attachment = await prisma.attachment.findUnique({ where: { id } });
     if (!attachment) throw ApiError.notFound('Attachment not found');
 
+    // Get the task's projectId for socket emission
+    const task = await prisma.task.findUnique({
+      where: { id: attachment.taskId },
+      select: { projectId: true },
+    });
+
     // Delete file from filesystem
     try {
       fs.unlinkSync(attachment.storagePath);
@@ -68,6 +79,12 @@ export class AttachmentsService {
       // file may not exist
     }
 
-    return prisma.attachment.delete({ where: { id } });
+    const result = await prisma.attachment.delete({ where: { id } });
+
+    if (task) {
+      emitToProject(task.projectId, 'attachment:deleted', { id });
+    }
+
+    return result;
   }
 }

@@ -1,6 +1,7 @@
 import { prisma } from '../prisma/client.js';
 import { ApiError } from '../utils/api-error.js';
 import { requireProjectMember } from '../utils/authorization.js';
+import { emitToProject } from '../utils/socket.js';
 
 export class LabelsService {
   async create(data: { projectId: string; name: string; color: string }, userId: string) {
@@ -13,13 +14,17 @@ export class LabelsService {
       throw ApiError.conflict('A label with this name already exists in this project');
     }
 
-    return prisma.label.create({
+    const result = await prisma.label.create({
       data: {
         projectId: data.projectId,
         name: data.name,
         color: data.color,
       },
     });
+
+    emitToProject(data.projectId, 'label:created', result);
+
+    return result;
   }
 
   async listByProject(projectId: string, userId: string) {
@@ -37,10 +42,14 @@ export class LabelsService {
 
     await requireProjectMember(label.projectId, userId);
 
-    return prisma.label.update({
+    const result = await prisma.label.update({
       where: { id },
       data,
     });
+
+    emitToProject(label.projectId, 'label:updated', result);
+
+    return result;
   }
 
   async delete(id: string, userId: string) {
@@ -50,6 +59,8 @@ export class LabelsService {
     await requireProjectMember(label.projectId, userId);
 
     await prisma.label.delete({ where: { id } });
+
+    emitToProject(label.projectId, 'label:deleted', { id });
   }
 
   async attachToTask(labelId: string, taskId: string, userId: string) {
@@ -72,10 +83,14 @@ export class LabelsService {
       throw ApiError.conflict('Label is already attached to this task');
     }
 
-    return prisma.taskLabel.create({
+    const result = await prisma.taskLabel.create({
       data: { taskId, labelId },
       include: { label: true },
     });
+
+    emitToProject(label.projectId, 'label:attached', { taskId, labelId });
+
+    return result;
   }
 
   async detachFromTask(labelId: string, taskId: string, userId: string) {
@@ -94,5 +109,7 @@ export class LabelsService {
     await prisma.taskLabel.delete({
       where: { taskId_labelId: { taskId, labelId } },
     });
+
+    emitToProject(label.projectId, 'label:detached', { taskId, labelId });
   }
 }

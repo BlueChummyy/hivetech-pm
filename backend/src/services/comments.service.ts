@@ -1,12 +1,12 @@
 import { prisma } from '../prisma/client.js';
 import { ApiError } from '../utils/api-error.js';
-import { emitToProject } from '../utils/socket.js';
+import { emitToProject, emitToUser } from '../utils/socket.js';
 
 export class CommentsService {
   async create(data: { taskId: string; authorId: string; content: string }) {
     const task = await prisma.task.findFirst({
       where: { id: data.taskId, deletedAt: null },
-      select: { id: true, projectId: true },
+      select: { id: true, projectId: true, title: true, assigneeId: true, reporterId: true },
     });
     if (!task) throw ApiError.notFound('Task not found');
 
@@ -22,6 +22,36 @@ export class CommentsService {
     });
 
     emitToProject(task.projectId, 'comment:created', { ...comment, taskId: data.taskId });
+
+    // Notify task assignee about new comment (if commenter is different)
+    if (task.assigneeId && task.assigneeId !== data.authorId) {
+      const notification = await prisma.notification.create({
+        data: {
+          userId: task.assigneeId,
+          type: 'COMMENT_ADDED',
+          title: 'New comment',
+          message: `New comment on "${task.title}"`,
+          resourceType: 'task',
+          resourceId: task.id,
+        },
+      });
+      emitToUser(task.assigneeId, 'notification:new', notification);
+    }
+
+    // Notify task reporter about new comment (if different from commenter and assignee)
+    if (task.reporterId && task.reporterId !== data.authorId && task.reporterId !== task.assigneeId) {
+      const notification = await prisma.notification.create({
+        data: {
+          userId: task.reporterId,
+          type: 'COMMENT_ADDED',
+          title: 'New comment',
+          message: `New comment on "${task.title}"`,
+          resourceType: 'task',
+          resourceId: task.id,
+        },
+      });
+      emitToUser(task.reporterId, 'notification:new', notification);
+    }
 
     return comment;
   }

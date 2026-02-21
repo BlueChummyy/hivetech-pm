@@ -2,11 +2,20 @@ import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { TaskDetailPanel } from '@/components/task-detail/TaskDetailPanel';
+import { ToastContainer } from './ToastContainer';
+import { ConnectionStatus } from './ConnectionStatus';
 import { useUIStore } from '@/store/ui.store';
+import { useWorkspaceStore } from '@/store/workspace.store';
+import { useNotificationSocket } from '@/hooks/useNotificationSocket';
+import { useWorkspaceSocketEvents } from '@/hooks/useWorkspaceSocketEvents';
 import { cn } from '@/utils/cn';
 
 export function AppLayout() {
   const { sidebarOpen, sidebarCollapsed } = useUIStore();
+  const { activeWorkspaceId } = useWorkspaceStore();
+
+  useNotificationSocket();
+  useWorkspaceSocketEvents(activeWorkspaceId ?? undefined);
 
   return (
     <div className="flex h-screen bg-surface-950 text-surface-100">
@@ -46,6 +55,8 @@ export function AppLayout() {
       </div>
 
       <TaskDetailPanel />
+      <ToastContainer />
+      <ConnectionStatus />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { prisma } from '../prisma/client.js';
 import { ApiError } from '../utils/api-error.js';
 import { requireWorkspaceMember } from '../utils/authorization.js';
+import { emitToWorkspace } from '../utils/socket.js';
 
 export class WorkspacesService {
   async create(data: { name: string; slug: string; description?: string }, userId: string) {
@@ -75,7 +76,7 @@ export class WorkspacesService {
   async update(id: string, data: { name?: string; description?: string; logoUrl?: string }, userId: string) {
     await requireWorkspaceMember(id, userId, ['OWNER', 'ADMIN']);
 
-    return prisma.workspace.update({
+    const result = await prisma.workspace.update({
       where: { id },
       data,
       include: {
@@ -84,10 +85,17 @@ export class WorkspacesService {
         },
       },
     });
+
+    emitToWorkspace(id, 'workspace:updated', result);
+
+    return result;
   }
 
   async delete(id: string, userId: string) {
     await requireWorkspaceMember(id, userId, ['OWNER']);
+
+    emitToWorkspace(id, 'workspace:deleted', { id });
+
     await prisma.workspace.delete({ where: { id } });
   }
 
@@ -106,7 +114,7 @@ export class WorkspacesService {
       throw ApiError.conflict('User is already a member of this workspace');
     }
 
-    return prisma.workspaceMember.create({
+    const result = await prisma.workspaceMember.create({
       data: {
         workspaceId,
         userId: targetUser.id,
@@ -114,6 +122,10 @@ export class WorkspacesService {
       },
       include: { user: { select: { id: true, email: true, displayName: true, avatarUrl: true } } },
     });
+
+    emitToWorkspace(workspaceId, 'workspace:member:added', result);
+
+    return result;
   }
 
   async updateMember(workspaceId: string, targetUserId: string, role: string, userId: string) {
@@ -131,11 +143,15 @@ export class WorkspacesService {
       throw ApiError.badRequest('Cannot change the role of the workspace owner');
     }
 
-    return prisma.workspaceMember.update({
+    const result = await prisma.workspaceMember.update({
       where: { workspaceId_userId: { workspaceId, userId: targetUserId } },
       data: { role },
       include: { user: { select: { id: true, email: true, displayName: true, avatarUrl: true } } },
     });
+
+    emitToWorkspace(workspaceId, 'workspace:member:updated', result);
+
+    return result;
   }
 
   async removeMember(workspaceId: string, targetUserId: string, userId: string) {
@@ -159,5 +175,7 @@ export class WorkspacesService {
     await prisma.workspaceMember.delete({
       where: { workspaceId_userId: { workspaceId, userId: targetUserId } },
     });
+
+    emitToWorkspace(workspaceId, 'workspace:member:removed', { workspaceId, userId: targetUserId });
   }
 }

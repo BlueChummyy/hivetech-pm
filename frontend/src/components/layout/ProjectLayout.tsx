@@ -2,6 +2,7 @@ import { NavLink, Outlet, useParams } from 'react-router-dom';
 import { Columns3, List, GanttChart, Settings, Loader2 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useProject } from '@/hooks/useProjects';
+import { useProjectSocketEvents } from '@/hooks/useProjectSocketEvents';
 
 const tabs = [
   { label: 'Board', path: 'board', icon: Columns3 },
@@ -13,6 +14,8 @@ const tabs = [
 export function ProjectLayout() {
   const { projectId } = useParams<{ projectId: string }>();
   const { data: project, isLoading } = useProject(projectId ?? '');
+
+  useProjectSocketEvents(projectId);
 
   if (isLoading) {
     return (
