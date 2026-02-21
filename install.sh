@@ -265,7 +265,7 @@ fi
 # ── Build ──────────────────────────────────────────────────────────
 echo ""
 info "Building Docker images (this may take a few minutes)..."
-docker compose -f docker-compose.prod.yml $([ "$USE_SSL" = true ] && echo "-f docker-compose.override.yml") build --quiet
+docker compose -f docker-compose.prod.yml $([ "$USE_SSL" = true ] && echo "-f docker-compose.override.yml") build
 success "Images built"
 
 # ── Start ──────────────────────────────────────────────────────────

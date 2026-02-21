@@ -197,7 +197,7 @@ export class ProjectsService {
       data: {
         projectId,
         userId: data.userId,
-        role: data.role,
+        role: data.role as any,
       },
       include: { user: { select: { id: true, email: true, displayName: true, avatarUrl: true } } },
     });
@@ -236,7 +236,7 @@ export class ProjectsService {
 
     const result = await prisma.projectMember.update({
       where: { projectId_userId: { projectId, userId: targetUserId } },
-      data: { role },
+      data: { role: role as any },
       include: { user: { select: { id: true, email: true, displayName: true, avatarUrl: true } } },
     });
 
@@ -311,7 +311,7 @@ export class ProjectsService {
         projectId,
         name: data.name,
         color: data.color,
-        category: data.category,
+        category: data.category as any,
         position,
       },
     });
@@ -344,7 +344,7 @@ export class ProjectsService {
     } else {
       result = await prisma.projectStatus.update({
         where: { id: statusId },
-        data,
+        data: data as any,
       });
     }
 

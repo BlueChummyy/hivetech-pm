@@ -118,7 +118,7 @@ export class WorkspacesService {
       data: {
         workspaceId,
         userId: targetUser.id,
-        role: data.role,
+        role: data.role as any,
       },
       include: { user: { select: { id: true, email: true, displayName: true, avatarUrl: true } } },
     });
@@ -145,7 +145,7 @@ export class WorkspacesService {
 
     const result = await prisma.workspaceMember.update({
       where: { workspaceId_userId: { workspaceId, userId: targetUserId } },
-      data: { role },
+      data: { role: role as any },
       include: { user: { select: { id: true, email: true, displayName: true, avatarUrl: true } } },
     });
 
