@@ -155,19 +155,33 @@ info "Creating install directory..."
 mkdir -p "$INSTALL_DIR"
 cd "$INSTALL_DIR"
 
-# If the repo is already cloned (development), skip. Otherwise download.
+# If the repo is already cloned (development), skip. Otherwise clone it.
 if [ -f "docker-compose.prod.yml" ]; then
   success "Project files found in ${INSTALL_DIR}"
 else
   # Check if we're running from inside the project
-  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  if [ -f "${SCRIPT_DIR}/docker-compose.prod.yml" ]; then
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}" 2>/dev/null)" 2>/dev/null && pwd 2>/dev/null || echo "")"
+  if [ -n "$SCRIPT_DIR" ] && [ -f "${SCRIPT_DIR}/docker-compose.prod.yml" ]; then
     info "Copying project files..."
     cp -r "${SCRIPT_DIR}/"* "${INSTALL_DIR}/" 2>/dev/null || true
-    cp -r "${SCRIPT_DIR}/".* "${INSTALL_DIR}/" 2>/dev/null || true
+    cp -r "${SCRIPT_DIR}/".[!.]* "${INSTALL_DIR}/" 2>/dev/null || true
     success "Project files copied"
   else
-    error "Project files not found. Clone the repository into ${INSTALL_DIR} first, then re-run this script."
+    # Clone from GitHub
+    if ! command -v git &>/dev/null; then
+      info "Installing git..."
+      apt-get update -qq && apt-get install -y -qq git >/dev/null 2>&1 || \
+        yum install -y -q git >/dev/null 2>&1 || \
+        apk add --quiet git >/dev/null 2>&1
+      success "Git installed"
+    fi
+    info "Cloning HiveTech repository..."
+    git clone --depth 1 https://github.com/BlueChummyy/hivetech-pm.git "${INSTALL_DIR}/repo_tmp" 2>/dev/null
+    shopt -s dotglob 2>/dev/null || true
+    mv "${INSTALL_DIR}/repo_tmp/"* "${INSTALL_DIR}/" 2>/dev/null || true
+    shopt -u dotglob 2>/dev/null || true
+    rm -rf "${INSTALL_DIR}/repo_tmp"
+    success "Repository cloned"
   fi
 fi
 
