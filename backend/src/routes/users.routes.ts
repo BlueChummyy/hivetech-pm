@@ -8,12 +8,12 @@ const router = Router();
 const controller = new UsersController();
 
 const updateProfileSchema = z.object({
-  displayName: z.string().min(1).max(100).optional(),
+  name: z.string().min(1).max(100).optional(),
   avatarUrl: z.string().url().nullable().optional(),
 });
 
 const changePasswordSchema = z.object({
-  oldPassword: z.string().min(1),
+  currentPassword: z.string().min(1),
   newPassword: z.string().min(8),
 });
 
@@ -37,8 +37,8 @@ router.get('/me', controller.getMe);
 // PATCH /api/v1/users/me — Update own profile
 router.patch('/me', validate({ body: updateProfileSchema }), controller.updateMe);
 
-// PATCH /api/v1/users/me/password — Change own password
-router.patch('/me/password', validate({ body: changePasswordSchema }), controller.changePassword);
+// POST /api/v1/users/me/password — Change own password
+router.post('/me/password', validate({ body: changePasswordSchema }), controller.changePassword);
 
 // GET /api/v1/users — List users (with search/filter)
 router.get('/', validate({ query: listQuerySchema }), controller.list);

@@ -17,8 +17,8 @@ export class UsersController {
 
   async updateMe(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { displayName, avatarUrl } = req.body;
-      const user = await usersService.updateProfile(req.user!.id, { displayName, avatarUrl });
+      const { name, avatarUrl } = req.body;
+      const user = await usersService.updateProfile(req.user!.id, { displayName: name, avatarUrl });
       res.status(200).json(successResponse(user));
     } catch (err) {
       next(err);
@@ -27,8 +27,8 @@ export class UsersController {
 
   async changePassword(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { oldPassword, newPassword } = req.body;
-      await usersService.changePassword(req.user!.id, oldPassword, newPassword);
+      const { currentPassword, newPassword } = req.body;
+      await usersService.changePassword(req.user!.id, currentPassword, newPassword);
       res.status(200).json(successResponse({ message: 'Password changed successfully' }));
     } catch (err) {
       next(err);
@@ -64,8 +64,8 @@ export class UsersController {
       if (id !== req.user!.id) {
         throw ApiError.forbidden('You can only update your own profile');
       }
-      const { displayName, avatarUrl } = req.body;
-      const user = await usersService.update(id, { displayName, avatarUrl });
+      const { name, avatarUrl } = req.body;
+      const user = await usersService.update(id, { displayName: name, avatarUrl });
       res.status(200).json(successResponse(user));
     } catch (err) {
       next(err);

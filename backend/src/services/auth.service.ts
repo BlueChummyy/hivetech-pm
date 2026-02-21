@@ -28,7 +28,7 @@ const userSelectWithoutPassword = {
 } as const;
 
 export class AuthService {
-  async register(email: string, password: string, displayName: string) {
+  async register(email: string, password: string, name: string) {
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
       // Don't reveal whether the account is active or deleted
@@ -38,7 +38,7 @@ export class AuthService {
     const passwordHash = await hashPassword(password);
 
     const user = await prisma.user.create({
-      data: { email, passwordHash, displayName },
+      data: { email, passwordHash, displayName: name },
       select: userSelectWithoutPassword,
     });
 
