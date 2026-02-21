@@ -38,7 +38,13 @@ function processQueue(error: unknown, token: string | null = null) {
 }
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Unwrap { success: true, data: T } envelope returned by the backend
+    if (response.data && response.data.success === true && 'data' in response.data) {
+      response.data = response.data.data;
+    }
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config as AxiosRequestConfig & {
       _retry?: boolean;
@@ -68,16 +74,17 @@ apiClient.interceptors.response.use(
       }
 
       try {
-        const { data } = await axios.post<RefreshTokenResponse>(
+        const { data } = await axios.post<{ success: boolean; data: RefreshTokenResponse }>(
           `${apiClient.defaults.baseURL}/auth/refresh`,
           { refreshToken },
         );
 
-        setTokens(data.accessToken, data.refreshToken);
-        processQueue(null, data.accessToken);
+        const tokens = data.data;
+        setTokens(tokens.accessToken, tokens.refreshToken);
+        processQueue(null, tokens.accessToken);
 
         if (originalRequest.headers) {
-          originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
+          originalRequest.headers.Authorization = `Bearer ${tokens.accessToken}`;
         }
 
         return apiClient(originalRequest);

@@ -49,8 +49,8 @@ export function RegisterPage() {
       );
       navigate('/dashboard', { replace: true });
     } catch (err) {
-      if (isAxiosError(err) && err.response?.data?.message) {
-        setError(err.response.data.message);
+      if (isAxiosError(err) && err.response?.data?.error?.message) {
+        setError(err.response.data.error.message);
       } else {
         setError('Registration failed. Please try again.');
       }

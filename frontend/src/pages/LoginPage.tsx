@@ -36,8 +36,8 @@ export function LoginPage() {
       );
       navigate('/dashboard', { replace: true });
     } catch (err) {
-      if (isAxiosError(err) && err.response?.data?.message) {
-        setError(err.response.data.message);
+      if (isAxiosError(err) && err.response?.data?.error?.message) {
+        setError(err.response.data.error.message);
       } else {
         setError('Login failed. Please check your credentials and try again.');
       }
