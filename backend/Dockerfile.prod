@@ -1,0 +1,42 @@
+# ── Stage 1: Build ──────────────────────────────────────────────────
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+COPY tsconfig.json ./
+COPY src ./src
+
+# Generate Prisma client and compile TypeScript
+RUN npx prisma generate --schema=src/prisma/schema.prisma
+RUN npm run build
+
+# ── Stage 2: Production ────────────────────────────────────────────
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Add non-root user for security
+RUN addgroup -S hivetech && adduser -S hivetech -G hivetech
+
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+# Copy compiled output and Prisma artifacts
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/src/prisma ./src/prisma
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+
+# Create uploads directory
+RUN mkdir -p /app/uploads && chown -R hivetech:hivetech /app
+
+USER hivetech
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -qO- http://localhost:3000/health || exit 1
+
+CMD ["node", "dist/index.js"]
