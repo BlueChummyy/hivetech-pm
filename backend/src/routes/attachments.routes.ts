@@ -1,18 +1,58 @@
 import { Router } from 'express';
+import { z } from 'zod';
+import multer from 'multer';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import fs from 'node:fs';
 import { AttachmentsController } from '../controllers/attachments.controller.js';
 import { authenticate } from '../middleware/auth.js';
+import { validate } from '../middleware/validate.js';
+import { env } from '../config/index.js';
 
 const router = Router();
 const controller = new AttachmentsController();
+
+// Ensure upload directory exists
+fs.mkdirSync(env.UPLOAD_DIR, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: env.UPLOAD_DIR,
+  filename: (_req, file, cb) => {
+    const uniqueName = `${crypto.randomUUID()}${path.extname(file.originalname)}`;
+    cb(null, uniqueName);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: env.MAX_FILE_SIZE },
+});
 
 // All attachment routes require authentication
 router.use(authenticate);
 
 // POST /api/v1/attachments — Upload an attachment to a task
-router.post('/', controller.upload);
+router.post(
+  '/',
+  upload.single('file'),
+  validate({
+    body: z.object({
+      taskId: z.string(),
+    }),
+  }),
+  controller.upload,
+);
 
 // GET /api/v1/attachments — List attachments for a task (query: taskId)
-router.get('/', controller.list);
+router.get(
+  '/',
+  validate({
+    query: z.object({
+      taskId: z.string(),
+    }),
+  }),
+  controller.list,
+);
 
 // GET /api/v1/attachments/:id — Get attachment metadata
 router.get('/:id', controller.getById);

@@ -1,46 +1,90 @@
-import type { Request, Response } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { WorkspacesService } from '../services/workspaces.service.js';
+import { successResponse } from '../utils/api-response.js';
 
 const workspacesService = new WorkspacesService();
 
 export class WorkspacesController {
-  async create(req: Request, res: Response): Promise<void> {
-    // TODO: Validate input, call workspacesService.create, return workspace
-    res.status(501).json({ message: 'Not implemented' });
+  async create(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user!.id;
+      const { name, slug, description } = req.body;
+      const workspace = await workspacesService.create({ name, slug, description }, userId);
+      res.status(201).json(successResponse(workspace));
+    } catch (err) {
+      next(err);
+    }
   }
 
-  async list(req: Request, res: Response): Promise<void> {
-    // TODO: Call workspacesService.listForUser, return workspaces
-    res.status(501).json({ message: 'Not implemented' });
+  async list(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user!.id;
+      const workspaces = await workspacesService.listForUser(userId);
+      res.status(200).json(successResponse(workspaces));
+    } catch (err) {
+      next(err);
+    }
   }
 
-  async getById(req: Request, res: Response): Promise<void> {
-    // TODO: Call workspacesService.getById, return workspace
-    res.status(501).json({ message: 'Not implemented' });
+  async getById(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user!.id;
+      const workspace = await workspacesService.getById(req.params.id as string, userId);
+      res.status(200).json(successResponse(workspace));
+    } catch (err) {
+      next(err);
+    }
   }
 
-  async update(req: Request, res: Response): Promise<void> {
-    // TODO: Validate input, call workspacesService.update, return workspace
-    res.status(501).json({ message: 'Not implemented' });
+  async update(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user!.id;
+      const workspace = await workspacesService.update(req.params.id as string, req.body, userId);
+      res.status(200).json(successResponse(workspace));
+    } catch (err) {
+      next(err);
+    }
   }
 
-  async delete(req: Request, res: Response): Promise<void> {
-    // TODO: Call workspacesService.delete
-    res.status(501).json({ message: 'Not implemented' });
+  async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user!.id;
+      await workspacesService.delete(req.params.id as string, userId);
+      res.status(204).send();
+    } catch (err) {
+      next(err);
+    }
   }
 
-  async addMember(req: Request, res: Response): Promise<void> {
-    // TODO: Validate input, call workspacesService.addMember
-    res.status(501).json({ message: 'Not implemented' });
+  async addMember(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user!.id;
+      const { email, role } = req.body;
+      const member = await workspacesService.addMember(req.params.id as string, { email, role }, userId);
+      res.status(201).json(successResponse(member));
+    } catch (err) {
+      next(err);
+    }
   }
 
-  async updateMember(req: Request, res: Response): Promise<void> {
-    // TODO: Validate input, call workspacesService.updateMember
-    res.status(501).json({ message: 'Not implemented' });
+  async updateMember(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user!.id;
+      const { role } = req.body;
+      const member = await workspacesService.updateMember(req.params.id as string, req.params.userId as string, role, userId);
+      res.status(200).json(successResponse(member));
+    } catch (err) {
+      next(err);
+    }
   }
 
-  async removeMember(req: Request, res: Response): Promise<void> {
-    // TODO: Call workspacesService.removeMember
-    res.status(501).json({ message: 'Not implemented' });
+  async removeMember(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user!.id;
+      await workspacesService.removeMember(req.params.id as string, req.params.userId as string, userId);
+      res.status(204).send();
+    } catch (err) {
+      next(err);
+    }
   }
 }

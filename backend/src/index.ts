@@ -4,6 +4,7 @@ import { createApp } from './app.js';
 import { env } from './config/index.js';
 import { prisma } from './prisma/client.js';
 import { logger } from './utils/logger.js';
+import { setSocketIO } from './utils/socket.js';
 
 const app = createApp();
 const server = http.createServer(app);
@@ -16,8 +17,35 @@ const io = new SocketIOServer(server, {
   },
 });
 
+setSocketIO(io);
+
 io.on('connection', (socket) => {
   logger.info({ socketId: socket.id }, 'Client connected');
+
+  // Join workspace rooms
+  socket.on('join:workspace', (workspaceId: string) => {
+    socket.join(`workspace:${workspaceId}`);
+    logger.debug({ socketId: socket.id, workspaceId }, 'Joined workspace room');
+  });
+
+  // Join project rooms
+  socket.on('join:project', (projectId: string) => {
+    socket.join(`project:${projectId}`);
+    logger.debug({ socketId: socket.id, projectId }, 'Joined project room');
+  });
+
+  // Join user room (for notifications)
+  socket.on('join:user', (userId: string) => {
+    socket.join(`user:${userId}`);
+  });
+
+  // Leave rooms
+  socket.on('leave:workspace', (workspaceId: string) => {
+    socket.leave(`workspace:${workspaceId}`);
+  });
+  socket.on('leave:project', (projectId: string) => {
+    socket.leave(`project:${projectId}`);
+  });
 
   socket.on('disconnect', () => {
     logger.info({ socketId: socket.id }, 'Client disconnected');

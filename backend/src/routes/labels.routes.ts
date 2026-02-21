@@ -1,6 +1,8 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { LabelsController } from '../controllers/labels.controller.js';
 import { authenticate } from '../middleware/auth.js';
+import { validate } from '../middleware/validate.js';
 
 const router = Router();
 const controller = new LabelsController();
@@ -9,13 +11,40 @@ const controller = new LabelsController();
 router.use(authenticate);
 
 // POST /api/v1/labels — Create a label for a project
-router.post('/', controller.create);
+router.post(
+  '/',
+  validate({
+    body: z.object({
+      projectId: z.string(),
+      name: z.string().min(1).max(50),
+      color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+    }),
+  }),
+  controller.create,
+);
 
 // GET /api/v1/labels — List labels for a project (query: projectId)
-router.get('/', controller.list);
+router.get(
+  '/',
+  validate({
+    query: z.object({
+      projectId: z.string(),
+    }),
+  }),
+  controller.list,
+);
 
 // PATCH /api/v1/labels/:id — Update a label
-router.patch('/:id', controller.update);
+router.patch(
+  '/:id',
+  validate({
+    body: z.object({
+      name: z.string().min(1).max(50).optional(),
+      color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+    }),
+  }),
+  controller.update,
+);
 
 // DELETE /api/v1/labels/:id — Delete a label
 router.delete('/:id', controller.delete);

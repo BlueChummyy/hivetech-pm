@@ -1,43 +1,163 @@
 import { prisma } from '../prisma/client.js';
+import { ApiError } from '../utils/api-error.js';
+import { requireWorkspaceMember } from '../utils/authorization.js';
 
 export class WorkspacesService {
   async create(data: { name: string; slug: string; description?: string }, userId: string) {
-    // TODO: Create workspace and add creator as OWNER
-    throw new Error('Not implemented');
+    const existing = await prisma.workspace.findUnique({ where: { slug: data.slug } });
+    if (existing) {
+      throw ApiError.conflict('A workspace with this slug already exists');
+    }
+
+    const workspace = await prisma.$transaction(async (tx: any) => {
+      const ws = await tx.workspace.create({
+        data: {
+          name: data.name,
+          slug: data.slug,
+          description: data.description,
+        },
+      });
+
+      await tx.workspaceMember.create({
+        data: {
+          workspaceId: ws.id,
+          userId,
+          role: 'OWNER',
+        },
+      });
+
+      return tx.workspace.findUniqueOrThrow({
+        where: { id: ws.id },
+        include: {
+          members: {
+            include: { user: { select: { id: true, email: true, displayName: true, avatarUrl: true } } },
+          },
+        },
+      });
+    });
+
+    return workspace;
   }
 
   async listForUser(userId: string) {
-    // TODO: Return workspaces where user is a member
-    throw new Error('Not implemented');
+    return prisma.workspace.findMany({
+      where: { members: { some: { userId } } },
+      include: {
+        members: { select: { role: true, userId: true } },
+        _count: { select: { projects: true, members: true } },
+      },
+    });
   }
 
-  async getById(id: string) {
-    // TODO: Find workspace by ID with members
-    throw new Error('Not implemented');
+  async getById(id: string, userId: string) {
+    const workspace = await prisma.workspace.findUnique({
+      where: { id },
+      include: {
+        members: {
+          include: { user: { select: { id: true, email: true, displayName: true, avatarUrl: true } } },
+        },
+        _count: { select: { projects: true, members: true } },
+      },
+    });
+
+    if (!workspace) {
+      throw ApiError.notFound('Workspace not found');
+    }
+
+    const isMember = workspace.members.some((m: any) => m.userId === userId);
+    if (!isMember) {
+      throw ApiError.forbidden('Not a member of this workspace');
+    }
+
+    return workspace;
   }
 
-  async update(id: string, data: { name?: string; description?: string; logoUrl?: string }) {
-    // TODO: Update workspace
-    throw new Error('Not implemented');
+  async update(id: string, data: { name?: string; description?: string; logoUrl?: string }, userId: string) {
+    await requireWorkspaceMember(id, userId, ['OWNER', 'ADMIN']);
+
+    return prisma.workspace.update({
+      where: { id },
+      data,
+      include: {
+        members: {
+          include: { user: { select: { id: true, email: true, displayName: true, avatarUrl: true } } },
+        },
+      },
+    });
   }
 
-  async delete(id: string) {
-    // TODO: Delete workspace and cascade
-    throw new Error('Not implemented');
+  async delete(id: string, userId: string) {
+    await requireWorkspaceMember(id, userId, ['OWNER']);
+    await prisma.workspace.delete({ where: { id } });
   }
 
-  async addMember(workspaceId: string, userId: string, role: string) {
-    // TODO: Add user as workspace member
-    throw new Error('Not implemented');
+  async addMember(workspaceId: string, data: { email: string; role: string }, userId: string) {
+    await requireWorkspaceMember(workspaceId, userId, ['OWNER', 'ADMIN']);
+
+    const targetUser = await prisma.user.findUnique({ where: { email: data.email } });
+    if (!targetUser) {
+      throw ApiError.notFound('User not found with that email');
+    }
+
+    const existing = await prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId: targetUser.id } },
+    });
+    if (existing) {
+      throw ApiError.conflict('User is already a member of this workspace');
+    }
+
+    return prisma.workspaceMember.create({
+      data: {
+        workspaceId,
+        userId: targetUser.id,
+        role: data.role,
+      },
+      include: { user: { select: { id: true, email: true, displayName: true, avatarUrl: true } } },
+    });
   }
 
-  async updateMember(workspaceId: string, userId: string, role: string) {
-    // TODO: Update workspace member role
-    throw new Error('Not implemented');
+  async updateMember(workspaceId: string, targetUserId: string, role: string, userId: string) {
+    await requireWorkspaceMember(workspaceId, userId, ['OWNER', 'ADMIN']);
+
+    const target = await prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId: targetUserId } },
+    });
+
+    if (!target) {
+      throw ApiError.notFound('Member not found');
+    }
+
+    if (target.role === 'OWNER') {
+      throw ApiError.badRequest('Cannot change the role of the workspace owner');
+    }
+
+    return prisma.workspaceMember.update({
+      where: { workspaceId_userId: { workspaceId, userId: targetUserId } },
+      data: { role },
+      include: { user: { select: { id: true, email: true, displayName: true, avatarUrl: true } } },
+    });
   }
 
-  async removeMember(workspaceId: string, userId: string) {
-    // TODO: Remove workspace member
-    throw new Error('Not implemented');
+  async removeMember(workspaceId: string, targetUserId: string, userId: string) {
+    // Allow self-removal or OWNER/ADMIN removal
+    if (targetUserId !== userId) {
+      await requireWorkspaceMember(workspaceId, userId, ['OWNER', 'ADMIN']);
+    }
+
+    const target = await prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId: targetUserId } },
+    });
+
+    if (!target) {
+      throw ApiError.notFound('Member not found');
+    }
+
+    if (target.role === 'OWNER') {
+      throw ApiError.badRequest('Cannot remove the workspace owner');
+    }
+
+    await prisma.workspaceMember.delete({
+      where: { workspaceId_userId: { workspaceId, userId: targetUserId } },
+    });
   }
 }

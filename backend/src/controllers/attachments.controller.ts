@@ -1,31 +1,107 @@
-import type { Request, Response } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { AttachmentsService } from '../services/attachments.service.js';
+import { requireProjectMember } from '../utils/authorization.js';
+import { successResponse } from '../utils/api-response.js';
+import { prisma } from '../prisma/client.js';
+import { ApiError } from '../utils/api-error.js';
 
 const attachmentsService = new AttachmentsService();
 
 export class AttachmentsController {
-  async upload(req: Request, res: Response): Promise<void> {
-    // TODO: Handle multer upload, call attachmentsService.create, return attachment
-    res.status(501).json({ message: 'Not implemented' });
+  async upload(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { taskId } = req.body;
+      if (!req.file) throw ApiError.badRequest('No file uploaded');
+
+      // Get task to check project membership
+      const task = await prisma.task.findFirst({
+        where: { id: taskId, deletedAt: null },
+        select: { projectId: true },
+      });
+      if (!task) throw ApiError.notFound('Task not found');
+      await requireProjectMember(task.projectId, req.user!.id);
+
+      const attachment = await attachmentsService.upload(taskId, req.user!.id, req.file);
+      res.status(201).json(successResponse(attachment));
+    } catch (err) {
+      next(err);
+    }
   }
 
-  async list(req: Request, res: Response): Promise<void> {
-    // TODO: Parse query params (taskId), call attachmentsService.listByTask
-    res.status(501).json({ message: 'Not implemented' });
+  async list(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { taskId } = req.query as any;
+
+      // Get task to check project membership
+      const task = await prisma.task.findFirst({
+        where: { id: taskId as string, deletedAt: null },
+        select: { projectId: true },
+      });
+      if (!task) throw ApiError.notFound('Task not found');
+      await requireProjectMember(task.projectId, req.user!.id);
+
+      const attachments = await attachmentsService.list(taskId as string);
+      res.json(successResponse(attachments));
+    } catch (err) {
+      next(err);
+    }
   }
 
-  async getById(req: Request, res: Response): Promise<void> {
-    // TODO: Call attachmentsService.getById, return attachment metadata
-    res.status(501).json({ message: 'Not implemented' });
+  async getById(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const id = req.params.id as string;
+      const attachment = await attachmentsService.getById(id);
+
+      // Get task to check project membership
+      const task = await prisma.task.findFirst({
+        where: { id: attachment.taskId, deletedAt: null },
+        select: { projectId: true },
+      });
+      if (!task) throw ApiError.notFound('Task not found');
+      await requireProjectMember(task.projectId, req.user!.id);
+
+      res.json(successResponse(attachment));
+    } catch (err) {
+      next(err);
+    }
   }
 
-  async download(req: Request, res: Response): Promise<void> {
-    // TODO: Call attachmentsService.getById, stream file
-    res.status(501).json({ message: 'Not implemented' });
+  async download(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const id = req.params.id as string;
+      const attachment = await attachmentsService.getById(id);
+
+      // Get task to check project membership
+      const task = await prisma.task.findFirst({
+        where: { id: attachment.taskId, deletedAt: null },
+        select: { projectId: true },
+      });
+      if (!task) throw ApiError.notFound('Task not found');
+      await requireProjectMember(task.projectId, req.user!.id);
+
+      res.download(attachment.storagePath, attachment.originalName);
+    } catch (err) {
+      next(err);
+    }
   }
 
-  async delete(req: Request, res: Response): Promise<void> {
-    // TODO: Call attachmentsService.delete, remove file from storage
-    res.status(501).json({ message: 'Not implemented' });
+  async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const id = req.params.id as string;
+      const attachment = await attachmentsService.getById(id);
+
+      // Get task to check project membership
+      const task = await prisma.task.findFirst({
+        where: { id: attachment.taskId, deletedAt: null },
+        select: { projectId: true },
+      });
+      if (!task) throw ApiError.notFound('Task not found');
+      await requireProjectMember(task.projectId, req.user!.id);
+
+      await attachmentsService.delete(id, req.user!.id);
+      res.status(204).send();
+    } catch (err) {
+      next(err);
+    }
   }
 }

@@ -1,46 +1,143 @@
-import type { Request, Response } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { TasksService } from '../services/tasks.service.js';
+import { requireProjectMember } from '../utils/authorization.js';
+import { successResponse, paginatedResponse } from '../utils/api-response.js';
 
 const tasksService = new TasksService();
 
 export class TasksController {
-  async create(req: Request, res: Response): Promise<void> {
-    // TODO: Validate input, call tasksService.create, return task
-    res.status(501).json({ message: 'Not implemented' });
+  async create(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { projectId, title, description, statusId, assigneeId, parentId, priority, dueDate, estimatedHours } = req.body;
+      await requireProjectMember(projectId, req.user!.id);
+
+      const task = await tasksService.create({
+        projectId,
+        title,
+        description,
+        statusId,
+        assigneeId,
+        reporterId: req.user!.id,
+        parentId,
+        priority,
+        dueDate: dueDate ? new Date(dueDate) : undefined,
+        estimatedHours,
+      });
+
+      res.status(201).json(successResponse(task));
+    } catch (err) {
+      next(err);
+    }
   }
 
-  async list(req: Request, res: Response): Promise<void> {
-    // TODO: Parse query filters (projectId, statusId, assigneeId, priority), call tasksService.list
-    res.status(501).json({ message: 'Not implemented' });
+  async list(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { projectId, statusId, assigneeId, priority, parentId, search, page, limit } = req.query as any;
+      await requireProjectMember(projectId, req.user!.id);
+
+      const result = await tasksService.list({
+        projectId,
+        statusId,
+        assigneeId,
+        priority,
+        parentId: parentId === 'null' ? null : parentId,
+        search,
+        page: page ? Number(page) : undefined,
+        limit: limit ? Number(limit) : undefined,
+      });
+
+      res.json(paginatedResponse(result.tasks, result.pagination));
+    } catch (err) {
+      next(err);
+    }
   }
 
-  async getById(req: Request, res: Response): Promise<void> {
-    // TODO: Call tasksService.getById, return task with relations
-    res.status(501).json({ message: 'Not implemented' });
+  async getById(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const task = await tasksService.getById(req.params.id as string);
+      await requireProjectMember(task.project.id, req.user!.id);
+      res.json(successResponse(task));
+    } catch (err) {
+      next(err);
+    }
   }
 
-  async update(req: Request, res: Response): Promise<void> {
-    // TODO: Validate input, call tasksService.update, return task
-    res.status(501).json({ message: 'Not implemented' });
+  async update(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const id = req.params.id as string;
+      const existing = await tasksService.getById(id);
+      await requireProjectMember(existing.project.id, req.user!.id);
+
+      const { title, description, statusId, assigneeId, priority, position, dueDate, estimatedHours } = req.body;
+
+      const task = await tasksService.update(id, {
+        title,
+        description,
+        statusId,
+        assigneeId,
+        priority,
+        position,
+        dueDate: dueDate === null ? null : dueDate ? new Date(dueDate) : undefined,
+        estimatedHours: estimatedHours === null ? null : estimatedHours,
+      });
+
+      res.json(successResponse(task));
+    } catch (err) {
+      next(err);
+    }
   }
 
-  async delete(req: Request, res: Response): Promise<void> {
-    // TODO: Call tasksService.softDelete
-    res.status(501).json({ message: 'Not implemented' });
+  async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const id = req.params.id as string;
+      const existing = await tasksService.getById(id);
+      await requireProjectMember(existing.project.id, req.user!.id);
+
+      await tasksService.softDelete(id);
+      res.status(204).send();
+    } catch (err) {
+      next(err);
+    }
   }
 
-  async addDependency(req: Request, res: Response): Promise<void> {
-    // TODO: Validate input, call tasksService.addDependency
-    res.status(501).json({ message: 'Not implemented' });
+  async addDependency(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const id = req.params.id as string;
+      const existing = await tasksService.getById(id);
+      await requireProjectMember(existing.project.id, req.user!.id);
+
+      const { dependsOnTaskId, type } = req.body;
+      const dependency = await tasksService.addDependency(id, dependsOnTaskId, type);
+      res.status(201).json(successResponse(dependency));
+    } catch (err) {
+      next(err);
+    }
   }
 
-  async removeDependency(req: Request, res: Response): Promise<void> {
-    // TODO: Call tasksService.removeDependency
-    res.status(501).json({ message: 'Not implemented' });
+  async removeDependency(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const id = req.params.id as string;
+      const existing = await tasksService.getById(id);
+      await requireProjectMember(existing.project.id, req.user!.id);
+
+      await tasksService.removeDependency(req.params.dependencyId as string);
+      res.status(204).send();
+    } catch (err) {
+      next(err);
+    }
   }
 
-  async updatePosition(req: Request, res: Response): Promise<void> {
-    // TODO: Validate input, call tasksService.updatePosition
-    res.status(501).json({ message: 'Not implemented' });
+  async updatePosition(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const id = req.params.id as string;
+      const existing = await tasksService.getById(id);
+      await requireProjectMember(existing.project.id, req.user!.id);
+
+      const { position, statusId } = req.body;
+      const task = await tasksService.updatePosition(id, position, statusId);
+      res.json(successResponse(task));
+    } catch (err) {
+      next(err);
+    }
   }
 }

@@ -1,63 +1,349 @@
 import { prisma } from '../prisma/client.js';
+import { ApiError } from '../utils/api-error.js';
+import { requireWorkspaceMember } from '../utils/authorization.js';
 
 export class ProjectsService {
   async create(data: { workspaceId: string; name: string; key: string; description?: string }, userId: string) {
-    // TODO: Create project with default statuses, add creator as ADMIN
-    throw new Error('Not implemented');
+    await requireWorkspaceMember(data.workspaceId, userId, ['OWNER', 'ADMIN', 'MEMBER']);
+
+    const existingKey = await prisma.project.findUnique({
+      where: { workspaceId_key: { workspaceId: data.workspaceId, key: data.key } },
+    });
+    if (existingKey) {
+      throw ApiError.conflict('A project with this key already exists in this workspace');
+    }
+
+    const project = await prisma.$transaction(async (tx: any) => {
+      const proj = await tx.project.create({
+        data: {
+          workspaceId: data.workspaceId,
+          name: data.name,
+          key: data.key,
+          description: data.description,
+        },
+      });
+
+      await tx.projectMember.create({
+        data: {
+          projectId: proj.id,
+          userId,
+          role: 'ADMIN',
+        },
+      });
+
+      await tx.projectStatus.createMany({
+        data: [
+          { projectId: proj.id, name: 'Backlog', color: '#6B7280', category: 'NOT_STARTED', position: 1.0, isDefault: true },
+          { projectId: proj.id, name: 'In Progress', color: '#3B82F6', category: 'ACTIVE', position: 2.0 },
+          { projectId: proj.id, name: 'In Review', color: '#F59E0B', category: 'ACTIVE', position: 3.0 },
+          { projectId: proj.id, name: 'Done', color: '#10B981', category: 'DONE', position: 4.0 },
+        ],
+      });
+
+      return tx.project.findUniqueOrThrow({
+        where: { id: proj.id },
+        include: {
+          statuses: { orderBy: { position: 'asc' } },
+          members: {
+            include: { user: { select: { id: true, email: true, displayName: true, avatarUrl: true } } },
+          },
+          _count: { select: { tasks: true, members: true } },
+        },
+      });
+    });
+
+    return project;
   }
 
   async list(workspaceId: string, userId: string) {
-    // TODO: Return projects in workspace where user is a member
-    throw new Error('Not implemented');
+    await requireWorkspaceMember(workspaceId, userId);
+
+    return prisma.project.findMany({
+      where: { workspaceId },
+      include: {
+        _count: { select: { tasks: true, members: true } },
+      },
+    });
   }
 
-  async getById(id: string) {
-    // TODO: Find project by ID with members and statuses
-    throw new Error('Not implemented');
+  async getById(id: string, userId: string) {
+    const project = await prisma.project.findUnique({
+      where: { id },
+      include: {
+        statuses: { orderBy: { position: 'asc' } },
+        members: {
+          include: { user: { select: { id: true, email: true, displayName: true, avatarUrl: true } } },
+        },
+        _count: { select: { tasks: true, members: true } },
+      },
+    });
+
+    if (!project) {
+      throw ApiError.notFound('Project not found');
+    }
+
+    // Check project membership or workspace membership
+    const isProjectMember = project.members.some((m: any) => m.userId === userId);
+    if (!isProjectMember) {
+      // Fall back to workspace membership
+      const wsMember = await prisma.workspaceMember.findUnique({
+        where: { workspaceId_userId: { workspaceId: project.workspaceId, userId } },
+      });
+      if (!wsMember) {
+        throw ApiError.forbidden('Not a member of this project or workspace');
+      }
+    }
+
+    return project;
   }
 
-  async update(id: string, data: { name?: string; description?: string }) {
-    // TODO: Update project
-    throw new Error('Not implemented');
+  async update(id: string, data: { name?: string; description?: string }, userId: string) {
+    const project = await prisma.project.findUnique({ where: { id } });
+    if (!project) throw ApiError.notFound('Project not found');
+
+    // Must be project ADMIN or workspace OWNER/ADMIN
+    const projectMember = await prisma.projectMember.findUnique({
+      where: { projectId_userId: { projectId: id, userId } },
+    });
+    const wsMember = await prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId: project.workspaceId, userId } },
+    });
+
+    const hasProjectAdmin = projectMember?.role === 'ADMIN';
+    const hasWsAdmin = wsMember && ['OWNER', 'ADMIN'].includes(wsMember.role);
+
+    if (!hasProjectAdmin && !hasWsAdmin) {
+      throw ApiError.forbidden('Insufficient permissions');
+    }
+
+    return prisma.project.update({
+      where: { id },
+      data,
+      include: {
+        statuses: { orderBy: { position: 'asc' } },
+        members: {
+          include: { user: { select: { id: true, email: true, displayName: true, avatarUrl: true } } },
+        },
+      },
+    });
   }
 
-  async delete(id: string) {
-    // TODO: Delete project and cascade
-    throw new Error('Not implemented');
+  async delete(id: string, userId: string) {
+    const project = await prisma.project.findUnique({ where: { id } });
+    if (!project) throw ApiError.notFound('Project not found');
+
+    const projectMember = await prisma.projectMember.findUnique({
+      where: { projectId_userId: { projectId: id, userId } },
+    });
+    const wsMember = await prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId: project.workspaceId, userId } },
+    });
+
+    const hasProjectAdmin = projectMember?.role === 'ADMIN';
+    const hasWsOwner = wsMember?.role === 'OWNER';
+
+    if (!hasProjectAdmin && !hasWsOwner) {
+      throw ApiError.forbidden('Insufficient permissions');
+    }
+
+    await prisma.project.delete({ where: { id } });
   }
 
-  async addMember(projectId: string, userId: string, role: string) {
-    // TODO: Add user as project member
-    throw new Error('Not implemented');
+  async addMember(projectId: string, data: { userId: string; role: string }, requesterId: string) {
+    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) throw ApiError.notFound('Project not found');
+
+    // Requester must be project ADMIN or workspace OWNER/ADMIN
+    const requesterProjectMember = await prisma.projectMember.findUnique({
+      where: { projectId_userId: { projectId, userId: requesterId } },
+    });
+    const requesterWsMember = await prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId: project.workspaceId, userId: requesterId } },
+    });
+
+    const hasPermission =
+      requesterProjectMember?.role === 'ADMIN' ||
+      (requesterWsMember && ['OWNER', 'ADMIN'].includes(requesterWsMember.role));
+
+    if (!hasPermission) {
+      throw ApiError.forbidden('Insufficient permissions');
+    }
+
+    // Target must be workspace member
+    const targetWsMember = await prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId: project.workspaceId, userId: data.userId } },
+    });
+    if (!targetWsMember) {
+      throw ApiError.badRequest('User must be a workspace member before being added to a project');
+    }
+
+    const existing = await prisma.projectMember.findUnique({
+      where: { projectId_userId: { projectId, userId: data.userId } },
+    });
+    if (existing) {
+      throw ApiError.conflict('User is already a member of this project');
+    }
+
+    return prisma.projectMember.create({
+      data: {
+        projectId,
+        userId: data.userId,
+        role: data.role,
+      },
+      include: { user: { select: { id: true, email: true, displayName: true, avatarUrl: true } } },
+    });
   }
 
-  async updateMember(projectId: string, userId: string, role: string) {
-    // TODO: Update project member role
-    throw new Error('Not implemented');
+  async updateMember(projectId: string, targetUserId: string, role: string, requesterId: string) {
+    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) throw ApiError.notFound('Project not found');
+
+    const requesterProjectMember = await prisma.projectMember.findUnique({
+      where: { projectId_userId: { projectId, userId: requesterId } },
+    });
+    const requesterWsMember = await prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId: project.workspaceId, userId: requesterId } },
+    });
+
+    const hasPermission =
+      requesterProjectMember?.role === 'ADMIN' ||
+      (requesterWsMember && ['OWNER', 'ADMIN'].includes(requesterWsMember.role));
+
+    if (!hasPermission) {
+      throw ApiError.forbidden('Insufficient permissions');
+    }
+
+    const target = await prisma.projectMember.findUnique({
+      where: { projectId_userId: { projectId, userId: targetUserId } },
+    });
+    if (!target) {
+      throw ApiError.notFound('Member not found');
+    }
+
+    return prisma.projectMember.update({
+      where: { projectId_userId: { projectId, userId: targetUserId } },
+      data: { role },
+      include: { user: { select: { id: true, email: true, displayName: true, avatarUrl: true } } },
+    });
   }
 
-  async removeMember(projectId: string, userId: string) {
-    // TODO: Remove project member
-    throw new Error('Not implemented');
+  async removeMember(projectId: string, targetUserId: string, requesterId: string) {
+    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) throw ApiError.notFound('Project not found');
+
+    if (targetUserId !== requesterId) {
+      const requesterProjectMember = await prisma.projectMember.findUnique({
+        where: { projectId_userId: { projectId, userId: requesterId } },
+      });
+      const requesterWsMember = await prisma.workspaceMember.findUnique({
+        where: { workspaceId_userId: { workspaceId: project.workspaceId, userId: requesterId } },
+      });
+
+      const hasPermission =
+        requesterProjectMember?.role === 'ADMIN' ||
+        (requesterWsMember && ['OWNER', 'ADMIN'].includes(requesterWsMember.role));
+
+      if (!hasPermission) {
+        throw ApiError.forbidden('Insufficient permissions');
+      }
+    }
+
+    const target = await prisma.projectMember.findUnique({
+      where: { projectId_userId: { projectId, userId: targetUserId } },
+    });
+    if (!target) {
+      throw ApiError.notFound('Member not found');
+    }
+
+    await prisma.projectMember.delete({
+      where: { projectId_userId: { projectId, userId: targetUserId } },
+    });
   }
 
   async listStatuses(projectId: string) {
-    // TODO: Return statuses for a project ordered by position
-    throw new Error('Not implemented');
+    return prisma.projectStatus.findMany({
+      where: { projectId },
+      orderBy: { position: 'asc' },
+    });
   }
 
-  async createStatus(projectId: string, data: { name: string; color: string; category: string; position: number }) {
-    // TODO: Create a new status for the project
-    throw new Error('Not implemented');
+  async createStatus(projectId: string, data: { name: string; color: string; category: string; position?: number }) {
+    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) throw ApiError.notFound('Project not found');
+
+    let position = data.position;
+    if (position === undefined) {
+      const maxStatus = await prisma.projectStatus.findFirst({
+        where: { projectId },
+        orderBy: { position: 'desc' },
+      });
+      position = maxStatus ? maxStatus.position + 1 : 1.0;
+    }
+
+    return prisma.projectStatus.create({
+      data: {
+        projectId,
+        name: data.name,
+        color: data.color,
+        category: data.category,
+        position,
+      },
+    });
   }
 
-  async updateStatus(statusId: string, data: { name?: string; color?: string; category?: string; position?: number }) {
-    // TODO: Update a project status
-    throw new Error('Not implemented');
+  async updateStatus(statusId: string, data: { name?: string; color?: string; category?: string; position?: number; isDefault?: boolean }) {
+    const status = await prisma.projectStatus.findUnique({ where: { id: statusId } });
+    if (!status) throw ApiError.notFound('Status not found');
+
+    if (data.isDefault === true) {
+      return prisma.$transaction(async (tx: any) => {
+        await tx.projectStatus.updateMany({
+          where: { projectId: status.projectId, isDefault: true },
+          data: { isDefault: false },
+        });
+        return tx.projectStatus.update({
+          where: { id: statusId },
+          data,
+        });
+      });
+    }
+
+    return prisma.projectStatus.update({
+      where: { id: statusId },
+      data,
+    });
   }
 
-  async deleteStatus(statusId: string) {
-    // TODO: Delete a project status (check no tasks reference it)
-    throw new Error('Not implemented');
+  async deleteStatus(statusId: string, reassignToStatusId?: string) {
+    const status = await prisma.projectStatus.findUnique({ where: { id: statusId } });
+    if (!status) throw ApiError.notFound('Status not found');
+
+    if (status.isDefault) {
+      throw ApiError.badRequest('Cannot delete the default status');
+    }
+
+    const taskCount = await prisma.task.count({ where: { statusId } });
+
+    if (taskCount > 0 && !reassignToStatusId) {
+      throw ApiError.badRequest('Must provide reassignToStatusId when tasks exist on this status');
+    }
+
+    if (taskCount > 0 && reassignToStatusId) {
+      const targetStatus = await prisma.projectStatus.findUnique({ where: { id: reassignToStatusId } });
+      if (!targetStatus || targetStatus.projectId !== status.projectId) {
+        throw ApiError.badRequest('reassignToStatusId must belong to the same project');
+      }
+
+      await prisma.$transaction(async (tx: any) => {
+        await tx.task.updateMany({
+          where: { statusId },
+          data: { statusId: reassignToStatusId },
+        });
+        await tx.projectStatus.delete({ where: { id: statusId } });
+      });
+      return;
+    }
+
+    await prisma.projectStatus.delete({ where: { id: statusId } });
   }
 }
