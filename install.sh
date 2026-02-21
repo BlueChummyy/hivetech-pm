@@ -155,9 +155,15 @@ info "Creating install directory..."
 mkdir -p "$INSTALL_DIR"
 cd "$INSTALL_DIR"
 
-# If the repo is already cloned (development), skip. Otherwise clone it.
+# If the repo is already cloned, update it. Otherwise clone or copy it.
 if [ -f "docker-compose.prod.yml" ]; then
-  success "Project files found in ${INSTALL_DIR}"
+  if [ -d ".git" ]; then
+    info "Updating existing installation from GitHub..."
+    git pull --quiet 2>/dev/null && success "Project files updated in ${INSTALL_DIR}" \
+      || warn "Could not pull latest code — using existing files"
+  else
+    success "Project files found in ${INSTALL_DIR}"
+  fi
 else
   # Check if we're running from inside the project
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}" 2>/dev/null)" 2>/dev/null && pwd 2>/dev/null || echo "")"
