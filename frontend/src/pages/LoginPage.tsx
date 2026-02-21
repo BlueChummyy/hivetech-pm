@@ -1,20 +1,43 @@
 import { useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Hexagon } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardBody } from '@/components/ui/Card';
+import { authApi } from '@/api/auth';
+import { useAuthStore } from '@/store/auth.store';
+import { isAxiosError } from 'axios';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
+  const login = useAuthStore((s) => s.login);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setError('');
     setLoading(true);
-    // TODO: implement login
-    setTimeout(() => setLoading(false), 1000);
+
+    try {
+      const { data } = await authApi.login({ email, password });
+      login(
+        { id: data.user.id, email: data.user.email, name: data.user.name, avatarUrl: data.user.avatarUrl, createdAt: '', updatedAt: '' },
+        data.accessToken,
+        data.refreshToken,
+      );
+      navigate('/dashboard', { replace: true });
+    } catch (err) {
+      if (isAxiosError(err) && err.response?.data?.message) {
+        setError(err.response.data.message);
+      } else {
+        setError('Login failed. Please check your credentials and try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -33,6 +56,11 @@ export function LoginPage() {
         <Card>
           <CardBody>
             <form onSubmit={handleSubmit} className="space-y-4">
+              {error && (
+                <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                  {error}
+                </div>
+              )}
               <Input
                 id="email"
                 label="Email"

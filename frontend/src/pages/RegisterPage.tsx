@@ -1,9 +1,12 @@
 import { useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Hexagon } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardBody } from '@/components/ui/Card';
+import { authApi } from '@/api/auth';
+import { useAuthStore } from '@/store/auth.store';
+import { isAxiosError } from 'axios';
 
 export function RegisterPage() {
   const [name, setName] = useState('');
@@ -11,12 +14,43 @@ export function RegisterPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
+  const login = useAuthStore((s) => s.login);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setError('');
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.');
+      return;
+    }
+
     setLoading(true);
-    // TODO: implement registration
-    setTimeout(() => setLoading(false), 1000);
+
+    try {
+      const { data } = await authApi.register({ email, password, name });
+      login(
+        { id: data.user.id, email: data.user.email, name: data.user.name, avatarUrl: data.user.avatarUrl, createdAt: '', updatedAt: '' },
+        data.accessToken,
+        data.refreshToken,
+      );
+      navigate('/dashboard', { replace: true });
+    } catch (err) {
+      if (isAxiosError(err) && err.response?.data?.message) {
+        setError(err.response.data.message);
+      } else {
+        setError('Registration failed. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -35,6 +69,11 @@ export function RegisterPage() {
         <Card>
           <CardBody>
             <form onSubmit={handleSubmit} className="space-y-4">
+              {error && (
+                <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                  {error}
+                </div>
+              )}
               <Input
                 id="name"
                 label="Full name"
