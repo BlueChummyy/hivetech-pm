@@ -133,4 +133,4 @@ export async function del<T>(
   return apiClient.delete<T>(url, config);
 }
 
-export default apiClient;
+export { apiClient };

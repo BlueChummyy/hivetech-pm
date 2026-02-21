@@ -40,12 +40,13 @@ function StatusBadge({
   const updateTask = useUpdateTask();
 
   useEffect(() => {
+    if (!open) return;
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, []);
+  }, [open]);
 
   const currentStatus = statuses.find((s) => s.id === task.statusId);
 
@@ -104,12 +105,13 @@ function PriorityBadge({ task }: { task: Task }) {
   const updateTask = useUpdateTask();
 
   useEffect(() => {
+    if (!open) return;
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, []);
+  }, [open]);
 
   const handleSelect = (priority: string) => {
     setOpen(false);

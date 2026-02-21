@@ -31,6 +31,7 @@ export class AuthService {
   async register(email: string, password: string, displayName: string) {
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
+      // Don't reveal whether the account is active or deleted
       throw ApiError.conflict('A user with this email already exists');
     }
 
@@ -77,14 +78,19 @@ export class AuthService {
       },
     });
 
-    const { passwordHash: _, ...userWithoutPassword } = user;
-    return { user: userWithoutPassword, accessToken, refreshToken: refreshTokenValue };
+    // Re-fetch user without password hash for the response
+    const safeUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: userSelectWithoutPassword,
+    });
+
+    return { user: safeUser, accessToken, refreshToken: refreshTokenValue };
   }
 
   async refresh(refreshToken: string) {
     const stored = await prisma.refreshToken.findUnique({
       where: { token: refreshToken },
-      include: { user: true },
+      include: { user: { select: { id: true, email: true, isActive: true, deletedAt: true } } },
     });
 
     if (!stored || stored.expiresAt < new Date()) {
@@ -92,6 +98,12 @@ export class AuthService {
         await prisma.refreshToken.delete({ where: { id: stored.id } });
       }
       throw ApiError.unauthorized('Invalid or expired refresh token');
+    }
+
+    // Check if user is still active
+    if (!stored.user.isActive || stored.user.deletedAt) {
+      await prisma.refreshToken.delete({ where: { id: stored.id } });
+      throw ApiError.unauthorized('User account is deactivated');
     }
 
     await prisma.refreshToken.delete({ where: { id: stored.id } });
@@ -115,8 +127,8 @@ export class AuthService {
   }
 
   async getProfile(userId: string) {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
+    const user = await prisma.user.findFirst({
+      where: { id: userId, deletedAt: null, isActive: true },
       select: userSelectWithoutPassword,
     });
 

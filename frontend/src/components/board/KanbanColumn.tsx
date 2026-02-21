@@ -27,14 +27,17 @@ export function KanbanColumn({ status, tasks, projectId }: KanbanColumnProps) {
       return;
     }
 
-    await createTask.mutateAsync({
-      projectId,
-      statusId: status.id,
-      title,
-    });
-
-    setNewTitle('');
-    setIsAdding(false);
+    try {
+      await createTask.mutateAsync({
+        projectId,
+        statusId: status.id,
+        title,
+      });
+      setNewTitle('');
+      setIsAdding(false);
+    } catch {
+      // Error handled by React Query
+    }
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {

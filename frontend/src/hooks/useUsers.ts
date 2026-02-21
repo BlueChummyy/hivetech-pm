@@ -3,9 +3,11 @@ import { usersApi, type UpdateProfileData, type ChangePasswordData } from '@/api
 import { useAuthStore } from '@/store/auth.store';
 
 export function useCurrentUser() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   return useQuery({
     queryKey: ['users', 'me'],
     queryFn: () => usersApi.getMe(),
+    enabled: isAuthenticated,
   });
 }
 
@@ -30,6 +32,6 @@ export function useSearchUsers(search?: string) {
   return useQuery({
     queryKey: ['users', { search }],
     queryFn: () => usersApi.list({ search }),
-    enabled: search !== undefined,
+    enabled: !!search && search.length >= 2,
   });
 }

@@ -15,18 +15,18 @@ export function useProjectSocketEvents(projectId: string | undefined) {
 
     // Task events
     const handleTaskCreated = () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
     };
     const handleTaskUpdated = () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
     };
     const handleTaskDeleted = () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
     };
 
     // Status events
     const handleStatusChange = () => {
-      queryClient.invalidateQueries({ queryKey: ['statuses', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['statuses', { projectId }] });
     };
 
     // Comment events
@@ -37,7 +37,7 @@ export function useProjectSocketEvents(projectId: string | undefined) {
 
     // Label events
     const handleLabelChange = () => {
-      queryClient.invalidateQueries({ queryKey: ['labels', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['labels', { projectId }] });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
     };
 
@@ -48,7 +48,7 @@ export function useProjectSocketEvents(projectId: string | undefined) {
 
     // Member events
     const handleMemberChange = () => {
-      queryClient.invalidateQueries({ queryKey: ['project-members', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['members', projectId] });
       queryClient.invalidateQueries({ queryKey: ['projects', projectId] });
     };
 

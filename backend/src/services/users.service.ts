@@ -53,8 +53,8 @@ export class UsersService {
   }
 
   async getById(id: string) {
-    const user = await prisma.user.findUnique({
-      where: { id },
+    const user = await prisma.user.findFirst({
+      where: { id, deletedAt: null, isActive: true },
       select: userSelectWithoutPassword,
     });
 
@@ -66,6 +66,11 @@ export class UsersService {
   }
 
   async updateProfile(userId: string, data: { displayName?: string; avatarUrl?: string }) {
+    const existing = await prisma.user.findFirst({
+      where: { id: userId, deletedAt: null, isActive: true },
+    });
+    if (!existing) throw ApiError.notFound('User not found');
+
     const user = await prisma.user.update({
       where: { id: userId },
       data,
@@ -76,7 +81,7 @@ export class UsersService {
   }
 
   async changePassword(userId: string, oldPassword: string, newPassword: string) {
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = await prisma.user.findFirst({ where: { id: userId, deletedAt: null, isActive: true } });
     if (!user) {
       throw ApiError.notFound('User not found');
     }
@@ -94,6 +99,11 @@ export class UsersService {
   }
 
   async update(id: string, data: { displayName?: string; avatarUrl?: string }) {
+    const existing = await prisma.user.findFirst({
+      where: { id, deletedAt: null, isActive: true },
+    });
+    if (!existing) throw ApiError.notFound('User not found');
+
     const user = await prisma.user.update({
       where: { id },
       data,
@@ -104,6 +114,11 @@ export class UsersService {
   }
 
   async softDelete(id: string) {
+    const existing = await prisma.user.findFirst({
+      where: { id, deletedAt: null },
+    });
+    if (!existing) throw ApiError.notFound('User not found');
+
     await prisma.user.update({
       where: { id },
       data: { deletedAt: new Date(), isActive: false },

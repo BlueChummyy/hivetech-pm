@@ -22,7 +22,7 @@ export function useWorkspaceSocketEvents(workspaceId: string | undefined) {
     };
 
     const handleMemberChange = () => {
-      queryClient.invalidateQueries({ queryKey: ['workspace-members', workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['workspaces', workspaceId, 'members'] });
       queryClient.invalidateQueries({ queryKey: ['workspaces', workspaceId] });
     };
 

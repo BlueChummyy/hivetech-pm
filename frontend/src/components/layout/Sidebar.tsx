@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -27,9 +28,11 @@ export function Sidebar() {
   const { data: workspaces } = useWorkspaces();
 
   // Auto-select first workspace if none selected
-  if (!activeWorkspaceId && workspaces && workspaces.length > 0) {
-    setActiveWorkspace(workspaces[0].id);
-  }
+  useEffect(() => {
+    if (!activeWorkspaceId && workspaces && workspaces.length > 0) {
+      setActiveWorkspace(workspaces[0].id);
+    }
+  }, [activeWorkspaceId, workspaces, setActiveWorkspace]);
 
   const activeWorkspace = workspaces?.find((w) => w.id === activeWorkspaceId);
 
@@ -48,6 +51,8 @@ export function Sidebar() {
 
   const handleLogout = () => {
     logout();
+    useWorkspaceStore.getState().clearActiveWorkspace();
+    useUIStore.getState().closeTaskPanel();
     navigate('/login', { replace: true });
   };
 
@@ -70,6 +75,7 @@ export function Sidebar() {
         )}
         <button
           onClick={() => collapseSidebar(!sidebarCollapsed)}
+          aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           className="ml-auto rounded-md p-1 text-surface-400 hover:bg-surface-800 hover:text-surface-200"
         >
           <ChevronLeft

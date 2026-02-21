@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useWorkspace, useUpdateWorkspace, useWorkspaceMembers } from '@/hooks/useWorkspaces';
@@ -23,13 +23,13 @@ export function WorkspaceSettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('general');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [initialized, setInitialized] = useState(false);
 
-  if (workspace && !initialized) {
-    setName(workspace.name);
-    setDescription(workspace.description || '');
-    setInitialized(true);
-  }
+  useEffect(() => {
+    if (workspace) {
+      setName(workspace.name);
+      setDescription(workspace.description || '');
+    }
+  }, [workspace?.id]); // Only reset when workspace changes
 
   function handleSave() {
     if (!workspaceId || !name.trim()) return;

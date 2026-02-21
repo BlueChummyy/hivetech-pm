@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useProject, useUpdateProject } from '@/hooks/useProjects';
@@ -28,13 +28,13 @@ export function ProjectSettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('general');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [initialized, setInitialized] = useState(false);
 
-  if (project && !initialized) {
-    setName(project.name);
-    setDescription(project.description || '');
-    setInitialized(true);
-  }
+  useEffect(() => {
+    if (project) {
+      setName(project.name);
+      setDescription(project.description || '');
+    }
+  }, [project?.id]); // Only reset when project changes
 
   function handleSave() {
     if (!projectId || !name.trim()) return;

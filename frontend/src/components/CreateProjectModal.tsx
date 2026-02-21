@@ -46,8 +46,20 @@ export function CreateProjectModal({ workspaceId, open, onClose }: CreateProject
       setKeyTouched(false);
       setDescription('');
       setKeyError('');
+      return;
     }
-  }, [open]);
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose();
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = '';
+    };
+  }, [open, onClose]);
 
   const validateKey = useCallback((value: string) => {
     if (!/^[A-Z0-9]+$/.test(value)) {
@@ -75,15 +87,21 @@ export function CreateProjectModal({ workspaceId, open, onClose }: CreateProject
     if (!name.trim() || !key.trim()) return;
     if (!validateKey(key)) return;
 
-    const project = await createProject.mutateAsync({
-      workspaceId,
-      name: name.trim(),
-      key,
-      description: description.trim() || undefined,
-    });
+    try {
+      const project = await createProject.mutateAsync({
+        workspaceId,
+        name: name.trim(),
+        key,
+        description: description.trim() || undefined,
+      });
 
-    onClose();
-    navigate(`/projects/${project.id}/board`);
+      onClose();
+      if (project?.id) {
+        navigate(`/projects/${project.id}/board`);
+      }
+    } catch {
+      // Error is handled by React Query -- mutation error state
+    }
   };
 
   if (!open) return null;

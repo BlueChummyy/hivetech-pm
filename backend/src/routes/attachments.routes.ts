@@ -18,7 +18,10 @@ fs.mkdirSync(env.UPLOAD_DIR, { recursive: true });
 const storage = multer.diskStorage({
   destination: env.UPLOAD_DIR,
   filename: (_req, file, cb) => {
-    const uniqueName = `${crypto.randomUUID()}${path.extname(file.originalname)}`;
+    // Sanitize: use only the base name to prevent path traversal via originalname
+    const safeName = path.basename(file.originalname);
+    const ext = path.extname(safeName);
+    const uniqueName = `${crypto.randomUUID()}${ext}`;
     cb(null, uniqueName);
   },
 });

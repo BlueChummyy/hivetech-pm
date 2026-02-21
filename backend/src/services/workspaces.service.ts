@@ -103,7 +103,7 @@ export class WorkspacesService {
     await requireWorkspaceMember(workspaceId, userId, ['OWNER', 'ADMIN']);
 
     const targetUser = await prisma.user.findUnique({ where: { email: data.email } });
-    if (!targetUser) {
+    if (!targetUser || !targetUser.isActive || targetUser.deletedAt) {
       throw ApiError.notFound('User not found with that email');
     }
 

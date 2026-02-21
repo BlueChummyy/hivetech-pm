@@ -7,6 +7,23 @@ import { prisma } from './prisma/client.js';
 import { logger } from './utils/logger.js';
 import { setSocketIO } from './utils/socket.js';
 
+async function isWorkspaceMember(workspaceId: string, userId: string): Promise<boolean> {
+  const member = await prisma.workspaceMember.findUnique({
+    where: { workspaceId_userId: { workspaceId, userId } },
+  });
+  return !!member;
+}
+
+async function isProjectMemberOrWorkspaceMember(projectId: string, userId: string): Promise<boolean> {
+  const projectMember = await prisma.projectMember.findUnique({
+    where: { projectId_userId: { projectId, userId } },
+  });
+  if (projectMember) return true;
+  const project = await prisma.project.findUnique({ where: { id: projectId }, select: { workspaceId: true } });
+  if (!project) return false;
+  return isWorkspaceMember(project.workspaceId, userId);
+}
+
 const app = createApp();
 const server = http.createServer(app);
 
@@ -42,14 +59,24 @@ io.on('connection', (socket) => {
   // Auto-join user's personal room for notifications
   socket.join(`user:${socket.data.userId}`);
 
-  // Join workspace rooms
-  socket.on('join:workspace', (workspaceId: string) => {
+  // Join workspace rooms (with membership check)
+  socket.on('join:workspace', async (workspaceId: string) => {
+    const isMember = await isWorkspaceMember(workspaceId, socket.data.userId);
+    if (!isMember) {
+      socket.emit('error', { message: 'Not a member of this workspace' });
+      return;
+    }
     socket.join(`workspace:${workspaceId}`);
     logger.debug({ socketId: socket.id, workspaceId }, 'Joined workspace room');
   });
 
-  // Join project rooms
-  socket.on('join:project', (projectId: string) => {
+  // Join project rooms (with membership check)
+  socket.on('join:project', async (projectId: string) => {
+    const isMember = await isProjectMemberOrWorkspaceMember(projectId, socket.data.userId);
+    if (!isMember) {
+      socket.emit('error', { message: 'Not a member of this project' });
+      return;
+    }
     socket.join(`project:${projectId}`);
     logger.debug({ socketId: socket.id, projectId }, 'Joined project room');
   });

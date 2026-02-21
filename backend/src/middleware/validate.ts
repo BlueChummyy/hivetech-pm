@@ -25,9 +25,10 @@ export function validate(schemas: ValidationSchemas) {
       next();
     } catch (error) {
       if (error instanceof z.ZodError) {
-        throw ApiError.badRequest('Validation failed', error.errors);
+        next(ApiError.badRequest('Validation failed', error.errors));
+        return;
       }
-      throw error;
+      next(error);
     }
   };
 }

@@ -1,5 +1,4 @@
 import { useParams } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
 import { useTasks } from '@/hooks/useTasks';
 import { useProject } from '@/hooks/useProjects';
 import { GanttChart } from '@/components/gantt/GanttChart';
@@ -7,7 +6,7 @@ import { GanttChart } from '@/components/gantt/GanttChart';
 export function GanttPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const { data: project } = useProject(projectId || '');
-  const { data: tasks, isLoading } = useTasks({ projectId });
+  const { data: tasks, isLoading } = useTasks({ projectId: projectId ?? '' });
 
   return (
     <div className="space-y-4">

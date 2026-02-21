@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { Menu, Search, Settings, LogOut, User } from 'lucide-react';
 import { useUIStore } from '@/store/ui.store';
 import { useAuthStore } from '@/store/auth.store';
+import { useWorkspaceStore } from '@/store/workspace.store';
 import { Avatar } from '@/components/ui/Avatar';
 import { DropdownMenu, DropdownItem, DropdownSeparator } from '@/components/ui/DropdownMenu';
 import { NotificationDropdown } from './NotificationDropdown';
@@ -14,6 +15,8 @@ export function Header() {
 
   const handleLogout = () => {
     logout();
+    useWorkspaceStore.getState().clearActiveWorkspace();
+    useUIStore.getState().closeTaskPanel();
     navigate('/login', { replace: true });
   };
 
@@ -21,6 +24,7 @@ export function Header() {
     <header className="flex h-14 items-center gap-4 border-b border-surface-700 bg-surface-900 px-4">
       <button
         onClick={toggleSidebar}
+        aria-label="Toggle sidebar"
         className="rounded-md p-1.5 text-surface-400 hover:bg-surface-800 hover:text-surface-200 lg:hidden"
       >
         <Menu className="h-5 w-5" />
@@ -42,7 +46,7 @@ export function Header() {
 
         <DropdownMenu
           trigger={
-            <button className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:ring-2 hover:ring-surface-600">
+            <button aria-label="User menu" className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:ring-2 hover:ring-surface-600">
               <Avatar src={user?.avatarUrl} name={user?.name} size="sm" />
             </button>
           }

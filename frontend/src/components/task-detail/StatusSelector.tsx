@@ -15,6 +15,7 @@ export function StatusSelector({ statuses, currentStatusId, onChange }: StatusSe
   const current = statuses.find((s) => s.id === currentStatusId);
 
   useEffect(() => {
+    if (!open) return;
     function handleClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
@@ -22,7 +23,7 @@ export function StatusSelector({ statuses, currentStatusId, onChange }: StatusSe
     }
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
+  }, [open]);
 
   return (
     <div ref={ref} className="relative">

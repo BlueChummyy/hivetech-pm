@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, Trash2, X } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Plus, Trash2 } from 'lucide-react';
 import type { Label } from '@/types/models.types';
 import {
   useLabels,
@@ -131,26 +131,7 @@ export function LabelManager({ projectId }: LabelManagerProps) {
           >
             {editingId === label.id ? (
               <>
-                <div className="relative">
-                  <button
-                    className="h-5 w-5 rounded-full border border-surface-600"
-                    style={{ backgroundColor: editColor }}
-                  />
-                  <div className="absolute left-0 top-full z-10 mt-1 flex flex-wrap gap-1 rounded-lg border border-surface-700 bg-surface-800 p-2 shadow-xl">
-                    {PRESET_COLORS.map((color) => (
-                      <button
-                        key={color}
-                        onClick={() => setEditColor(color)}
-                        className="h-5 w-5 rounded-full border-2 transition-transform hover:scale-110"
-                        style={{
-                          backgroundColor: color,
-                          borderColor:
-                            editColor === color ? 'white' : 'transparent',
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
+                <EditColorPicker color={editColor} onChange={setEditColor} />
                 <input
                   type="text"
                   value={editName}
@@ -223,6 +204,56 @@ export function LabelManager({ projectId }: LabelManagerProps) {
           </p>
         )}
       </div>
+    </div>
+  );
+}
+
+function EditColorPicker({
+  color,
+  onChange,
+}: {
+  color: string;
+  onChange: (color: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={pickerRef}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="h-5 w-5 rounded-full border border-surface-600 hover:scale-110 transition-transform"
+        style={{ backgroundColor: color }}
+      />
+      {open && (
+        <div className="absolute left-0 top-full z-10 mt-1 flex flex-wrap gap-1 rounded-lg border border-surface-700 bg-surface-800 p-2 shadow-xl">
+          {PRESET_COLORS.map((c) => (
+            <button
+              key={c}
+              onClick={() => {
+                onChange(c);
+                setOpen(false);
+              }}
+              className="h-5 w-5 rounded-full border-2 transition-transform hover:scale-110"
+              style={{
+                backgroundColor: c,
+                borderColor: color === c ? 'white' : 'transparent',
+              }}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -31,12 +31,15 @@ export class AttachmentsService {
       fs.unlinkSync(file.path);
     }
 
+    // Sanitize original name to prevent any stored path traversal
+    const sanitizedOriginalName = path.basename(file.originalname);
+
     const result = await prisma.attachment.create({
       data: {
         taskId,
         uploadedById: userId,
         filename: file.filename,
-        originalName: file.originalname,
+        originalName: sanitizedOriginalName,
         mimeType: file.mimetype,
         size: file.size,
         storagePath,
@@ -65,6 +68,11 @@ export class AttachmentsService {
   async delete(id: string, userId: string) {
     const attachment = await prisma.attachment.findUnique({ where: { id } });
     if (!attachment) throw ApiError.notFound('Attachment not found');
+
+    // Only the uploader can delete attachments
+    if (attachment.uploadedById !== userId) {
+      throw ApiError.forbidden('You can only delete your own attachments');
+    }
 
     // Get the task's projectId for socket emission
     const task = await prisma.task.findUnique({

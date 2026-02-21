@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { UsersService } from '../services/users.service.js';
+import { ApiError } from '../utils/api-error.js';
 import { successResponse, paginatedResponse } from '../utils/api-response.js';
 
 const usersService = new UsersService();
@@ -59,6 +60,10 @@ export class UsersController {
   async update(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = req.params.id as string;
+      // Users can only update their own profile via this endpoint
+      if (id !== req.user!.id) {
+        throw ApiError.forbidden('You can only update your own profile');
+      }
       const { displayName, avatarUrl } = req.body;
       const user = await usersService.update(id, { displayName, avatarUrl });
       res.status(200).json(successResponse(user));
@@ -70,8 +75,12 @@ export class UsersController {
   async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = req.params.id as string;
+      // Users can only delete their own account
+      if (id !== req.user!.id) {
+        throw ApiError.forbidden('You can only delete your own account');
+      }
       await usersService.softDelete(id);
-      res.status(200).json(successResponse({ message: 'User deleted successfully' }));
+      res.status(204).send();
     } catch (err) {
       next(err);
     }

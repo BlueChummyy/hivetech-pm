@@ -12,7 +12,8 @@ export function authenticate(req: Request, _res: Response, next: NextFunction): 
   const authHeader = req.headers.authorization;
 
   if (!authHeader?.startsWith('Bearer ')) {
-    throw ApiError.unauthorized('Missing or invalid authorization header');
+    next(ApiError.unauthorized('Missing or invalid authorization header'));
+    return;
   }
 
   const token = authHeader.slice(7);
@@ -25,23 +26,20 @@ export function authenticate(req: Request, _res: Response, next: NextFunction): 
     };
     next();
   } catch {
-    throw ApiError.unauthorized('Invalid or expired token');
+    next(ApiError.unauthorized('Invalid or expired token'));
   }
 }
 
 export function requireRole(...roles: string[]) {
   return (req: Request, _res: Response, next: NextFunction): void => {
     if (!req.user) {
-      throw ApiError.unauthorized();
+      next(ApiError.unauthorized());
+      return;
     }
 
-    // TODO: Check user role against workspace/project membership
-    // For now, pass through — role checking will be implemented
-    // when workspace/project context is available
-    if (roles.length > 0) {
-      // Role check will be implemented with workspace context
-    }
-
+    // Role checking is implemented at the service layer via
+    // requireWorkspaceMember/requireProjectMember with role arrays.
+    // This middleware ensures authentication only.
     next();
   };
 }

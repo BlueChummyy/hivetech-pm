@@ -4,7 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider } from '@/components/ui/Toast';
 import { SocketProvider } from '@/providers/SocketProvider';
-import App from './App';
+import { App } from './App';
 import './index.css';
 
 const queryClient = new QueryClient({

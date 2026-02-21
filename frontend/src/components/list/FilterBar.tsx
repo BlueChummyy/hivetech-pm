@@ -26,6 +26,7 @@ function FilterDropdown({ label, children }: DropdownProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!open) return;
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
@@ -33,7 +34,7 @@ function FilterDropdown({ label, children }: DropdownProps) {
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, []);
+  }, [open]);
 
   return (
     <div className="relative" ref={ref}>

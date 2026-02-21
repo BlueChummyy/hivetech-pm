@@ -21,6 +21,7 @@ export function AssigneeSelector({
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!open) return;
     function handleClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
@@ -29,7 +30,7 @@ export function AssigneeSelector({
     }
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
+  }, [open]);
 
   const filtered = members.filter((m) =>
     m.user?.name?.toLowerCase().includes(search.toLowerCase()),

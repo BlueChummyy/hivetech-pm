@@ -25,7 +25,8 @@ import { AssigneeSelector } from './AssigneeSelector';
 import { SubtaskList } from './SubtaskList';
 import { CommentSection } from './CommentSection';
 import { cn } from '@/utils/cn';
-import type { Priority, StatusCategory } from '@/types/models.types';
+import { StatusCategory } from '@/types/models.types';
+import type { Priority } from '@/types/models.types';
 
 export function TaskDetailPanel() {
   const taskPanelOpen = useUIStore((s) => s.taskPanelOpen);
@@ -82,6 +83,7 @@ export function TaskDetailPanel() {
   }, [taskPanelOpen, handleEscape]);
 
   useEffect(() => {
+    if (!labelDropdownOpen) return;
     function handleClick(e: MouseEvent) {
       if (labelRef.current && !labelRef.current.contains(e.target as Node)) {
         setLabelDropdownOpen(false);
@@ -89,7 +91,7 @@ export function TaskDetailPanel() {
     }
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
+  }, [labelDropdownOpen]);
 
   function saveTitle() {
     if (!task || !titleValue.trim() || titleValue === task.title) {
@@ -143,7 +145,7 @@ export function TaskDetailPanel() {
   }
 
   const doneStatus = statuses?.find(
-    (s) => (s.category as string) === 'DONE',
+    (s) => s.category === StatusCategory.DONE,
   );
 
   return (
@@ -186,6 +188,7 @@ export function TaskDetailPanel() {
               </span>
               <button
                 onClick={closeTaskPanel}
+                aria-label="Close task panel"
                 className="rounded-md p-1 text-surface-400 hover:bg-surface-700 hover:text-surface-200 transition-colors"
               >
                 <X className="h-5 w-5" />

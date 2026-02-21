@@ -1,10 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { workspacesApi, type CreateWorkspaceData, type UpdateWorkspaceData } from '@/api/workspaces';
+import { useAuthStore } from '@/store/auth.store';
 
 export function useWorkspaces() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   return useQuery({
     queryKey: ['workspaces'],
     queryFn: workspacesApi.list,
+    enabled: isAuthenticated,
   });
 }
 

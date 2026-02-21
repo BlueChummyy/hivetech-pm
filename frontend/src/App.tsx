@@ -63,7 +63,7 @@ function PageLoader() {
   );
 }
 
-export default function App() {
+export function App() {
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>

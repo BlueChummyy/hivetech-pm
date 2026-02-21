@@ -280,16 +280,22 @@ export class ProjectsService {
     emitToProject(projectId, 'member:removed', { projectId, userId: targetUserId });
   }
 
-  async listStatuses(projectId: string) {
+  async listStatuses(projectId: string, userId: string) {
+    // Verify access via project or workspace membership
+    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) throw ApiError.notFound('Project not found');
+    await requireWorkspaceMember(project.workspaceId, userId);
+
     return prisma.projectStatus.findMany({
       where: { projectId },
       orderBy: { position: 'asc' },
     });
   }
 
-  async createStatus(projectId: string, data: { name: string; color: string; category: string; position?: number }) {
+  async createStatus(projectId: string, data: { name: string; color: string; category: string; position?: number }, userId: string) {
     const project = await prisma.project.findUnique({ where: { id: projectId } });
     if (!project) throw ApiError.notFound('Project not found');
+    await requireWorkspaceMember(project.workspaceId, userId);
 
     let position = data.position;
     if (position === undefined) {
@@ -315,9 +321,13 @@ export class ProjectsService {
     return result;
   }
 
-  async updateStatus(statusId: string, data: { name?: string; color?: string; category?: string; position?: number; isDefault?: boolean }) {
+  async updateStatus(statusId: string, data: { name?: string; color?: string; category?: string; position?: number; isDefault?: boolean }, userId: string) {
     const status = await prisma.projectStatus.findUnique({ where: { id: statusId } });
     if (!status) throw ApiError.notFound('Status not found');
+
+    const project = await prisma.project.findUnique({ where: { id: status.projectId } });
+    if (!project) throw ApiError.notFound('Project not found');
+    await requireWorkspaceMember(project.workspaceId, userId);
 
     let result;
     if (data.isDefault === true) {
@@ -343,15 +353,22 @@ export class ProjectsService {
     return result;
   }
 
-  async deleteStatus(statusId: string, reassignToStatusId?: string) {
+  async deleteStatus(statusId: string, reassignToStatusId?: string, userId?: string) {
     const status = await prisma.projectStatus.findUnique({ where: { id: statusId } });
     if (!status) throw ApiError.notFound('Status not found');
+
+    if (userId) {
+      const project = await prisma.project.findUnique({ where: { id: status.projectId } });
+      if (!project) throw ApiError.notFound('Project not found');
+      await requireWorkspaceMember(project.workspaceId, userId);
+    }
 
     if (status.isDefault) {
       throw ApiError.badRequest('Cannot delete the default status');
     }
 
-    const taskCount = await prisma.task.count({ where: { statusId } });
+    // Only count non-deleted tasks when checking if reassignment is needed
+    const taskCount = await prisma.task.count({ where: { statusId, deletedAt: null } });
 
     if (taskCount > 0 && !reassignToStatusId) {
       throw ApiError.badRequest('Must provide reassignToStatusId when tasks exist on this status');
@@ -365,7 +382,7 @@ export class ProjectsService {
 
       await prisma.$transaction(async (tx: any) => {
         await tx.task.updateMany({
-          where: { statusId },
+          where: { statusId, deletedAt: null },
           data: { statusId: reassignToStatusId },
         });
         await tx.projectStatus.delete({ where: { id: statusId } });

@@ -67,7 +67,7 @@ export class LabelsService {
     const label = await prisma.label.findUnique({ where: { id: labelId } });
     if (!label) throw ApiError.notFound('Label not found');
 
-    const task = await prisma.task.findUnique({ where: { id: taskId } });
+    const task = await prisma.task.findFirst({ where: { id: taskId, deletedAt: null } });
     if (!task) throw ApiError.notFound('Task not found');
 
     if (task.projectId !== label.projectId) {

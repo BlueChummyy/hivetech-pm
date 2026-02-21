@@ -42,6 +42,12 @@ export function errorHandler(
       );
       return;
     }
+    if (err.code === 'P2003') {
+      res.status(400).json(
+        errorResponse({ code: 'BAD_REQUEST', message: 'Referenced resource not found' }),
+      );
+      return;
+    }
     if (err.code === 'P2025') {
       res.status(404).json(
         errorResponse({ code: 'NOT_FOUND', message: 'Resource not found' }),

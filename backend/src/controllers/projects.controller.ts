@@ -91,7 +91,8 @@ export class ProjectsController {
 
   async listStatuses(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const statuses = await projectsService.listStatuses(req.params.id as string);
+      const userId = req.user!.id;
+      const statuses = await projectsService.listStatuses(req.params.id as string, userId);
       res.status(200).json(successResponse(statuses));
     } catch (err) {
       next(err);
@@ -100,8 +101,9 @@ export class ProjectsController {
 
   async createStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      const userId = req.user!.id;
       const { name, color, category, position } = req.body;
-      const status = await projectsService.createStatus(req.params.id as string, { name, color, category, position });
+      const status = await projectsService.createStatus(req.params.id as string, { name, color, category, position }, userId);
       res.status(201).json(successResponse(status));
     } catch (err) {
       next(err);
@@ -110,7 +112,8 @@ export class ProjectsController {
 
   async updateStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const status = await projectsService.updateStatus(req.params.statusId as string, req.body);
+      const userId = req.user!.id;
+      const status = await projectsService.updateStatus(req.params.statusId as string, req.body, userId);
       res.status(200).json(successResponse(status));
     } catch (err) {
       next(err);
@@ -119,8 +122,9 @@ export class ProjectsController {
 
   async deleteStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      const userId = req.user!.id;
       const reassignToStatusId = req.query.reassignToStatusId as string | undefined;
-      await projectsService.deleteStatus(req.params.statusId as string, reassignToStatusId);
+      await projectsService.deleteStatus(req.params.statusId as string, reassignToStatusId, userId);
       res.status(204).send();
     } catch (err) {
       next(err);

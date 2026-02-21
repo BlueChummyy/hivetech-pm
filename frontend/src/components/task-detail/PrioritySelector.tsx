@@ -30,6 +30,7 @@ export function PrioritySelector({ currentPriority, onChange }: PrioritySelector
   const current = PRIORITY_CONFIG[currentPriority];
 
   useEffect(() => {
+    if (!open) return;
     function handleClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
@@ -37,7 +38,7 @@ export function PrioritySelector({ currentPriority, onChange }: PrioritySelector
     }
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
+  }, [open]);
 
   return (
     <div ref={ref} className="relative">

@@ -45,6 +45,7 @@ export function useDeleteStatus() {
       projectsApi.deleteStatus(projectId, statusId),
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['statuses', { projectId: variables.projectId }] });
+      qc.invalidateQueries({ queryKey: ['tasks'] });
     },
   });
 }

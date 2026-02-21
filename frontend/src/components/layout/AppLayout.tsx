@@ -11,7 +11,7 @@ import { useWorkspaceSocketEvents } from '@/hooks/useWorkspaceSocketEvents';
 import { cn } from '@/utils/cn';
 
 export function AppLayout() {
-  const { sidebarOpen, sidebarCollapsed } = useUIStore();
+  const { sidebarOpen } = useUIStore();
   const { activeWorkspaceId } = useWorkspaceStore();
 
   useNotificationSocket();
@@ -44,12 +44,7 @@ export function AppLayout() {
 
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
-        <main
-          className={cn(
-            'flex-1 overflow-y-auto p-6',
-            sidebarCollapsed ? 'max-w-full' : 'max-w-full',
-          )}
-        >
+        <main className="flex-1 overflow-y-auto p-6">
           <Outlet />
         </main>
       </div>

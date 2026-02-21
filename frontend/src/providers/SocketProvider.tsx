@@ -35,15 +35,15 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     setSocket(s);
 
     s.on('connect', () => {
-      console.log('[Socket] Connected:', s.id);
+      // Connection established
     });
 
-    s.on('connect_error', (err) => {
-      console.error('[Socket] Connection error:', err.message);
+    s.on('connect_error', () => {
+      // Connection error -- will auto-reconnect
     });
 
-    s.on('disconnect', (reason) => {
-      console.log('[Socket] Disconnected:', reason);
+    s.on('disconnect', () => {
+      // Disconnected -- will auto-reconnect
     });
 
     return () => {

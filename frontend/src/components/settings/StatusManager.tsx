@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { GripVertical, Plus, Trash2 } from 'lucide-react';
 import type { ProjectStatus } from '@/types/models.types';
 import { StatusCategory } from '@/types/models.types';
@@ -263,9 +263,21 @@ function ColorPicker({
   onChange: (color: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
 
   return (
-    <div className="relative">
+    <div className="relative" ref={pickerRef}>
       <button
         onClick={() => setOpen(!open)}
         className="h-5 w-5 rounded-full border border-surface-600 shrink-0 hover:scale-110 transition-transform"
