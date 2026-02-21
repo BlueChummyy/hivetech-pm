@@ -29,13 +29,13 @@ export interface UpdateStatusData {
 
 export const projectsApi = {
   list: (workspaceId: string) =>
-    get<Project[]>(`/workspaces/${workspaceId}/projects`).then((r) => r.data),
+    get<Project[]>('/projects', { params: { workspaceId } }).then((r) => r.data),
 
   getById: (id: string) =>
     get<Project>(`/projects/${id}`).then((r) => r.data),
 
   create: (data: CreateProjectData) =>
-    post<Project>(`/workspaces/${data.workspaceId}/projects`, data).then((r) => r.data),
+    post<Project>('/projects', data).then((r) => r.data),
 
   update: (id: string, data: UpdateProjectData) =>
     patch<Project>(`/projects/${id}`, data).then((r) => r.data),

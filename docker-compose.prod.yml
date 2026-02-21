@@ -16,6 +16,21 @@ services:
     networks:
       - internal
 
+  # ── Run database migrations before backend starts ─────────────────
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    restart: "no"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-hivetech}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hivetech}?schema=public
+    command: npx prisma db push --schema=src/prisma/schema.prisma --accept-data-loss
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+
   backend:
     build:
       context: ./backend
@@ -37,6 +52,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     networks:
       - internal
 
@@ -54,22 +71,6 @@ services:
       - backend
     networks:
       - internal
-
-  # ── Optional: Run database migrations on deploy ──────────────────
-  migrate:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.prod
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-hivetech}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hivetech}?schema=public
-    command: npx prisma db push --schema=src/prisma/schema.prisma --accept-data-loss
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - internal
-    profiles:
-      - migrate
 
 volumes:
   pgdata:
