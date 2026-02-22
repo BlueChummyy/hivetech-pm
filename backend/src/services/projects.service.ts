@@ -48,7 +48,7 @@ export class ProjectsService {
           members: {
             include: { user: { select: { id: true, email: true, displayName: true, avatarUrl: true } } },
           },
-          _count: { select: { tasks: true, members: true } },
+          _count: { select: { tasks: { where: { deletedAt: null } }, members: true } },
         },
       });
     });
@@ -64,7 +64,7 @@ export class ProjectsService {
     return prisma.project.findMany({
       where: { workspaceId },
       include: {
-        _count: { select: { tasks: true, members: true } },
+        _count: { select: { tasks: { where: { deletedAt: null } }, members: true } },
       },
     });
   }
@@ -77,7 +77,7 @@ export class ProjectsService {
         members: {
           include: { user: { select: { id: true, email: true, displayName: true, avatarUrl: true } } },
         },
-        _count: { select: { tasks: true, members: true } },
+        _count: { select: { tasks: { where: { deletedAt: null } }, members: true } },
       },
     });
 
