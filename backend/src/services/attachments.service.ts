@@ -75,6 +75,14 @@ export class AttachmentsService {
   async getById(id: string) {
     const attachment = await prisma.attachment.findUnique({ where: { id } });
     if (!attachment) throw ApiError.notFound('Attachment not found');
+
+    // Validate storagePath is within the configured upload directory
+    const resolvedPath = path.resolve(attachment.storagePath);
+    const resolvedUploadDir = path.resolve(env.UPLOAD_DIR);
+    if (!resolvedPath.startsWith(resolvedUploadDir + path.sep) && resolvedPath !== resolvedUploadDir) {
+      throw ApiError.badRequest('Invalid attachment storage path');
+    }
+
     return attachment;
   }
 
