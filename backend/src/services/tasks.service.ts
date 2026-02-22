@@ -12,6 +12,7 @@ export class TasksService {
     reporterId: string;
     parentId?: string;
     priority?: string;
+    startDate?: Date;
     dueDate?: Date;
     estimatedHours?: number;
   }) {
@@ -56,6 +57,7 @@ export class TasksService {
           description: data.description,
           priority: (data.priority as any) || 'NONE',
           position,
+          startDate: data.startDate,
           dueDate: data.dueDate,
           estimatedHours: data.estimatedHours,
         },
@@ -131,6 +133,21 @@ export class TasksService {
     return { tasks, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
   }
 
+  async listMyTasks(userId: string) {
+    const tasks = await prisma.task.findMany({
+      where: { assigneeId: userId, deletedAt: null },
+      orderBy: [{ dueDate: 'asc' }, { position: 'asc' }],
+      include: {
+        status: true,
+        assignee: true,
+        project: { select: { id: true, key: true, name: true, workspaceId: true } },
+        labels: { include: { label: true } },
+        _count: { select: { subtasks: { where: { deletedAt: null } }, comments: { where: { deletedAt: null } }, attachments: true } },
+      },
+    });
+    return tasks;
+  }
+
   async getById(id: string) {
     const task = await prisma.task.findFirst({
       where: { id, deletedAt: null },
@@ -180,6 +197,7 @@ export class TasksService {
     assigneeId?: string | null;
     priority?: string;
     position?: number;
+    startDate?: Date | null;
     dueDate?: Date | null;
     estimatedHours?: number | null;
   }, updatedByUserId?: string) {
@@ -206,6 +224,7 @@ export class TasksService {
         ...(data.assigneeId !== undefined && { assigneeId: data.assigneeId }),
         ...(data.priority !== undefined && { priority: data.priority as any }),
         ...(data.position !== undefined && { position: data.position }),
+        ...(data.startDate !== undefined && { startDate: data.startDate }),
         ...(data.dueDate !== undefined && { dueDate: data.dueDate }),
         ...(data.estimatedHours !== undefined && { estimatedHours: data.estimatedHours }),
       },

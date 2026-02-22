@@ -18,7 +18,9 @@ const SCALE_OPTIONS: { value: TimeScale; label: string }[] = [
 
 export function GanttChart({ tasks, isLoading }: GanttChartProps) {
   const [scale, setScale] = useState<TimeScale>('week');
-  const [listWidth, setListWidth] = useState(280);
+  const [listWidth, setListWidth] = useState(
+    typeof window !== 'undefined' && window.innerWidth < 768 ? 160 : 340,
+  );
   const [isResizing, setIsResizing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -61,11 +63,15 @@ export function GanttChart({ tasks, isLoading }: GanttChartProps) {
     );
   }
 
-  // Sort: scheduled first, then by due date
+  // Sort: scheduled first, then by start date / due date
   const sortedTasks = [...tasks].sort((a, b) => {
-    if (a.dueDate && !b.dueDate) return -1;
-    if (!a.dueDate && b.dueDate) return 1;
-    if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate);
+    const aHasDate = !!(a.startDate || a.dueDate);
+    const bHasDate = !!(b.startDate || b.dueDate);
+    if (aHasDate && !bHasDate) return -1;
+    if (!aHasDate && bHasDate) return 1;
+    const aStart = a.startDate || a.dueDate || '';
+    const bStart = b.startDate || b.dueDate || '';
+    if (aStart && bStart) return aStart.localeCompare(bStart);
     return a.position - b.position;
   });
 
@@ -93,22 +99,22 @@ export function GanttChart({ tasks, isLoading }: GanttChartProps) {
       <div
         ref={containerRef}
         className={cn(
-          'flex h-[600px] overflow-hidden rounded-xl border border-surface-700 bg-surface-900',
+          'flex h-[400px] sm:h-[500px] lg:h-[600px] 4xl:h-[800px] overflow-hidden rounded-xl border border-surface-700 bg-surface-900',
           isResizing && 'select-none',
         )}
       >
-        {/* Left panel: Task list */}
+        {/* Left panel: Task list (hidden on very small screens) */}
         <div
-          className="shrink-0 overflow-y-auto border-r border-surface-700 bg-surface-800"
+          className="hidden sm:block shrink-0 overflow-y-auto border-r border-surface-700 bg-surface-800"
           style={{ width: `${listWidth}px` }}
         >
           <GanttTaskList tasks={sortedTasks} rowHeight={ROW_HEIGHT} />
         </div>
 
-        {/* Resize handle */}
+        {/* Resize handle (hidden on mobile) */}
         <div
           onMouseDown={handleMouseDown}
-          className="w-1 shrink-0 cursor-col-resize bg-surface-700 hover:bg-primary-500/50 transition-colors"
+          className="hidden sm:block w-1 shrink-0 cursor-col-resize bg-surface-700 hover:bg-primary-500/50 transition-colors"
         />
 
         {/* Right panel: Timeline */}

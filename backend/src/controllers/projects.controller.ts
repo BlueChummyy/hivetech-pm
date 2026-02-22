@@ -8,8 +8,8 @@ export class ProjectsController {
   async create(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const userId = req.user!.id;
-      const { workspaceId, name, key, description } = req.body;
-      const project = await projectsService.create({ workspaceId, name, key, description }, userId);
+      const { workspaceId, spaceId, name, key, description } = req.body;
+      const project = await projectsService.create({ workspaceId, spaceId, name, key, description }, userId);
       res.status(201).json(successResponse(project));
     } catch (err) {
       next(err);
@@ -20,7 +20,8 @@ export class ProjectsController {
     try {
       const userId = req.user!.id;
       const workspaceId = req.query.workspaceId as string;
-      const projects = await projectsService.list(workspaceId, userId);
+      const spaceId = req.query.spaceId as string | undefined;
+      const projects = await projectsService.list(workspaceId, userId, spaceId);
       res.status(200).json(successResponse(projects));
     } catch (err) {
       next(err);

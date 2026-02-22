@@ -99,6 +99,27 @@ export class WorkspacesService {
     emitToWorkspace(id, 'workspace:deleted', { id });
   }
 
+  async listMembers(workspaceId: string, userId: string, search?: string) {
+    await requireWorkspaceMember(workspaceId, userId);
+
+    const where: any = { workspaceId };
+    if (search && search.trim().length > 0) {
+      where.user = {
+        OR: [
+          { firstName: { contains: search, mode: 'insensitive' } },
+          { lastName: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+        ],
+      };
+    }
+
+    return prisma.workspaceMember.findMany({
+      where,
+      include: { user: true },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
   async addMember(workspaceId: string, data: { email: string; role: string }, userId: string) {
     await requireWorkspaceMember(workspaceId, userId, ['OWNER', 'ADMIN']);
 

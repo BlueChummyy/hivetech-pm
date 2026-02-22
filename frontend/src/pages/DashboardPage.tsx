@@ -106,9 +106,9 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-surface-100">
+          <h1 className="text-xl sm:text-2xl font-bold text-surface-100">
             Welcome back{(user?.name || user?.displayName) ? `, ${(user.name || user.displayName || '').split(' ')[0]}` : ''}
           </h1>
           <p className="mt-1 text-sm text-surface-400">
@@ -119,12 +119,14 @@ export function DashboardPage() {
           {!hasNoWorkspace && activeWorkspaceId && (
             <Button variant="secondary" size="sm" onClick={() => setProjectModalOpen(true)}>
               <Plus className="h-4 w-4" />
-              New Project
+              <span className="hidden sm:inline">New Project</span>
+              <span className="sm:hidden">Project</span>
             </Button>
           )}
           <Button variant="primary" size="sm" onClick={() => setWorkspaceModalOpen(true)}>
             <Building2 className="h-4 w-4" />
-            New Workspace
+            <span className="hidden sm:inline">New Workspace</span>
+            <span className="sm:hidden">Workspace</span>
           </Button>
         </div>
       </div>

@@ -107,10 +107,31 @@ model Workspace {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   members      WorkspaceMember[]
+  spaces       Space[]
   projects     Project[]
   activityLogs ActivityLog[]
 
   @@map("workspaces")
+}
+
+model Space {
+  id          String   @id @default(cuid())
+  workspaceId String   @map("workspace_id")
+  name        String
+  slug        String
+  description String?
+  color       String?
+  icon        String?
+  position    Float    @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  projects  Project[]
+
+  @@unique([workspaceId, slug])
+  @@index([workspaceId])
+  @@map("spaces")
 }
 
 model WorkspaceMember {
@@ -131,6 +152,7 @@ model WorkspaceMember {
 model Project {
   id          String   @id @default(cuid())
   workspaceId String   @map("workspace_id")
+  spaceId     String?  @map("space_id")
   name        String
   key         String
   description String?
@@ -139,12 +161,14 @@ model Project {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  space     Space?          @relation(fields: [spaceId], references: [id], onDelete: SetNull)
   members   ProjectMember[]
   statuses  ProjectStatus[]
   tasks     Task[]
   labels    Label[]
 
   @@unique([workspaceId, key])
+  @@index([spaceId])
   @@map("projects")
 }
 
@@ -193,6 +217,7 @@ model Task {
   description    String?
   priority       Priority  @default(NONE)
   position       Float
+  startDate      DateTime? @map("start_date")
   dueDate        DateTime? @map("due_date")
   estimatedHours Float?    @map("estimated_hours")
   deletedAt      DateTime? @map("deleted_at")

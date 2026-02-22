@@ -124,20 +124,25 @@ export function KanbanBoard({ tasks, statuses, projectId }: KanbanBoardProps) {
       if (!task) return;
 
       const statusId = task.statusId;
-      const columnTasks = tasksByStatus[statusId] ?? [];
-      const oldIndex = columnTasks.findIndex((t) => t.id === activeId);
-      const newIndex = columnTasks.findIndex((t) => t.id === overId);
+
+      // Build the current column tasks from localTasks (already reflects cross-column moves from handleDragOver)
+      const currentColumnTasks = localTasks
+        .filter((t) => t.statusId === statusId)
+        .sort((a, b) => a.position - b.position);
+
+      const oldIndex = currentColumnTasks.findIndex((t) => t.id === activeId);
+      const newIndex = currentColumnTasks.findIndex((t) => t.id === overId);
 
       if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
-        const reordered = arrayMove(columnTasks, oldIndex, newIndex);
+        const reordered = arrayMove(currentColumnTasks, oldIndex, newIndex);
         setLocalTasks((prev) => {
           const other = prev.filter((t) => t.statusId !== statusId);
           return [...other, ...reordered];
         });
       }
 
-      // Calculate the new sort order
-      const finalColumnTasks = (tasksByStatus[statusId] ?? []).filter(
+      // Calculate position: get column tasks without the active task
+      const finalColumnTasks = currentColumnTasks.filter(
         (t) => t.id !== activeId,
       );
       const overIndex =
@@ -154,7 +159,7 @@ export function KanbanBoard({ tasks, statuses, projectId }: KanbanBoardProps) {
         data: { statusId, position },
       });
     },
-    [localTasks, tasksByStatus, updatePosition],
+    [localTasks, updatePosition],
   );
 
   const sortedStatuses = useMemo(
@@ -170,7 +175,7 @@ export function KanbanBoard({ tasks, statuses, projectId }: KanbanBoardProps) {
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div aria-label="Kanban board" className="flex h-full gap-4 overflow-x-auto p-4">
+      <div aria-label="Kanban board" className="flex h-full gap-3 sm:gap-4 overflow-x-auto p-2 sm:p-4 snap-x snap-mandatory sm:snap-none">
         {sortedStatuses.map((status) => (
           <KanbanColumn
             key={status.id}

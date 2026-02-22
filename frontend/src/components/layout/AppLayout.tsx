@@ -51,8 +51,10 @@ export function AppLayout() {
 
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
-        <main id="main-content" role="main" className="flex-1 overflow-y-auto p-6">
-          <Outlet />
+        <main id="main-content" role="main" className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6 4xl:p-10">
+          <div className="mx-auto 4xl:max-w-[2400px]">
+            <Outlet />
+          </div>
         </main>
       </div>
 

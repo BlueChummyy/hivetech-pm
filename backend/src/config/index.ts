@@ -13,6 +13,14 @@ const envSchema = z.object({
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
   UPLOAD_DIR: z.string().default('./uploads'),
   MAX_FILE_SIZE: z.coerce.number().default(10 * 1024 * 1024),
+  // SMTP (optional – notifications work without email when unconfigured)
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().optional(),
+  SMTP_SECURE: z.string().transform((v) => v === 'true').optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  SMTP_FROM_NAME: z.string().default('Project Management'),
+  SMTP_FROM_EMAIL: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);

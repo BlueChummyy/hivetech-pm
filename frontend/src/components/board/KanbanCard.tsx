@@ -1,6 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Calendar, MessageSquare, Paperclip } from 'lucide-react';
+import { Calendar, MessageSquare, Paperclip, ListChecks } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/utils/cn';
 import { useUIStore } from '@/store/ui.store';
@@ -68,7 +68,7 @@ export function KanbanCard({ task, overlay }: KanbanCardProps) {
         }
       }}
       className={cn(
-        'cursor-pointer rounded-lg border border-white/[0.08] bg-[#1E1E26] p-3 transition-colors hover:bg-[#252530]',
+        'cursor-pointer rounded-lg border border-white/[0.08] bg-[#1E1E26] p-3 transition-colors hover:bg-[#252530] touch-manipulation',
         isDragging && 'opacity-50',
         overlay && 'shadow-xl shadow-black/40 rotate-2',
       )}
@@ -117,9 +117,12 @@ export function KanbanCard({ task, overlay }: KanbanCardProps) {
 
         {/* Subtask progress */}
         {subtasks.length > 0 && (
-          <span className="text-[10px] text-gray-400">
-            {completedSubtasks}/{subtasks.length}
-          </span>
+          <div className="flex items-center gap-1 text-gray-400">
+            <ListChecks className="h-3 w-3" />
+            <span className="text-[10px]">
+              {completedSubtasks}/{subtasks.length}
+            </span>
+          </div>
         )}
 
         {/* Comments */}

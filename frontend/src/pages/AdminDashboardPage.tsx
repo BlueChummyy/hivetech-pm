@@ -187,15 +187,12 @@ export function AdminDashboardPage() {
     { id: 'create', label: 'Create User', icon: UserPlus },
   ];
 
-  const getRoleLabel = (value: string) =>
-    WORKSPACE_ROLES.find((r) => r.value === value)?.label || value;
-
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-surface-100 flex items-center gap-3">
-          <Shield className="h-7 w-7 text-primary-400" />
+        <h1 className="text-xl sm:text-2xl font-bold text-surface-100 flex items-center gap-3">
+          <Shield className="h-6 w-6 sm:h-7 sm:w-7 text-primary-400" />
           Admin Dashboard
         </h1>
         <p className="mt-1 text-sm text-surface-400">
@@ -204,20 +201,21 @@ export function AdminDashboardPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-surface-700">
+      <div className="flex gap-1 overflow-x-auto border-b border-surface-700">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={cn(
-              'flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
+              'flex items-center gap-2 border-b-2 whitespace-nowrap px-3 sm:px-4 py-2.5 text-sm font-medium transition-colors min-h-[44px]',
               activeTab === tab.id
                 ? 'border-primary-500 text-primary-400'
                 : 'border-transparent text-surface-400 hover:text-surface-200',
             )}
           >
             <tab.icon className="h-4 w-4" />
-            {tab.label}
+            <span className="hidden sm:inline">{tab.label}</span>
+            <span className="sm:hidden">{tab.label.split(' ').pop()}</span>
           </button>
         ))}
       </div>
@@ -406,7 +404,7 @@ export function AdminDashboardPage() {
 
           {/* Reset password modal */}
           {resetTarget && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-4">
               <Card className="w-full max-w-md">
                 <CardBody className="space-y-4">
                   <h3 className="text-lg font-semibold text-surface-100">Reset Password</h3>
@@ -454,7 +452,7 @@ export function AdminDashboardPage() {
 
           {/* Delete user confirmation modal */}
           {deleteTarget && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-4">
               <Card className="w-full max-w-md">
                 <CardBody className="space-y-4">
                   <h3 className="text-lg font-semibold text-red-400">Delete User</h3>
@@ -484,7 +482,7 @@ export function AdminDashboardPage() {
           )}
           {/* Assign workspace modal */}
           {assignTarget && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-4">
               <Card className="w-full max-w-md">
                 <CardBody className="space-y-4">
                   <h3 className="text-lg font-semibold text-surface-100">Assign Workspace</h3>
@@ -636,7 +634,7 @@ export function AdminDashboardPage() {
 
           {/* Delete workspace confirmation modal */}
           {deleteWsTarget && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-4">
               <Card className="w-full max-w-md">
                 <CardBody className="space-y-4">
                   <h3 className="text-lg font-semibold text-red-400">Delete Workspace</h3>

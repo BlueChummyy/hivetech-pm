@@ -103,7 +103,7 @@ export function ListPage() {
   }
 
   return (
-    <div className="flex h-full flex-col gap-4 p-4">
+    <div className="flex h-full flex-col gap-3 sm:gap-4 p-2 sm:p-4">
       <FilterBar
         filters={filters}
         onFiltersChange={setFilters}

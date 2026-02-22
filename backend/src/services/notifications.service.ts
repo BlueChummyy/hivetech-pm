@@ -1,6 +1,12 @@
 import { prisma } from '../prisma/client.js';
 import { ApiError } from '../utils/api-error.js';
 import { emitToUser } from '../utils/socket.js';
+import {
+  isEmailConfigured,
+  sendTaskAssignedEmail,
+  sendCommentNotificationEmail,
+  sendStatusChangeEmail,
+} from './email.service.js';
 
 export class NotificationsService {
   async create(data: {
@@ -10,6 +16,16 @@ export class NotificationsService {
     message: string;
     resourceType?: string;
     resourceId?: string;
+    emailData?: {
+      taskTitle?: string;
+      projectName?: string;
+      assignedBy?: string;
+      commentBy?: string;
+      commentPreview?: string;
+      oldStatus?: string;
+      newStatus?: string;
+      changedBy?: string;
+    };
   }) {
     const notification = await prisma.notification.create({
       data: {
@@ -23,6 +39,31 @@ export class NotificationsService {
     });
 
     emitToUser(data.userId, 'notification:new', notification);
+
+    // Send email notification if SMTP is configured
+    if (isEmailConfigured() && data.emailData) {
+      const user = await prisma.user.findUnique({ where: { id: data.userId }, select: { email: true } });
+      if (user?.email) {
+        const ed = data.emailData;
+        switch (data.type) {
+          case 'TASK_ASSIGNED':
+            if (ed.taskTitle && ed.projectName && ed.assignedBy) {
+              sendTaskAssignedEmail(user.email, { taskTitle: ed.taskTitle, projectName: ed.projectName, assignedBy: ed.assignedBy });
+            }
+            break;
+          case 'COMMENT_ADDED':
+            if (ed.taskTitle && ed.commentBy && ed.commentPreview) {
+              sendCommentNotificationEmail(user.email, { taskTitle: ed.taskTitle, commentBy: ed.commentBy, commentPreview: ed.commentPreview });
+            }
+            break;
+          case 'STATUS_CHANGED':
+            if (ed.taskTitle && ed.oldStatus && ed.newStatus && ed.changedBy) {
+              sendStatusChangeEmail(user.email, { taskTitle: ed.taskTitle, oldStatus: ed.oldStatus, newStatus: ed.newStatus, changedBy: ed.changedBy });
+            }
+            break;
+        }
+      }
+    }
 
     return notification;
   }

@@ -35,6 +35,8 @@ const ProjectListPage = lazyPage(
 const BoardPage = lazyPage(() => import('@/pages/BoardPage'), 'BoardPage', 'Board View');
 const ListPage = lazyPage(() => import('@/pages/ListPage'), 'ListPage', 'List View');
 const GanttPage = lazyPage(() => import('@/pages/GanttPage'), 'GanttPage', 'Gantt Chart');
+const TimelinePage = lazyPage(() => import('@/pages/TimelinePage'), 'TimelinePage', 'Timeline');
+const CalendarPage = lazyPage(() => import('@/pages/CalendarPage'), 'CalendarPage', 'Calendar');
 const ProjectSettingsPage = lazyPage(
   () => import('@/pages/ProjectSettingsPage'),
   'ProjectSettingsPage',
@@ -59,6 +61,11 @@ const AdminDashboardPage = lazyPage(
   () => import('@/pages/AdminDashboardPage'),
   'AdminDashboardPage',
   'Admin Dashboard',
+);
+const MyTasksPage = lazyPage(
+  () => import('@/pages/MyTasksPage'),
+  'MyTasksPage',
+  'My Tasks',
 );
 
 function PageLoader() {
@@ -97,6 +104,8 @@ export function App() {
               <Route path="board" element={withErrorBoundary(BoardPage)} />
               <Route path="list" element={withErrorBoundary(ListPage)} />
               <Route path="gantt" element={withErrorBoundary(GanttPage)} />
+              <Route path="timeline" element={withErrorBoundary(TimelinePage)} />
+              <Route path="calendar" element={withErrorBoundary(CalendarPage)} />
               <Route path="settings" element={withErrorBoundary(ProjectSettingsPage)} />
             </Route>
             <Route
@@ -105,10 +114,7 @@ export function App() {
             />
             <Route path="/settings/profile" element={withErrorBoundary(ProfileSettingsPage)} />
             <Route path="/notifications" element={withErrorBoundary(NotificationsPage)} />
-            <Route
-              path="/my-tasks"
-              element={<PlaceholderPage title="My Tasks" />}
-            />
+            <Route path="/my-tasks" element={withErrorBoundary(MyTasksPage)} />
             <Route path="/admin" element={withErrorBoundary(AdminDashboardPage)} />
           </Route>
         </Route>

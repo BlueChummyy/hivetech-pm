@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Trash2, UserPlus } from 'lucide-react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { projectsApi } from '@/api/projects';
-import { usersApi } from '@/api/users';
+import { workspacesApi } from '@/api/workspaces';
 import type { ProjectMember } from '@/types/models.types';
 import { ProjectRole } from '@/types/models.types';
 import { Button } from '@/components/ui/Button';
@@ -11,6 +11,7 @@ import { Avatar } from '@/components/ui/Avatar';
 
 interface ProjectMembersProps {
   projectId: string;
+  workspaceId: string;
   members: ProjectMember[];
 }
 
@@ -22,7 +23,7 @@ const ROLE_OPTIONS = [
   { value: ProjectRole.GUEST, label: 'Guest' },
 ];
 
-export function ProjectMembers({ projectId, members }: ProjectMembersProps) {
+export function ProjectMembers({ projectId, workspaceId, members }: ProjectMembersProps) {
   const [adding, setAdding] = useState(false);
   const [search, setSearch] = useState('');
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
@@ -30,8 +31,8 @@ export function ProjectMembers({ projectId, members }: ProjectMembersProps) {
   const { toast } = useToast();
 
   const { data: searchResults } = useQuery({
-    queryKey: ['users', { search }],
-    queryFn: () => usersApi.list({ search }),
+    queryKey: ['workspace-members', workspaceId, { search }],
+    queryFn: () => workspacesApi.listMembers(workspaceId, { search }),
     enabled: adding && search.length >= 2,
   });
 
@@ -71,7 +72,7 @@ export function ProjectMembers({ projectId, members }: ProjectMembersProps) {
   });
 
   const existingUserIds = new Set(members.map((m) => m.userId));
-  const filteredResults = searchResults?.filter((u) => !existingUserIds.has(u.id)) || [];
+  const filteredResults = searchResults?.filter((wm) => !existingUserIds.has(wm.userId)) || [];
 
   return (
     <div className="space-y-4">
@@ -89,7 +90,7 @@ export function ProjectMembers({ projectId, members }: ProjectMembersProps) {
         <div className="rounded-lg border border-surface-700 bg-surface-900 p-3 space-y-2">
           <input
             type="text"
-            placeholder="Search users by name or email..."
+            placeholder="Search workspace members by name or email..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full rounded-md border border-surface-700 bg-surface-800 px-3 py-2 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
@@ -97,23 +98,23 @@ export function ProjectMembers({ projectId, members }: ProjectMembersProps) {
           />
           {filteredResults.length > 0 && (
             <div className="max-h-40 overflow-y-auto space-y-1">
-              {filteredResults.map((user) => (
+              {filteredResults.map((wm) => (
                 <button
-                  key={user.id}
+                  key={wm.userId}
                   onClick={() =>
-                    addMember.mutate({ userId: user.id, role: ProjectRole.TEAM_MEMBER })
+                    addMember.mutate({ userId: wm.userId, role: ProjectRole.TEAM_MEMBER })
                   }
                   className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-surface-300 hover:bg-surface-700 transition-colors"
                 >
-                  <Avatar src={user.avatarUrl} name={user.name || user.displayName} size="sm" />
-                  <span>{user.name || user.displayName}</span>
-                  <span className="text-xs text-surface-500">{user.email}</span>
+                  <Avatar src={wm.user?.avatarUrl} name={wm.user?.name || wm.user?.displayName} size="sm" />
+                  <span>{wm.user?.name || wm.user?.displayName}</span>
+                  <span className="text-xs text-surface-500">{wm.user?.email}</span>
                 </button>
               ))}
             </div>
           )}
           {search.length >= 2 && filteredResults.length === 0 && (
-            <p className="text-sm text-surface-500 px-1">No users found</p>
+            <p className="text-sm text-surface-500 px-1">No workspace members found</p>
           )}
         </div>
       )}
@@ -136,7 +137,7 @@ export function ProjectMembers({ projectId, members }: ProjectMembersProps) {
             <select
               value={member.role}
               onChange={(e) =>
-                updateRole.mutate({ memberId: member.id, role: e.target.value })
+                updateRole.mutate({ memberId: member.userId, role: e.target.value })
               }
               className="rounded-md border border-surface-700 bg-surface-800 px-2 py-1 text-xs text-surface-300 focus:outline-none focus:ring-1 focus:ring-primary-500"
             >
@@ -149,7 +150,7 @@ export function ProjectMembers({ projectId, members }: ProjectMembersProps) {
             {confirmRemove === member.id ? (
               <div className="flex items-center gap-1">
                 <button
-                  onClick={() => removeMember.mutate(member.id)}
+                  onClick={() => removeMember.mutate(member.userId)}
                   className="rounded px-2 py-1 text-xs text-red-400 hover:bg-red-500/10"
                 >
                   Confirm

@@ -10,7 +10,7 @@ const tasksService = new TasksService();
 export class TasksController {
   async create(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { projectId, title, description, statusId, assigneeId, parentId, priority, dueDate, estimatedHours } = req.body;
+      const { projectId, title, description, statusId, assigneeId, parentId, priority, startDate, dueDate, estimatedHours } = req.body;
       await requireProjectMember(projectId, req.user!.id);
 
       const task = await tasksService.create({
@@ -22,6 +22,7 @@ export class TasksController {
         reporterId: req.user!.id,
         parentId,
         priority,
+        startDate: startDate ? new Date(startDate) : undefined,
         dueDate: dueDate ? new Date(dueDate) : undefined,
         estimatedHours,
       });
@@ -60,6 +61,15 @@ export class TasksController {
     }
   }
 
+  async listMyTasks(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const tasks = await tasksService.listMyTasks(req.user!.id);
+      res.json(successResponse(tasks));
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async getById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const task = await tasksService.getById(req.params.id as string);
@@ -76,7 +86,7 @@ export class TasksController {
       const existing = await tasksService.getById(id);
       await requireProjectMember(existing.project.id, req.user!.id);
 
-      const { title, description, statusId, assigneeId, priority, position, dueDate, estimatedHours } = req.body;
+      const { title, description, statusId, assigneeId, priority, position, startDate, dueDate, estimatedHours } = req.body;
 
       // If changing status to a DONE category, require PROJECT_MANAGER+ role
       if (statusId) {
@@ -97,6 +107,7 @@ export class TasksController {
         assigneeId,
         priority,
         position,
+        startDate: startDate === null ? null : startDate ? new Date(startDate) : undefined,
         dueDate: dueDate === null ? null : dueDate ? new Date(dueDate) : undefined,
         estimatedHours: estimatedHours === null ? null : estimatedHours,
       }, req.user!.id);

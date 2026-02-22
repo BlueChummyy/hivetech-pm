@@ -23,16 +23,16 @@ export function Header() {
   };
 
   return (
-    <header role="banner" className="flex h-14 items-center gap-4 border-b border-surface-700 bg-surface-900 px-4">
+    <header role="banner" className="flex h-14 items-center gap-2 sm:gap-4 border-b border-surface-700 bg-surface-900 px-2 sm:px-4">
       <button
         onClick={toggleSidebar}
         aria-label="Toggle sidebar"
-        className="rounded-md p-1.5 text-surface-400 hover:bg-surface-800 hover:text-surface-200 lg:hidden"
+        className="rounded-md p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-surface-400 hover:bg-surface-800 hover:text-surface-200 lg:hidden"
       >
         <Menu className="h-5 w-5" />
       </button>
 
-      <div className="flex-1">
+      <div className="flex-1 min-w-0">
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-500" aria-hidden="true" />
           <input
@@ -44,7 +44,7 @@ export function Header() {
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 sm:gap-2">
         <NotificationDropdown />
 
         <DropdownMenu

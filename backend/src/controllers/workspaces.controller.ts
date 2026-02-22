@@ -56,6 +56,18 @@ export class WorkspacesController {
     }
   }
 
+  async listMembers(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user!.id;
+      const workspaceId = req.params.id as string;
+      const search = req.query.search as string | undefined;
+      const members = await workspacesService.listMembers(workspaceId, userId, search);
+      res.status(200).json(successResponse(members));
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async addMember(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const userId = req.user!.id;

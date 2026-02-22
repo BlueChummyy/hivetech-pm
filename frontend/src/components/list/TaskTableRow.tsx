@@ -1,9 +1,15 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { format } from 'date-fns';
+import { useParams } from 'react-router-dom';
+import { GripVertical } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useUIStore } from '@/store/ui.store';
 import { useUpdateTask } from '@/hooks/useTasks';
-import type { Task, ProjectStatus, Priority } from '@/types/models.types';
+import { useProjectMembers } from '@/hooks/useMembers';
+import type { Task, ProjectStatus, Priority, ProjectMember } from '@/types/models.types';
 
 const PRIORITY_COLORS: Record<Priority, string> = {
   URGENT: 'bg-red-500',
@@ -23,11 +29,50 @@ const PRIORITY_LABELS: Record<Priority, string> = {
 
 const ALL_PRIORITIES: Priority[] = ['URGENT', 'HIGH', 'MEDIUM', 'LOW', 'NONE'] as Priority[];
 
-interface TaskTableRowProps {
-  task: Task;
-  statuses: ProjectStatus[];
+/* ------------------------------------------------------------------ */
+/*  Portal dropdown hook                                              */
+/* ------------------------------------------------------------------ */
+function usePortalDropdown() {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const toggle = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setOpen((prev) => {
+      if (!prev && triggerRef.current) {
+        const rect = triggerRef.current.getBoundingClientRect();
+        setPos({ top: rect.bottom + 4, left: rect.left });
+      }
+      return !prev;
+    });
+  }, []);
+
+  const close = useCallback(() => setOpen(false), []);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node) &&
+        triggerRef.current &&
+        !triggerRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  return { open, pos, triggerRef, dropdownRef, toggle, close };
 }
 
+/* ------------------------------------------------------------------ */
+/*  StatusBadge (portal)                                              */
+/* ------------------------------------------------------------------ */
 function StatusBadge({
   task,
   statuses,
@@ -35,35 +80,22 @@ function StatusBadge({
   task: Task;
   statuses: ProjectStatus[];
 }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const { open, pos, triggerRef, dropdownRef, toggle, close } = usePortalDropdown();
   const updateTask = useUpdateTask();
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
-
   const currentStatus = statuses.find((s) => s.id === task.statusId);
 
   const handleSelect = (statusId: string) => {
-    setOpen(false);
+    close();
     if (statusId !== task.statusId) {
       updateTask.mutate({ id: task.id, data: { statusId } });
     }
   };
 
   return (
-    <div className="relative" ref={ref}>
+    <>
       <button
-        onClick={(e) => {
-          e.stopPropagation();
-          setOpen(!open);
-        }}
+        ref={triggerRef}
+        onClick={toggle}
         aria-haspopup="listbox"
         aria-expanded={open}
         className="flex items-center gap-1.5 rounded px-2 py-0.5 text-xs font-medium transition-colors hover:bg-white/[0.06]"
@@ -75,64 +107,63 @@ function StatusBadge({
         />
         {currentStatus?.name ?? 'Unknown'}
       </button>
-      {open && (
-        <div role="listbox" className="absolute left-0 top-full z-20 mt-1 min-w-[160px] rounded-lg border border-white/[0.08] bg-[#1E1E26] py-1 shadow-xl">
-          {statuses.map((s) => (
-            <button
-              key={s.id}
-              role="option"
-              aria-selected={s.id === task.statusId}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleSelect(s.id);
-              }}
-              className={cn(
-                'flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-300 hover:bg-white/[0.04]',
-                s.id === task.statusId && 'text-white',
-              )}
-            >
-              <span
-                className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: s.color }}
-                aria-hidden="true"
-              />
-              {s.name}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+      {open &&
+        pos &&
+        createPortal(
+          <div
+            ref={dropdownRef}
+            role="listbox"
+            className="fixed z-[9999] min-w-[160px] rounded-lg border border-white/[0.08] bg-[#1E1E26] py-1 shadow-xl"
+            style={{ top: pos.top, left: pos.left }}
+          >
+            {statuses.map((s) => (
+              <button
+                key={s.id}
+                role="option"
+                aria-selected={s.id === task.statusId}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSelect(s.id);
+                }}
+                className={cn(
+                  'flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-300 hover:bg-white/[0.04]',
+                  s.id === task.statusId && 'text-white',
+                )}
+              >
+                <span
+                  className="h-2 w-2 rounded-full"
+                  style={{ backgroundColor: s.color }}
+                  aria-hidden="true"
+                />
+                {s.name}
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  PriorityBadge (portal)                                            */
+/* ------------------------------------------------------------------ */
 function PriorityBadge({ task }: { task: Task }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const { open, pos, triggerRef, dropdownRef, toggle, close } = usePortalDropdown();
   const updateTask = useUpdateTask();
 
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
-
   const handleSelect = (priority: string) => {
-    setOpen(false);
+    close();
     if (priority !== task.priority) {
       updateTask.mutate({ id: task.id, data: { priority } });
     }
   };
 
   return (
-    <div className="relative" ref={ref}>
+    <>
       <button
-        onClick={(e) => {
-          e.stopPropagation();
-          setOpen(!open);
-        }}
+        ref={triggerRef}
+        onClick={toggle}
         aria-haspopup="listbox"
         aria-expanded={open}
         className="flex items-center gap-1.5 rounded px-2 py-0.5 text-xs font-medium transition-colors hover:bg-white/[0.06]"
@@ -140,42 +171,298 @@ function PriorityBadge({ task }: { task: Task }) {
         <span className={cn('h-2 w-2 rounded-full', PRIORITY_COLORS[task.priority])} aria-hidden="true" />
         {PRIORITY_LABELS[task.priority]}
       </button>
-      {open && (
-        <div role="listbox" className="absolute left-0 top-full z-20 mt-1 min-w-[140px] rounded-lg border border-white/[0.08] bg-[#1E1E26] py-1 shadow-xl">
-          {ALL_PRIORITIES.map((p) => (
-            <button
-              key={p}
-              role="option"
-              aria-selected={p === task.priority}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleSelect(p);
-              }}
-              className={cn(
-                'flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-300 hover:bg-white/[0.04]',
-                p === task.priority && 'text-white',
-              )}
-            >
-              <span className={cn('h-2 w-2 rounded-full', PRIORITY_COLORS[p])} aria-hidden="true" />
-              {PRIORITY_LABELS[p]}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+      {open &&
+        pos &&
+        createPortal(
+          <div
+            ref={dropdownRef}
+            role="listbox"
+            className="fixed z-[9999] min-w-[140px] rounded-lg border border-white/[0.08] bg-[#1E1E26] py-1 shadow-xl"
+            style={{ top: pos.top, left: pos.left }}
+          >
+            {ALL_PRIORITIES.map((p) => (
+              <button
+                key={p}
+                role="option"
+                aria-selected={p === task.priority}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSelect(p);
+                }}
+                className={cn(
+                  'flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-300 hover:bg-white/[0.04]',
+                  p === task.priority && 'text-white',
+                )}
+              >
+                <span className={cn('h-2 w-2 rounded-full', PRIORITY_COLORS[p])} aria-hidden="true" />
+                {PRIORITY_LABELS[p]}
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
 
-export function TaskTableRow({ task, statuses }: TaskTableRowProps) {
+/* ------------------------------------------------------------------ */
+/*  AssigneeBadge (portal, with search)                               */
+/* ------------------------------------------------------------------ */
+function AssigneeBadge({ task }: { task: Task }) {
+  const { projectId } = useParams<{ projectId: string }>();
+  const { open, pos, triggerRef, dropdownRef, toggle, close } = usePortalDropdown();
+  const updateTask = useUpdateTask();
+  const { data: members } = useProjectMembers(projectId ?? '');
+  const [search, setSearch] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open && searchRef.current) {
+      searchRef.current.focus();
+    }
+    if (!open) setSearch('');
+  }, [open]);
+
+  const filteredMembers = (members ?? []).filter((m: ProjectMember) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    const name = (m.user?.name || m.user?.displayName || '').toLowerCase();
+    const email = (m.user?.email || '').toLowerCase();
+    return name.includes(q) || email.includes(q);
+  });
+
+  const handleSelect = (userId: string | null) => {
+    close();
+    if (userId !== task.assigneeId) {
+      updateTask.mutate({ id: task.id, data: { assigneeId: userId } });
+    }
+  };
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        onClick={toggle}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className="flex items-center gap-2 rounded px-2 py-0.5 text-sm transition-colors hover:bg-white/[0.06]"
+      >
+        {task.assignee ? (
+          <>
+            {task.assignee.avatarUrl ? (
+              <img
+                src={task.assignee.avatarUrl}
+                alt={task.assignee.name || task.assignee.displayName}
+                className="h-5 w-5 rounded-full"
+              />
+            ) : (
+              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-medium text-white">
+                {(task.assignee.name || task.assignee.displayName || '?').charAt(0).toUpperCase()}
+              </div>
+            )}
+            <span className="text-gray-300">{task.assignee.name || task.assignee.displayName}</span>
+          </>
+        ) : (
+          <span className="text-gray-400">Unassigned</span>
+        )}
+      </button>
+      {open &&
+        pos &&
+        createPortal(
+          <div
+            ref={dropdownRef}
+            className="fixed z-[9999] w-[220px] rounded-lg border border-white/[0.08] bg-[#1E1E26] py-1 shadow-xl"
+            style={{ top: pos.top, left: pos.left }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-2 pb-1 pt-1.5">
+              <input
+                ref={searchRef}
+                type="text"
+                placeholder="Search members..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full rounded bg-white/[0.06] px-2 py-1 text-sm text-white placeholder-gray-500 outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSelect(null);
+              }}
+              className={cn(
+                'flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-400 hover:bg-white/[0.04]',
+                !task.assigneeId && 'text-white',
+              )}
+            >
+              Unassigned
+            </button>
+            {filteredMembers.map((m: ProjectMember) => {
+              const user = m.user;
+              if (!user) return null;
+              const displayName = user.name || user.displayName || user.email;
+              return (
+                <button
+                  key={m.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSelect(user.id);
+                  }}
+                  className={cn(
+                    'flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-300 hover:bg-white/[0.04]',
+                    user.id === task.assigneeId && 'text-white',
+                  )}
+                >
+                  {user.avatarUrl ? (
+                    <img src={user.avatarUrl} alt={displayName} className="h-5 w-5 rounded-full" />
+                  ) : (
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-medium text-white">
+                      {displayName.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  {displayName}
+                </button>
+              );
+            })}
+            {filteredMembers.length === 0 && search && (
+              <div className="px-3 py-2 text-sm text-gray-500">No members found</div>
+            )}
+          </div>,
+          document.body,
+        )}
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  InlineTitle                                                       */
+/* ------------------------------------------------------------------ */
+function InlineTitle({ task }: { task: Task }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(task.title);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const updateTask = useUpdateTask();
+
+  useEffect(() => {
+    setValue(task.title);
+  }, [task.title]);
+
+  useEffect(() => {
+    if (editing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editing]);
+
+  const save = () => {
+    setEditing(false);
+    const trimmed = value.trim();
+    if (trimmed && trimmed !== task.title) {
+      updateTask.mutate({ id: task.id, data: { title: trimmed } });
+    } else {
+      setValue(task.title);
+    }
+  };
+
+  const cancel = () => {
+    setEditing(false);
+    setValue(task.title);
+  };
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={save}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') save();
+          if (e.key === 'Escape') cancel();
+        }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full rounded bg-white/[0.06] px-1.5 py-0.5 text-sm text-white outline-none ring-1 ring-indigo-500"
+      />
+    );
+  }
+
+  return (
+    <span
+      role="button"
+      tabIndex={0}
+      onClick={(e) => {
+        e.stopPropagation();
+        setEditing(true);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          setEditing(true);
+        }
+      }}
+      className="cursor-text text-sm text-white group-hover:text-indigo-400 transition-colors"
+    >
+      {task.title}
+    </span>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  TaskTableRow                                                      */
+/* ------------------------------------------------------------------ */
+interface TaskTableRowProps {
+  task: Task;
+  statuses: ProjectStatus[];
+  dragEnabled?: boolean;
+  overlay?: boolean;
+}
+
+export function TaskTableRow({ task, statuses, dragEnabled, overlay }: TaskTableRowProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: task.id, disabled: !dragEnabled });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
   const handleRowClick = () => {
     useUIStore.getState().openTaskPanel(task.id);
   };
 
   return (
     <tr
+      ref={overlay ? undefined : setNodeRef}
+      style={overlay ? undefined : style}
       onClick={handleRowClick}
-      className="group cursor-pointer border-b border-white/[0.04] transition-colors hover:bg-white/[0.03]"
+      className={cn(
+        'group cursor-pointer border-b border-white/[0.04] transition-colors hover:bg-white/[0.03]',
+        isDragging && 'opacity-50',
+        overlay && 'bg-[#1E1E26] shadow-xl shadow-black/40 border border-white/[0.08]',
+      )}
     >
+      {/* Drag handle */}
+      <td className="w-8 px-1 py-2.5">
+        {dragEnabled && !overlay ? (
+          <button
+            {...attributes}
+            {...listeners}
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center justify-center rounded p-0.5 text-gray-600 hover:text-gray-400 hover:bg-white/[0.04] cursor-grab active:cursor-grabbing"
+            aria-label="Drag to reorder"
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+        ) : null}
+      </td>
+
       {/* Task number */}
       <td className="whitespace-nowrap px-4 py-2.5 text-xs text-gray-400">
         #{task.taskNumber}
@@ -183,9 +470,7 @@ export function TaskTableRow({ task, statuses }: TaskTableRowProps) {
 
       {/* Title */}
       <td className="px-4 py-2.5">
-        <span className="text-sm text-white group-hover:text-indigo-400 transition-colors">
-          {task.title}
-        </span>
+        <InlineTitle task={task} />
         {task.labels && task.labels.length > 0 && (
           <div className="mt-1 flex gap-1">
             {task.labels.map((tl) => (
@@ -216,24 +501,12 @@ export function TaskTableRow({ task, statuses }: TaskTableRowProps) {
 
       {/* Assignee */}
       <td className="px-4 py-2.5">
-        {task.assignee ? (
-          <div className="flex items-center gap-2">
-            {task.assignee.avatarUrl ? (
-              <img
-                src={task.assignee.avatarUrl}
-                alt={task.assignee.name || task.assignee.displayName}
-                className="h-5 w-5 rounded-full"
-              />
-            ) : (
-              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-medium text-white">
-                {(task.assignee.name || task.assignee.displayName || '?').charAt(0).toUpperCase()}
-              </div>
-            )}
-            <span className="text-sm text-gray-300">{task.assignee.name || task.assignee.displayName}</span>
-          </div>
-        ) : (
-          <span className="text-sm text-gray-400">Unassigned</span>
-        )}
+        <AssigneeBadge task={task} />
+      </td>
+
+      {/* Start date */}
+      <td className="whitespace-nowrap px-4 py-2.5 text-sm text-gray-400">
+        {task.startDate ? format(new Date(task.startDate), 'MMM d, yyyy') : '\u2014'}
       </td>
 
       {/* Due date */}

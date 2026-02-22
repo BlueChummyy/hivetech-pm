@@ -76,16 +76,40 @@ export interface WorkspaceMember {
   createdAt: string;
 }
 
+export interface Space {
+  id: string;
+  workspaceId: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  color: string | null;
+  icon: string | null;
+  position: number;
+  createdAt: string;
+  updatedAt: string;
+  workspace?: Workspace;
+  projects?: Project[];
+  _count?: {
+    projects: number;
+  };
+}
+
 export interface Project {
   id: string;
   workspaceId: string;
+  spaceId: string | null;
   name: string;
   key: string;
   description: string | null;
   createdAt: string;
   updatedAt: string;
   workspace?: Workspace;
+  space?: Space;
   statuses?: ProjectStatus[];
+  _count?: {
+    tasks: number;
+    members: number;
+  };
 }
 
 export interface ProjectMember {
@@ -122,6 +146,7 @@ export interface Task {
   description: string | null;
   priority: Priority;
   position: number;
+  startDate: string | null;
   dueDate: string | null;
   estimatedHours: number | null;
   deletedAt: string | null;

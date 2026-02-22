@@ -149,6 +149,14 @@ export function TaskDetailPanel() {
     );
   }
 
+  function handleStartDateChange(date: string) {
+    if (!task) return;
+    updateTask.mutate(
+      { id: task.id, data: { startDate: date ? `${date}T00:00:00.000Z` : null } },
+      { onError: onMutationError },
+    );
+  }
+
   function handleDueDateChange(date: string) {
     if (!task) return;
     updateTask.mutate(
@@ -231,7 +239,7 @@ export function TaskDetailPanel() {
               <button
                 onClick={closeTaskPanel}
                 aria-label="Close task panel"
-                className="rounded-md p-1 text-surface-400 hover:bg-surface-700 hover:text-surface-200 transition-colors"
+                className="rounded-md p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-surface-400 hover:bg-surface-700 hover:text-surface-200 transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -319,6 +327,25 @@ export function TaskDetailPanel() {
                         {task.assignee?.name || task.assignee?.displayName || 'Unassigned'}
                       </div>
                     )}
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-surface-500">Start date</label>
+                    <div className="flex items-center gap-2 rounded-md border border-surface-700 bg-surface-800 px-3 py-1.5">
+                      <Calendar className="h-4 w-4 text-surface-500" />
+                      {permissions.canAssignDates ? (
+                        <input
+                          type="date"
+                          value={task.startDate ? task.startDate.split('T')[0] : ''}
+                          onChange={(e) => handleStartDateChange(e.target.value)}
+                          className="flex-1 bg-transparent text-sm text-surface-200 focus:outline-none [color-scheme:dark]"
+                        />
+                      ) : (
+                        <span className="text-sm text-surface-300">
+                          {task.startDate ? task.startDate.split('T')[0] : 'No start date'}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="space-y-1">

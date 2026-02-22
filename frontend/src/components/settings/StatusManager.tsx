@@ -1,6 +1,25 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+  type DragStartEvent,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Plus, Trash2 } from 'lucide-react';
+import { cn } from '@/utils/cn';
 import { StatusCategory } from '@/types/models.types';
+import type { ProjectStatus } from '@/types/models.types';
 import {
   useStatuses,
   useCreateStatus,
@@ -29,10 +48,154 @@ const CATEGORY_BADGE_STYLES: Record<string, string> = {
   CANCELLED: 'bg-red-600/20 text-red-400',
 };
 
+function calculatePosition(items: ProjectStatus[], overIndex: number): number {
+  if (items.length === 0) return 1000;
+  if (overIndex === 0) return items[0].position / 2;
+  if (overIndex >= items.length) return items[items.length - 1].position + 1000;
+  return (items[overIndex - 1].position + items[overIndex].position) / 2;
+}
+
 interface StatusManagerProps {
   projectId: string;
 }
 
+/* ------------------------------------------------------------------ */
+/*  SortableStatusRow                                                  */
+/* ------------------------------------------------------------------ */
+interface SortableStatusRowProps {
+  status: ProjectStatus;
+  projectId: string;
+  editingId: string | null;
+  editName: string;
+  confirmDelete: string | null;
+  onStartEdit: (id: string, name: string) => void;
+  onEditNameChange: (name: string) => void;
+  onNameSave: (statusId: string) => void;
+  onCancelEdit: () => void;
+  onCategoryChange: (statusId: string, category: string) => void;
+  onColorChange: (statusId: string, color: string) => void;
+  onConfirmDelete: (id: string | null) => void;
+  onDelete: (statusId: string) => void;
+  overlay?: boolean;
+}
+
+function SortableStatusRow({
+  status,
+  editingId,
+  editName,
+  confirmDelete,
+  onStartEdit,
+  onEditNameChange,
+  onNameSave,
+  onCancelEdit,
+  onCategoryChange,
+  onColorChange,
+  onConfirmDelete,
+  onDelete,
+  overlay,
+}: SortableStatusRowProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: status.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={overlay ? undefined : setNodeRef}
+      style={overlay ? undefined : style}
+      className={cn(
+        'flex items-center gap-2 rounded-lg px-2 py-2.5 hover:bg-surface-800/50',
+        isDragging && 'opacity-50',
+        overlay && 'bg-surface-800 shadow-xl shadow-black/40 border border-surface-700 rounded-lg',
+      )}
+    >
+      <button
+        {...(overlay ? {} : attributes)}
+        {...(overlay ? {} : listeners)}
+        className="cursor-grab active:cursor-grabbing touch-none"
+        aria-label="Drag to reorder"
+      >
+        <GripVertical className="h-4 w-4 shrink-0 text-surface-600" />
+      </button>
+
+      <ColorPicker
+        color={status.color}
+        onChange={(color) => onColorChange(status.id, color)}
+      />
+
+      {editingId === status.id ? (
+        <input
+          type="text"
+          value={editName}
+          onChange={(e) => onEditNameChange(e.target.value)}
+          onBlur={() => onNameSave(status.id)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') onNameSave(status.id);
+            if (e.key === 'Escape') onCancelEdit();
+          }}
+          className="flex-1 rounded-md border border-surface-700 bg-surface-800 px-2 py-1 text-sm text-surface-200 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          autoFocus
+        />
+      ) : (
+        <button
+          onClick={() => onStartEdit(status.id, status.name)}
+          className="flex-1 text-left text-sm text-surface-200 hover:text-surface-100"
+        >
+          {status.name}
+        </button>
+      )}
+
+      <select
+        value={status.category}
+        onChange={(e) => onCategoryChange(status.id, e.target.value)}
+        className={`rounded-md px-2 py-0.5 text-xs font-medium border-0 focus:outline-none focus:ring-1 focus:ring-primary-500 ${CATEGORY_BADGE_STYLES[status.category] || ''}`}
+      >
+        {CATEGORY_OPTIONS.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+
+      {confirmDelete === status.id ? (
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => onDelete(status.id)}
+            className="rounded px-2 py-1 text-xs text-red-400 hover:bg-red-500/10"
+          >
+            Delete
+          </button>
+          <button
+            onClick={() => onConfirmDelete(null)}
+            className="rounded px-2 py-1 text-xs text-surface-400 hover:bg-surface-700"
+          >
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => onConfirmDelete(status.id)}
+          className="rounded-md p-1.5 text-surface-500 hover:text-red-400 hover:bg-surface-700 transition-colors"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  StatusManager                                                      */
+/* ------------------------------------------------------------------ */
 export function StatusManager({ projectId }: StatusManagerProps) {
   const { data: statuses, isLoading } = useStatuses(projectId);
   const createStatus = useCreateStatus();
@@ -47,8 +210,14 @@ export function StatusManager({ projectId }: StatusManagerProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [activeStatus, setActiveStatus] = useState<ProjectStatus | null>(null);
 
   const sorted = statuses?.slice().sort((a, b) => a.position - b.position) || [];
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor),
+  );
 
   function handleCreate() {
     if (!newName.trim()) return;
@@ -59,7 +228,7 @@ export function StatusManager({ projectId }: StatusManagerProps) {
           name: newName.trim(),
           color: newColor,
           category: newCategory,
-          position: sorted.length,
+          position: sorted.length > 0 ? sorted[sorted.length - 1].position + 1000 : 1000,
         },
       },
       {
@@ -111,6 +280,55 @@ export function StatusManager({ projectId }: StatusManagerProps) {
     );
   }
 
+  function handleDelete(statusId: string) {
+    deleteStatus.mutate(
+      { projectId, statusId },
+      {
+        onError: (err) => {
+          toast({ type: 'error', title: 'Failed to delete status', description: (err as Error).message });
+        },
+      },
+    );
+    setConfirmDelete(null);
+  }
+
+  const handleDragStart = useCallback(
+    (event: DragStartEvent) => {
+      const status = sorted.find((s) => s.id === event.active.id);
+      if (status) setActiveStatus(status);
+    },
+    [sorted],
+  );
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      setActiveStatus(null);
+
+      if (!over || active.id === over.id) return;
+
+      const activeId = active.id as string;
+      const overId = over.id as string;
+
+      const withoutActive = sorted.filter((s) => s.id !== activeId);
+      const overIndex = withoutActive.findIndex((s) => s.id === overId);
+      const position = calculatePosition(
+        withoutActive,
+        overIndex === -1 ? withoutActive.length : overIndex,
+      );
+
+      updateStatus.mutate(
+        { projectId, statusId: activeId, data: { position } },
+        {
+          onError: (err) => {
+            toast({ type: 'error', title: 'Failed to reorder status', description: (err as Error).message });
+          },
+        },
+      );
+    },
+    [sorted, projectId, updateStatus, toast],
+  );
+
   if (isLoading) {
     return (
       <div className="space-y-2">
@@ -120,6 +338,8 @@ export function StatusManager({ projectId }: StatusManagerProps) {
       </div>
     );
   }
+
+  const statusIds = sorted.map((s) => s.id);
 
   return (
     <div className="space-y-4">
@@ -188,97 +408,64 @@ export function StatusManager({ projectId }: StatusManagerProps) {
         </div>
       )}
 
-      <div className="space-y-1">
-        {sorted.map((status) => (
-          <div
-            key={status.id}
-            className="flex items-center gap-2 rounded-lg px-2 py-2.5 hover:bg-surface-800/50"
-          >
-            <GripVertical className="h-4 w-4 shrink-0 text-surface-600 cursor-grab" />
-
-            <ColorPicker
-              color={status.color}
-              onChange={(color) => handleColorChange(status.id, color)}
-            />
-
-            {editingId === status.id ? (
-              <input
-                type="text"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                onBlur={() => handleNameSave(status.id)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleNameSave(status.id);
-                  if (e.key === 'Escape') setEditingId(null);
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="space-y-1">
+          <SortableContext items={statusIds} strategy={verticalListSortingStrategy}>
+            {sorted.map((status) => (
+              <SortableStatusRow
+                key={status.id}
+                status={status}
+                projectId={projectId}
+                editingId={editingId}
+                editName={editName}
+                confirmDelete={confirmDelete}
+                onStartEdit={(id, name) => {
+                  setEditingId(id);
+                  setEditName(name);
                 }}
-                className="flex-1 rounded-md border border-surface-700 bg-surface-800 px-2 py-1 text-sm text-surface-200 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                autoFocus
+                onEditNameChange={setEditName}
+                onNameSave={handleNameSave}
+                onCancelEdit={() => setEditingId(null)}
+                onCategoryChange={handleCategoryChange}
+                onColorChange={handleColorChange}
+                onConfirmDelete={setConfirmDelete}
+                onDelete={handleDelete}
               />
-            ) : (
-              <button
-                onClick={() => {
-                  setEditingId(status.id);
-                  setEditName(status.name);
-                }}
-                className="flex-1 text-left text-sm text-surface-200 hover:text-surface-100"
-              >
-                {status.name}
-              </button>
-            )}
+            ))}
+          </SortableContext>
+          {sorted.length === 0 && (
+            <p className="py-4 text-center text-sm text-surface-500">
+              No statuses configured
+            </p>
+          )}
+        </div>
 
-            <select
-              value={status.category}
-              onChange={(e) => handleCategoryChange(status.id, e.target.value)}
-              className={`rounded-md px-2 py-0.5 text-xs font-medium border-0 focus:outline-none focus:ring-1 focus:ring-primary-500 ${CATEGORY_BADGE_STYLES[status.category] || ''}`}
-            >
-              {CATEGORY_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-
-            {confirmDelete === status.id ? (
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => {
-                    deleteStatus.mutate(
-                      { projectId, statusId: status.id },
-                      {
-                        onError: (err) => {
-                          toast({ type: 'error', title: 'Failed to delete status', description: (err as Error).message });
-                        },
-                      },
-                    );
-                    setConfirmDelete(null);
-                  }}
-                  className="rounded px-2 py-1 text-xs text-red-400 hover:bg-red-500/10"
-                >
-                  Delete
-                </button>
-                <button
-                  onClick={() => setConfirmDelete(null)}
-                  className="rounded px-2 py-1 text-xs text-surface-400 hover:bg-surface-700"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setConfirmDelete(status.id)}
-                className="rounded-md p-1.5 text-surface-500 hover:text-red-400 hover:bg-surface-700 transition-colors"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-        ))}
-        {sorted.length === 0 && (
-          <p className="py-4 text-center text-sm text-surface-500">
-            No statuses configured
-          </p>
-        )}
-      </div>
+        <DragOverlay>
+          {activeStatus ? (
+            <SortableStatusRow
+              status={activeStatus}
+              projectId={projectId}
+              editingId={null}
+              editName=""
+              confirmDelete={null}
+              onStartEdit={() => {}}
+              onEditNameChange={() => {}}
+              onNameSave={() => {}}
+              onCancelEdit={() => {}}
+              onCategoryChange={() => {}}
+              onColorChange={() => {}}
+              onConfirmDelete={() => {}}
+              onDelete={() => {}}
+              overlay
+            />
+          ) : null}
+        </DragOverlay>
+      </DndContext>
     </div>
   );
 }

@@ -18,8 +18,8 @@ export function GanttTaskList({ tasks, rowHeight }: GanttTaskListProps) {
         className="sticky top-0 z-10 flex items-center border-b border-surface-700 bg-surface-900 px-3 text-xs font-medium text-surface-500"
         style={{ height: `${rowHeight}px` }}
       >
-        <span className="flex-1">Task</span>
-        <span className="w-8 text-center">Assignee</span>
+        <span className="flex-1 min-w-0">Task</span>
+        <span className="w-24 shrink-0 text-center">Assignee</span>
       </div>
 
       {/* Rows */}
@@ -40,9 +40,20 @@ export function GanttTaskList({ tasks, rowHeight }: GanttTaskListProps) {
               {task.title}
             </span>
           </button>
-          <div className="w-8 flex justify-center">
-            {task.assigneeId && (
-              <Avatar src={task.assignee?.avatarUrl} name={task.assignee?.name || task.assignee?.displayName} size="sm" />
+          <div className="w-24 shrink-0 flex items-center justify-center gap-1.5">
+            {task.assigneeId ? (
+              <>
+                <Avatar
+                  src={task.assignee?.avatarUrl}
+                  name={task.assignee?.name || task.assignee?.displayName}
+                  size="sm"
+                />
+                <span className="text-xs text-surface-300 truncate max-w-[60px]">
+                  {task.assignee?.name || task.assignee?.displayName || ''}
+                </span>
+              </>
+            ) : (
+              <span className="text-xs text-surface-500">--</span>
             )}
           </div>
         </div>

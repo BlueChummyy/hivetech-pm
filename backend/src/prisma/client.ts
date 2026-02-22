@@ -17,7 +17,7 @@ function createPrismaClient() {
         // Computed field: combines firstName and lastName for frontend compatibility
         name: {
           needs: { firstName: true, lastName: true },
-          compute(user) {
+          compute(user: { firstName: string; lastName: string }) {
             return `${user.firstName} ${user.lastName}`.trim();
           },
         },

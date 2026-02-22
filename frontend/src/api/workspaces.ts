@@ -33,8 +33,10 @@ export const workspacesApi = {
   remove: (id: string) =>
     del(`/workspaces/${id}`),
 
-  listMembers: (id: string) =>
-    get<WorkspaceMember[]>(`/workspaces/${id}/members`).then((r) => r.data),
+  listMembers: (id: string, params?: { search?: string }) => {
+    const query = params?.search ? `?search=${encodeURIComponent(params.search)}` : '';
+    return get<WorkspaceMember[]>(`/workspaces/${id}/members${query}`).then((r) => r.data);
+  },
 
   addMember: (id: string, data: AddMemberData) =>
     post<WorkspaceMember>(`/workspaces/${id}/members`, data).then((r) => r.data),

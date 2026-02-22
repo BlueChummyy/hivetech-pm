@@ -64,7 +64,7 @@ export function KanbanColumn({ status, tasks, projectId }: KanbanColumnProps) {
       role="group"
       aria-label={status.name}
       className={cn(
-        'flex h-full w-72 shrink-0 flex-col rounded-lg bg-[#14141A]',
+        'flex h-full w-[85vw] sm:w-72 3xl:w-80 4xl:w-96 shrink-0 flex-col rounded-lg bg-[#14141A] snap-center sm:snap-align-none',
         isOver && 'ring-1 ring-indigo-500/40',
       )}
     >

@@ -92,9 +92,9 @@ export function FilterBar({ filters, onFiltersChange, statuses }: FilterBarProps
   };
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
       {/* Search */}
-      <div className="relative">
+      <div className="relative w-full sm:w-auto">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" aria-hidden="true" />
         <input
           type="text"
@@ -102,7 +102,7 @@ export function FilterBar({ filters, onFiltersChange, statuses }: FilterBarProps
           aria-label="Search tasks"
           value={filters.search}
           onChange={(e) => onFiltersChange({ ...filters, search: e.target.value })}
-          className="w-56 rounded-md border border-white/[0.08] bg-[#1E1E26] py-1.5 pl-9 pr-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="w-full sm:w-56 rounded-md border border-white/[0.08] bg-[#1E1E26] py-1.5 pl-9 pr-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
         />
       </div>
 

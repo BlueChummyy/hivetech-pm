@@ -16,6 +16,7 @@ router.post(
   validate({
     body: z.object({
       workspaceId: z.string(),
+      spaceId: z.string().optional(),
       name: z.string().min(1).max(100),
       key: z.string().min(1).max(10).regex(/^[A-Z][A-Z0-9]*$/),
       description: z.string().optional(),

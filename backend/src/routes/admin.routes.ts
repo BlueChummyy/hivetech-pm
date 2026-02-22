@@ -355,7 +355,7 @@ router.post(
       });
       if (projectIds.length > 0) {
         await prisma.projectMember.deleteMany({
-          where: { userId, projectId: { in: projectIds.map((p) => p.id) } },
+          where: { userId, projectId: { in: projectIds.map((p: { id: string }) => p.id) } },
         });
       }
 

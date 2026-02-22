@@ -4,7 +4,7 @@ import { requireWorkspaceMember } from '../utils/authorization.js';
 import { emitToWorkspace, emitToProject } from '../utils/socket.js';
 
 export class ProjectsService {
-  async create(data: { workspaceId: string; name: string; key: string; description?: string }, userId: string) {
+  async create(data: { workspaceId: string; spaceId?: string; name: string; key: string; description?: string }, userId: string) {
     await requireWorkspaceMember(data.workspaceId, userId, ['OWNER', 'ADMIN', 'MEMBER']);
 
     const existingKey = await prisma.project.findUnique({
@@ -18,6 +18,7 @@ export class ProjectsService {
       const proj = await tx.project.create({
         data: {
           workspaceId: data.workspaceId,
+          spaceId: data.spaceId,
           name: data.name,
           key: data.key,
           description: data.description,
@@ -58,12 +59,16 @@ export class ProjectsService {
     return project;
   }
 
-  async list(workspaceId: string, userId: string) {
+  async list(workspaceId: string, userId: string, spaceId?: string) {
     await requireWorkspaceMember(workspaceId, userId);
 
+    const where: any = { workspaceId };
+    if (spaceId) where.spaceId = spaceId;
+
     return prisma.project.findMany({
-      where: { workspaceId },
+      where,
       include: {
+        space: true,
         _count: { select: { tasks: { where: { deletedAt: null } }, members: true } },
       },
     });

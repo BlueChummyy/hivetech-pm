@@ -25,14 +25,14 @@ const TABS: { key: Tab; label: string }[] = [
 
 function SettingsSkeleton() {
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-8 px-4">
       <Skeleton className="h-8 w-48" />
       <div className="flex gap-1 border-b border-surface-700 pb-1">
         {[1, 2, 3, 4].map((i) => (
           <Skeleton key={i} className="h-9 w-20" />
         ))}
       </div>
-      <div className="rounded-xl border border-surface-700 bg-surface-800 p-6 space-y-4">
+      <div className="rounded-xl border border-surface-700 bg-surface-800 p-8 space-y-4">
         <Skeleton className="h-10 w-full max-w-md" />
         <Skeleton className="h-24 w-full max-w-md" />
         <Skeleton className="h-10 w-32" />
@@ -100,17 +100,17 @@ export function ProjectSettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <h1 className="text-2xl font-bold text-surface-100">Project Settings</h1>
+    <div className="mx-auto max-w-4xl space-y-6 sm:space-y-8 px-2 sm:px-4">
+      <h1 className="text-xl sm:text-2xl font-bold text-surface-100">Project Settings</h1>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-surface-700">
+      <div className="flex gap-1 overflow-x-auto border-b border-surface-700 -mx-2 px-2 sm:mx-0 sm:px-0">
         {TABS.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
             className={cn(
-              'px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px',
+              'whitespace-nowrap px-3 sm:px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px min-h-[44px] sm:min-h-0',
               activeTab === tab.key
                 ? 'border-primary-500 text-primary-400'
                 : 'border-transparent text-surface-400 hover:text-surface-200',
@@ -122,9 +122,9 @@ export function ProjectSettingsPage() {
       </div>
 
       {/* Tab content */}
-      <div className="rounded-xl border border-surface-700 bg-surface-800 p-6">
+      <div className="rounded-xl border border-surface-700 bg-surface-800 p-4 sm:p-6 lg:p-8">
         {activeTab === 'general' && (
-          <div className="space-y-4 max-w-md">
+          <div className="space-y-6 max-w-lg">
             <Input
               label="Project name"
               value={name}
@@ -157,11 +157,9 @@ export function ProjectSettingsPage() {
               Save changes
             </Button>
 
-            {/* Danger Zone */}
             {permissions.canManageProject && (
               <div className="mt-8 border-t border-red-500/20 pt-6">
-                <h3 className="text-sm font-semibold text-red-400 mb-2">Danger Zone</h3>
-                <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-4 flex items-center justify-between">
+                <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-medium text-surface-200">Delete this project</p>
                     <p className="text-xs text-surface-500 mt-0.5">
@@ -172,6 +170,7 @@ export function ProjectSettingsPage() {
                     variant="danger"
                     size="sm"
                     onClick={() => setShowDeleteConfirm(true)}
+                    className="self-start sm:self-auto shrink-0"
                   >
                     Delete Project
                   </Button>
@@ -183,7 +182,7 @@ export function ProjectSettingsPage() {
 
         {/* Delete confirmation modal */}
         {showDeleteConfirm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-4">
             <Card className="w-full max-w-md">
               <CardBody className="space-y-4">
                 <h3 className="text-lg font-semibold text-red-400">Delete Project</h3>
@@ -221,8 +220,8 @@ export function ProjectSettingsPage() {
           </div>
         )}
 
-        {activeTab === 'members' && projectId && members && (
-          <ProjectMembers projectId={projectId} members={members} />
+        {activeTab === 'members' && projectId && members && project && (
+          <ProjectMembers projectId={projectId} workspaceId={project.workspaceId} members={members} />
         )}
 
         {activeTab === 'labels' && projectId && (

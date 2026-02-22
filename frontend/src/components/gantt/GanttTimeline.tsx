@@ -39,6 +39,11 @@ function getDateRange(tasks: Task[], scale: TimeScale) {
   let maxDate = addMonths(now, 2);
 
   tasks.forEach((task) => {
+    if (task.startDate) {
+      const start = new Date(task.startDate);
+      if (start < minDate) minDate = start;
+      if (start > maxDate) maxDate = start;
+    }
     if (task.dueDate) {
       const due = new Date(task.dueDate);
       if (due < minDate) minDate = due;
@@ -120,11 +125,11 @@ export function GanttTimeline({ tasks, scale, rowHeight }: GanttTimelineProps) {
     if (!task.dueDate) return null;
 
     const dueDate = new Date(task.dueDate);
-    const startDate = task.createdAt ? new Date(task.createdAt) : addDays(dueDate, -3);
+    const taskStart = task.startDate ? new Date(task.startDate) : addDays(dueDate, -3);
     const dayWidth = scale === 'day' ? colWidth : scale === 'week' ? colWidth / 7 : colWidth / 30;
 
-    const left = differenceInDays(startOfDay(startDate), dateRange.start) * dayWidth;
-    const duration = Math.max(differenceInDays(startOfDay(dueDate), startOfDay(startDate)), 1);
+    const left = differenceInDays(startOfDay(taskStart), dateRange.start) * dayWidth;
+    const duration = Math.max(differenceInDays(startOfDay(dueDate), startOfDay(taskStart)), 1);
     const width = duration * dayWidth;
 
     return { left, width };

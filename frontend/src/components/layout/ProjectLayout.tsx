@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { NavLink, Outlet, useParams, useLocation } from 'react-router-dom';
-import { Columns3, List, GanttChart, Settings, Loader2 } from 'lucide-react';
+import { Columns3, List, GanttChart, Settings, Loader2, Clock, CalendarDays } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useProject } from '@/hooks/useProjects';
 import { useProjectSocketEvents } from '@/hooks/useProjectSocketEvents';
@@ -10,6 +10,8 @@ const allTabs = [
   { label: 'Board', path: 'board', icon: Columns3 },
   { label: 'List', path: 'list', icon: List },
   { label: 'Gantt', path: 'gantt', icon: GanttChart },
+  { label: 'Timeline', path: 'timeline', icon: Clock, requiresPM: true },
+  { label: 'Calendar', path: 'calendar', icon: CalendarDays },
   { label: 'Settings', path: 'settings', icon: Settings, requiresAdmin: true },
 ];
 
@@ -22,8 +24,12 @@ export function ProjectLayout() {
   useProjectSocketEvents(projectId);
 
   const tabs = useMemo(
-    () => allTabs.filter((tab) => !tab.requiresAdmin || permissions.canManageProject),
-    [permissions.canManageProject],
+    () => allTabs.filter((tab) => {
+      if (tab.requiresAdmin && !permissions.canManageProject) return false;
+      if (tab.requiresPM && !permissions.canAssignDates) return false;
+      return true;
+    }),
+    [permissions.canManageProject, permissions.canAssignDates],
   );
 
   if (isLoading) {

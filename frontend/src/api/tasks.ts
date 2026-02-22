@@ -19,6 +19,7 @@ export interface CreateTaskData {
   priority?: string;
   assigneeId?: string;
   parentId?: string;
+  startDate?: string;
   dueDate?: string;
 }
 
@@ -28,6 +29,7 @@ export interface UpdateTaskData {
   statusId?: string;
   priority?: string;
   assigneeId?: string | null;
+  startDate?: string | null;
   dueDate?: string | null;
   position?: number;
 }
@@ -38,6 +40,9 @@ export interface UpdatePositionData {
 }
 
 export const tasksApi = {
+  myTasks: () =>
+    get<Task[]>('/tasks/my-tasks').then((r) => r.data),
+
   list: (filters: TaskFilters = {}) => {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => {

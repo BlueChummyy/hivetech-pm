@@ -26,6 +26,7 @@ router.post(
       assigneeId: z.string().optional(),
       parentId: z.string().optional(),
       priority: z.enum(['URGENT', 'HIGH', 'MEDIUM', 'LOW', 'NONE']).optional(),
+      startDate: flexibleDateSchema.optional(),
       dueDate: flexibleDateSchema.optional(),
       estimatedHours: z.number().positive().optional(),
     }),
@@ -33,6 +34,9 @@ router.post(
   requireProjectPermission('CREATE_TASK'),
   controller.create,
 );
+
+// GET /api/v1/tasks/my-tasks — List all tasks assigned to the current user
+router.get('/my-tasks', controller.listMyTasks);
 
 // GET /api/v1/tasks — List tasks (with filters)
 router.get(
@@ -66,6 +70,7 @@ router.patch(
       assigneeId: z.string().nullable().optional(),
       priority: z.enum(['URGENT', 'HIGH', 'MEDIUM', 'LOW', 'NONE']).optional(),
       position: z.number().optional(),
+      startDate: flexibleDateSchema.nullable().optional(),
       dueDate: flexibleDateSchema.nullable().optional(),
       estimatedHours: z.number().positive().nullable().optional(),
     }),

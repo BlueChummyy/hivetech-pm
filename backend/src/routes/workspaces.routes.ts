@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { WorkspacesController } from '../controllers/workspaces.controller.js';
 import { authenticate } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
+import { spacesRoutes } from './spaces.routes.js';
 
 const router = Router();
 const controller = new WorkspacesController();
@@ -45,6 +46,9 @@ router.patch(
 // DELETE /api/v1/workspaces/:id — Delete workspace
 router.delete('/:id', controller.delete);
 
+// GET /api/v1/workspaces/:id/members — List workspace members
+router.get('/:id/members', controller.listMembers);
+
 // POST /api/v1/workspaces/:id/members — Add member to workspace
 router.post(
   '/:id/members',
@@ -70,5 +74,8 @@ router.patch(
 
 // DELETE /api/v1/workspaces/:id/members/:userId — Remove member
 router.delete('/:id/members/:userId', controller.removeMember);
+
+// Mount spaces routes
+router.use('/:workspaceId/spaces', spacesRoutes);
 
 export { router as workspacesRoutes };
