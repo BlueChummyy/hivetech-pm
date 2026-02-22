@@ -11,7 +11,7 @@ import {
   Loader2,
   Activity,
 } from 'lucide-react';
-import { formatDistanceToNow, format } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { useUIStore } from '@/store/ui.store';
 import { useTask, useUpdateTask } from '@/hooks/useTasks';
 import { useStatuses } from '@/hooks/useStatuses';
@@ -424,7 +424,7 @@ export function TaskDetailPanel() {
                           className="inline-flex items-center gap-1.5 rounded-md border border-surface-700 bg-surface-900 px-2.5 py-1 text-xs text-surface-300 hover:border-surface-600 hover:text-surface-200 transition-colors"
                         >
                           <span className="text-surface-500">
-                            {dep.type === 'BLOCKS' ? 'Blocks' : dep.type === 'IS_BLOCKED_BY' ? 'Blocked by' : dep.type.toLowerCase().replace('_', ' ')}
+                            {dep.type.toLowerCase().replace(/_/g, ' ')}
                           </span>
                           <span className="font-mono">
                             {dep.dependsOnTask?.taskNumber ? `#${dep.dependsOnTask.taskNumber}` : dep.task?.taskNumber ? `#${dep.task.taskNumber}` : '...'}
@@ -472,17 +472,17 @@ export function TaskDetailPanel() {
                           <Paperclip className="h-4 w-4 shrink-0 text-surface-500" />
                           <div className="flex-1 min-w-0">
                             <p className="text-sm text-surface-200 truncate">
-                              {att.fileName}
+                              {att.originalName || att.filename}
                             </p>
                             <p className="text-xs text-surface-500">
-                              {(att.fileSize / 1024).toFixed(1)} KB
-                              {att.uploader && ` - ${att.uploader.name}`}
+                              {(att.size / 1024).toFixed(1)} KB
+                              {att.uploadedBy && ` - ${att.uploadedBy.name}`}
                             </p>
                           </div>
                           <a
-                            href={att.fileUrl}
+                            href={`/api/v1/tasks/${task.id}/attachments/${att.id}/download`}
                             download
-                            aria-label={`Download ${att.fileName}`}
+                            aria-label={`Download ${att.originalName || att.filename}`}
                             className="rounded-md p-1 text-surface-400 hover:text-surface-200"
                           >
                             <Download className="h-4 w-4" />
@@ -504,7 +504,7 @@ export function TaskDetailPanel() {
                                 },
                               )
                             }
-                            aria-label={`Delete ${att.fileName}`}
+                            aria-label={`Delete ${att.originalName || att.filename}`}
                             className="rounded-md p-1 text-surface-400 hover:text-red-400"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -526,7 +526,7 @@ export function TaskDetailPanel() {
                   <div className="space-y-2">
                     <p className="text-xs text-surface-500">
                       Created {formatDistanceToNow(new Date(task.createdAt), { addSuffix: true })}
-                      {task.creator && ` by ${task.creator.name}`}
+                      {task.reporter && ` by ${task.reporter.name}`}
                     </p>
                     {task.updatedAt !== task.createdAt && (
                       <p className="text-xs text-surface-500">
