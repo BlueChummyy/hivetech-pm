@@ -101,8 +101,11 @@ server.listen(env.PORT, () => {
 // Graceful shutdown
 async function shutdown(signal: string) {
   logger.info(`${signal} received. Shutting down gracefully...`);
-  server.close(() => {
-    logger.info('HTTP server closed');
+  await new Promise<void>((resolve) => {
+    server.close(() => {
+      logger.info('HTTP server closed');
+      resolve();
+    });
   });
   await prisma.$disconnect();
   logger.info('Database disconnected');
