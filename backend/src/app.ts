@@ -2,7 +2,7 @@ import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
-import pinoHttp from 'pino-http';
+import { pinoHttp } from 'pino-http';
 import { env } from './config/index.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { successResponse } from './utils/api-response.js';
