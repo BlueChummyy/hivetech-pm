@@ -1,10 +1,23 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { isAxiosError } from 'axios';
 import { projectsApi, type CreateProjectData, type UpdateProjectData } from '@/api/projects';
+import { useWorkspaceStore } from '@/store/workspace.store';
 
 export function useProjects(workspaceId: string) {
   return useQuery({
     queryKey: ['projects', { workspaceId }],
-    queryFn: () => projectsApi.list(workspaceId),
+    queryFn: async () => {
+      try {
+        return await projectsApi.list(workspaceId);
+      } catch (err) {
+        if (isAxiosError(err) && err.response?.status === 403) {
+          // Stale workspace — clear and return empty so UI recovers gracefully
+          useWorkspaceStore.getState().clearActiveWorkspace();
+          return [];
+        }
+        throw err;
+      }
+    },
     enabled: !!workspaceId,
   });
 }
