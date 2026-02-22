@@ -32,7 +32,7 @@ services:
       JWT_REFRESH_SECRET: dev-refresh-secret
       NODE_ENV: development
       PORT: 3000
-      CORS_ORIGIN: http://localhost:5173
+      CORS_ORIGIN: http://10.21.59.56
     depends_on:
       postgres:
         condition: service_healthy
@@ -47,6 +47,17 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - frontend
+      - backend
 
 volumes:
   pgdata:
