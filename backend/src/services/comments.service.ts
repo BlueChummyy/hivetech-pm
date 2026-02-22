@@ -106,12 +106,14 @@ export class CommentsService {
     return updated;
   }
 
-  async softDelete(id: string, userId: string) {
+  async softDelete(id: string, userId: string, options?: { isProjectAdmin?: boolean }) {
     const comment = await prisma.comment.findFirst({
       where: { id, deletedAt: null },
     });
     if (!comment) throw ApiError.notFound('Comment not found');
-    if (comment.authorId !== userId) throw ApiError.forbidden('You can only delete your own comments');
+    if (!options?.isProjectAdmin && comment.authorId !== userId) {
+      throw ApiError.forbidden('You can only delete your own comments');
+    }
 
     await prisma.comment.update({
       where: { id },

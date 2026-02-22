@@ -67,7 +67,45 @@ export class CommentsController {
 
   async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      await commentsService.softDelete(req.params.id as string, req.user!.id);
+      const commentId = req.params.id as string;
+      const userId = req.user!.id;
+
+      // Look up the comment's task to determine the user's project role
+      const comment = await prisma.comment.findFirst({
+        where: { id: commentId, deletedAt: null },
+        select: { taskId: true },
+      });
+      let isProjectAdmin = false;
+      if (comment) {
+        const task = await prisma.task.findFirst({
+          where: { id: comment.taskId, deletedAt: null },
+          select: { projectId: true },
+        });
+        if (task) {
+          const member = await prisma.projectMember.findUnique({
+            where: { projectId_userId: { projectId: task.projectId, userId } },
+          });
+          if (member?.role === 'ADMIN') {
+            isProjectAdmin = true;
+          } else if (!member) {
+            // Fall back to workspace role
+            const project = await prisma.project.findUnique({
+              where: { id: task.projectId },
+              select: { workspaceId: true },
+            });
+            if (project) {
+              const wsMember = await prisma.workspaceMember.findUnique({
+                where: { workspaceId_userId: { workspaceId: project.workspaceId, userId } },
+              });
+              if (wsMember && (wsMember.role === 'OWNER' || wsMember.role === 'ADMIN')) {
+                isProjectAdmin = true;
+              }
+            }
+          }
+        }
+      }
+
+      await commentsService.softDelete(commentId, userId, { isProjectAdmin });
       res.status(204).send();
     } catch (err) {
       next(err);
