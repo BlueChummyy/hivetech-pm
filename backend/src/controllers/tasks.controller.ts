@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { TasksService } from '../services/tasks.service.js';
 import { requireProjectMember } from '../utils/authorization.js';
+import { ApiError } from '../utils/api-error.js';
 import { successResponse, paginatedResponse } from '../utils/api-response.js';
 
 const tasksService = new TasksService();
@@ -35,6 +36,10 @@ export class TasksController {
       const { projectId, statusId, assigneeId, priority, parentId, search, page, limit } = req.query as any;
       if (projectId) {
         await requireProjectMember(projectId, req.user!.id);
+      } else if (!assigneeId || assigneeId !== req.user!.id) {
+        // Without a projectId, only allow users to list their own assigned tasks
+        // to prevent unauthorized access to tasks across all projects
+        throw ApiError.badRequest('projectId is required, or assigneeId must be your own user ID');
       }
 
       const result = await tasksService.list({
