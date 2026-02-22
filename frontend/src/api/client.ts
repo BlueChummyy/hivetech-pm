@@ -50,6 +50,13 @@ apiClient.interceptors.response.use(
       _retry?: boolean;
     };
 
+    // Rewrite 403 errors with a user-friendly message
+    if (error.response?.status === 403) {
+      const serverMessage = error.response?.data?.error?.message;
+      error.message = serverMessage || 'You do not have permission to perform this action';
+      return Promise.reject(error);
+    }
+
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {

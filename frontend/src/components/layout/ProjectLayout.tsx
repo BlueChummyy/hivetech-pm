@@ -1,22 +1,30 @@
+import { useMemo } from 'react';
 import { NavLink, Outlet, useParams, useLocation } from 'react-router-dom';
 import { Columns3, List, GanttChart, Settings, Loader2 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useProject } from '@/hooks/useProjects';
 import { useProjectSocketEvents } from '@/hooks/useProjectSocketEvents';
+import { useProjectPermissions } from '@/hooks/useProjectRole';
 
-const tabs = [
+const allTabs = [
   { label: 'Board', path: 'board', icon: Columns3 },
   { label: 'List', path: 'list', icon: List },
   { label: 'Gantt', path: 'gantt', icon: GanttChart },
-  { label: 'Settings', path: 'settings', icon: Settings },
+  { label: 'Settings', path: 'settings', icon: Settings, requiresAdmin: true },
 ];
 
 export function ProjectLayout() {
   const { projectId } = useParams<{ projectId: string }>();
   const location = useLocation();
   const { data: project, isLoading } = useProject(projectId ?? '');
+  const permissions = useProjectPermissions(projectId);
 
   useProjectSocketEvents(projectId);
+
+  const tabs = useMemo(
+    () => allTabs.filter((tab) => !tab.requiresAdmin || permissions.canManageProject),
+    [permissions.canManageProject],
+  );
 
   if (isLoading) {
     return (

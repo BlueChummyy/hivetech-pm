@@ -15,8 +15,10 @@ interface ProjectMembersProps {
 
 const ROLE_OPTIONS = [
   { value: ProjectRole.ADMIN, label: 'Admin' },
-  { value: ProjectRole.MEMBER, label: 'Member' },
+  { value: ProjectRole.PROJECT_MANAGER, label: 'Project Manager' },
+  { value: ProjectRole.TEAM_MEMBER, label: 'Team Member' },
   { value: ProjectRole.VIEWER, label: 'Viewer' },
+  { value: ProjectRole.GUEST, label: 'Guest' },
 ];
 
 export function ProjectMembers({ projectId, members }: ProjectMembersProps) {

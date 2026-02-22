@@ -6,6 +6,7 @@ import { cn } from '@/utils/cn';
 import { KanbanCard } from './KanbanCard';
 import { useCreateTask } from '@/hooks/useTasks';
 import { useToast } from '@/components/ui/Toast';
+import { useProjectPermissions } from '@/hooks/useProjectRole';
 import type { Task, ProjectStatus } from '@/types/models.types';
 
 interface KanbanColumnProps {
@@ -19,6 +20,7 @@ export function KanbanColumn({ status, tasks, projectId }: KanbanColumnProps) {
   const [newTitle, setNewTitle] = useState('');
   const createTask = useCreateTask();
   const { toast } = useToast();
+  const permissions = useProjectPermissions(projectId);
 
   const { setNodeRef, isOver } = useDroppable({ id: status.id });
 
@@ -88,28 +90,30 @@ export function KanbanColumn({ status, tasks, projectId }: KanbanColumnProps) {
       </div>
 
       {/* Add task */}
-      <div className="px-2 pb-2">
-        {isAdding ? (
-          <input
-            autoFocus
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            onBlur={handleAddTask}
-            onKeyDown={handleKeyDown}
-            placeholder="Task title..."
-            aria-label={`New task in ${status.name}`}
-            className="w-full rounded-md border border-white/[0.08] bg-[#1E1E26] px-3 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          />
-        ) : (
-          <button
-            onClick={() => setIsAdding(true)}
-            className="flex w-full items-center gap-1.5 rounded-md px-3 py-2 text-sm text-gray-500 transition-colors hover:bg-white/[0.04] hover:text-gray-300"
-          >
-            <Plus className="h-4 w-4" />
-            Add task
-          </button>
-        )}
-      </div>
+      {permissions.canCreateTasks && (
+        <div className="px-2 pb-2">
+          {isAdding ? (
+            <input
+              autoFocus
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              onBlur={handleAddTask}
+              onKeyDown={handleKeyDown}
+              placeholder="Task title..."
+              aria-label={`New task in ${status.name}`}
+              className="w-full rounded-md border border-white/[0.08] bg-[#1E1E26] px-3 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            />
+          ) : (
+            <button
+              onClick={() => setIsAdding(true)}
+              className="flex w-full items-center gap-1.5 rounded-md px-3 py-2 text-sm text-gray-500 transition-colors hover:bg-white/[0.04] hover:text-gray-300"
+            >
+              <Plus className="h-4 w-4" />
+              Add task
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -7,8 +7,10 @@ export enum WorkspaceRole {
 
 export enum ProjectRole {
   ADMIN = 'ADMIN',
-  MEMBER = 'MEMBER',
+  PROJECT_MANAGER = 'PROJECT_MANAGER',
+  TEAM_MEMBER = 'TEAM_MEMBER',
   VIEWER = 'VIEWER',
+  GUEST = 'GUEST',
 }
 
 export enum Priority {

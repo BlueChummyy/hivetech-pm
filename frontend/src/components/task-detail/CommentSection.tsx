@@ -1,16 +1,18 @@
 import { useState } from 'react';
-import { Send, UserCircle } from 'lucide-react';
+import { Send } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import type { Comment } from '@/types/models.types';
 import { useComments, useCreateComment } from '@/hooks/useComments';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/Toast';
+import { Avatar } from '@/components/ui/Avatar';
 
 interface CommentSectionProps {
   taskId: string;
+  canComment?: boolean;
 }
 
-export function CommentSection({ taskId }: CommentSectionProps) {
+export function CommentSection({ taskId, canComment = true }: CommentSectionProps) {
   const [content, setContent] = useState('');
   const { data: comments, isLoading } = useComments(taskId);
   const createComment = useCreateComment();
@@ -50,15 +52,7 @@ export function CommentSection({ taskId }: CommentSectionProps) {
         <div className="space-y-4 max-h-80 overflow-y-auto">
           {comments.map((comment: Comment) => (
             <div key={comment.id} className="flex gap-3">
-              {comment.author?.avatarUrl ? (
-                <img
-                  src={comment.author.avatarUrl}
-                  alt=""
-                  className="h-8 w-8 shrink-0 rounded-full object-cover"
-                />
-              ) : (
-                <UserCircle className="h-8 w-8 shrink-0 text-surface-500" />
-              )}
+              <Avatar src={comment.author?.avatarUrl} name={comment.author?.name || comment.author?.displayName} size="md" />
               <div className="flex-1 min-w-0">
                 <div className="flex items-baseline gap-2">
                   <span className="text-sm font-medium text-surface-200">
@@ -79,38 +73,42 @@ export function CommentSection({ taskId }: CommentSectionProps) {
         <p className="text-sm text-surface-500">No comments yet</p>
       )}
 
-      <div className="flex gap-2 items-start">
-        {user?.avatarUrl ? (
-          <img
-            src={user.avatarUrl}
-            alt=""
-            className="h-8 w-8 shrink-0 rounded-full object-cover mt-0.5"
-          />
-        ) : (
-          <UserCircle className="h-8 w-8 shrink-0 text-surface-500 mt-0.5" />
-        )}
-        <div className="flex-1 flex gap-2">
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                handleSubmit();
-              }
-            }}
-            placeholder="Write a comment..."
-            rows={2}
-            className="flex-1 resize-none rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-          />
-          <button
-            onClick={handleSubmit}
-            disabled={!content.trim() || createComment.isPending}
-            className="self-end rounded-lg bg-primary-600 p-2 text-white hover:bg-primary-700 disabled:opacity-50 transition-colors"
-          >
-            <Send className="h-4 w-4" />
-          </button>
+      {canComment ? (
+        <div className="flex gap-2 items-start">
+          {user?.avatarUrl ? (
+            <img
+              src={user.avatarUrl}
+              alt=""
+              className="h-8 w-8 shrink-0 rounded-full object-cover mt-0.5"
+            />
+          ) : (
+            <UserCircle className="h-8 w-8 shrink-0 text-surface-500 mt-0.5" />
+          )}
+          <div className="flex-1 flex gap-2">
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                  handleSubmit();
+                }
+              }}
+              placeholder="Write a comment..."
+              rows={2}
+              className="flex-1 resize-none rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            />
+            <button
+              onClick={handleSubmit}
+              disabled={!content.trim() || createComment.isPending}
+              className="self-end rounded-lg bg-primary-600 p-2 text-white hover:bg-primary-700 disabled:opacity-50 transition-colors"
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          </div>
         </div>
-      </div>
+      ) : (
+        <p className="text-xs text-surface-500 italic">You do not have permission to comment</p>
+      )}
     </div>
   );
 }

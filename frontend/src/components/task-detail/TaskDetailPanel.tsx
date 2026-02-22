@@ -28,6 +28,7 @@ import { useToast } from '@/components/ui/Toast';
 import { cn } from '@/utils/cn';
 import { StatusCategory } from '@/types/models.types';
 import type { Priority } from '@/types/models.types';
+import { useProjectPermissions } from '@/hooks/useProjectRole';
 
 export function TaskDetailPanel() {
   const taskPanelOpen = useUIStore((s) => s.taskPanelOpen);
@@ -36,6 +37,7 @@ export function TaskDetailPanel() {
 
   const { data: task, isLoading } = useTask(taskPanelTaskId || '');
   const updateTask = useUpdateTask();
+  const permissions = useProjectPermissions(task?.projectId);
 
   const { data: statuses } = useStatuses(task?.projectId || '');
   const { data: members } = useProjectMembers(task?.projectId || '');
@@ -239,7 +241,7 @@ export function TaskDetailPanel() {
             <div className="flex-1 overflow-y-auto">
               <div className="space-y-6 p-4">
                 {/* Title */}
-                {editingTitle ? (
+                {editingTitle && permissions.canEditTasks ? (
                   <textarea
                     ref={titleRef}
                     value={titleValue}
@@ -258,45 +260,63 @@ export function TaskDetailPanel() {
                     className="w-full resize-none rounded-md border border-surface-700 bg-surface-900 px-3 py-2 text-lg font-semibold text-surface-100 focus:outline-none focus:ring-1 focus:ring-primary-500"
                     rows={2}
                   />
-                ) : (
+                ) : permissions.canEditTasks ? (
                   <button
                     onClick={() => setEditingTitle(true)}
                     className="w-full text-left text-lg font-semibold text-surface-100 hover:text-primary-400 transition-colors rounded-md px-1 -mx-1"
                   >
                     {task.title}
                   </button>
+                ) : (
+                  <h2 className="text-lg font-semibold text-surface-100 px-1 -mx-1">
+                    {task.title}
+                  </h2>
                 )}
 
                 {/* Metadata grid */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="text-xs font-medium text-surface-500">Status</label>
-                    {statuses && (
+                    {statuses && permissions.canChangeStatus ? (
                       <StatusSelector
                         statuses={statuses}
                         currentStatusId={task.statusId}
                         onChange={handleStatusChange}
                       />
+                    ) : (
+                      <div className="rounded-md border border-surface-700 bg-surface-800 px-3 py-1.5 text-sm text-surface-300">
+                        {statuses?.find((s) => s.id === task.statusId)?.name || 'Unknown'}
+                      </div>
                     )}
                   </div>
 
                   <div className="space-y-1">
                     <label className="text-xs font-medium text-surface-500">Priority</label>
-                    <PrioritySelector
-                      currentPriority={task.priority}
-                      onChange={handlePriorityChange}
-                    />
+                    {permissions.canEditTasks ? (
+                      <PrioritySelector
+                        currentPriority={task.priority}
+                        onChange={handlePriorityChange}
+                      />
+                    ) : (
+                      <div className="rounded-md border border-surface-700 bg-surface-800 px-3 py-1.5 text-sm text-surface-300">
+                        {task.priority}
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-1">
                     <label className="text-xs font-medium text-surface-500">Assignee</label>
-                    {members && (
+                    {members && permissions.canAssignTasks ? (
                       <AssigneeSelector
                         members={members}
                         currentAssigneeId={task.assigneeId}
                         currentAssignee={task.assignee}
                         onChange={handleAssigneeChange}
                       />
+                    ) : (
+                      <div className="flex items-center gap-2 rounded-md border border-surface-700 bg-surface-800 px-3 py-1.5 text-sm text-surface-300">
+                        {task.assignee?.name || task.assignee?.displayName || 'Unassigned'}
+                      </div>
                     )}
                   </div>
 
@@ -304,12 +324,18 @@ export function TaskDetailPanel() {
                     <label className="text-xs font-medium text-surface-500">Due date</label>
                     <div className="flex items-center gap-2 rounded-md border border-surface-700 bg-surface-800 px-3 py-1.5">
                       <Calendar className="h-4 w-4 text-surface-500" />
-                      <input
-                        type="date"
-                        value={task.dueDate ? task.dueDate.split('T')[0] : ''}
-                        onChange={(e) => handleDueDateChange(e.target.value)}
-                        className="flex-1 bg-transparent text-sm text-surface-200 focus:outline-none [color-scheme:dark]"
-                      />
+                      {permissions.canEditTasks ? (
+                        <input
+                          type="date"
+                          value={task.dueDate ? task.dueDate.split('T')[0] : ''}
+                          onChange={(e) => handleDueDateChange(e.target.value)}
+                          className="flex-1 bg-transparent text-sm text-surface-200 focus:outline-none [color-scheme:dark]"
+                        />
+                      ) : (
+                        <span className="text-sm text-surface-300">
+                          {task.dueDate ? task.dueDate.split('T')[0] : 'No due date'}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -329,21 +355,25 @@ export function TaskDetailPanel() {
                           style={{ backgroundColor: tl.label?.color || '#6B7280' }}
                         >
                           {tl.label?.name}
-                          <button
-                            onClick={() => handleLabelToggle(tl.labelId)}
-                            aria-label={`Remove ${tl.label?.name} label`}
-                            className="ml-0.5 hover:text-surface-200"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
+                          {permissions.canEditTasks && (
+                            <button
+                              onClick={() => handleLabelToggle(tl.labelId)}
+                              aria-label={`Remove ${tl.label?.name} label`}
+                              className="ml-0.5 hover:text-surface-200"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          )}
                         </span>
                       ))}
-                      <button
-                        onClick={() => setLabelDropdownOpen(!labelDropdownOpen)}
-                        className="inline-flex items-center gap-1 rounded-full border border-dashed border-surface-600 px-2.5 py-0.5 text-xs text-surface-500 hover:text-surface-300 hover:border-surface-500 transition-colors"
-                      >
-                        + Add label
-                      </button>
+                      {permissions.canEditTasks && (
+                        <button
+                          onClick={() => setLabelDropdownOpen(!labelDropdownOpen)}
+                          className="inline-flex items-center gap-1 rounded-full border border-dashed border-surface-600 px-2.5 py-0.5 text-xs text-surface-500 hover:text-surface-300 hover:border-surface-500 transition-colors"
+                        >
+                          + Add label
+                        </button>
+                      )}
                     </div>
                     {labelDropdownOpen && labels && (
                       <div className="absolute left-0 top-full z-50 mt-1 w-48 rounded-lg border border-surface-700 bg-surface-800 py-1 shadow-xl">
@@ -384,14 +414,20 @@ export function TaskDetailPanel() {
                 {/* Description */}
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-surface-500">Description</label>
-                  <textarea
-                    value={descValue}
-                    onChange={(e) => setDescValue(e.target.value)}
-                    onBlur={saveDescription}
-                    placeholder="Add a description..."
-                    rows={4}
-                    className="w-full resize-none rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                  />
+                  {permissions.canEditTasks ? (
+                    <textarea
+                      value={descValue}
+                      onChange={(e) => setDescValue(e.target.value)}
+                      onBlur={saveDescription}
+                      placeholder="Add a description..."
+                      rows={4}
+                      className="w-full resize-none rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    />
+                  ) : (
+                    <div className="rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-300 min-h-[4rem]">
+                      {task.description || 'No description'}
+                    </div>
+                  )}
                 </div>
 
                 {/* Subtasks */}
@@ -437,7 +473,7 @@ export function TaskDetailPanel() {
 
                 {/* Comments */}
                 <div className="border-t border-surface-700 pt-4">
-                  <CommentSection taskId={task.id} />
+                  <CommentSection taskId={task.id} canComment={permissions.canComment} />
                 </div>
 
                 {/* Attachments */}
@@ -447,19 +483,23 @@ export function TaskDetailPanel() {
                       <Paperclip className="h-3.5 w-3.5" />
                       Attachments
                     </h4>
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="flex items-center gap-1 text-xs text-primary-400 hover:text-primary-300 transition-colors"
-                    >
-                      <Upload className="h-3.5 w-3.5" />
-                      Upload
-                    </button>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      className="hidden"
-                      onChange={handleFileUpload}
-                    />
+                    {permissions.canEditTasks && (
+                      <>
+                        <button
+                          onClick={() => fileInputRef.current?.click()}
+                          className="flex items-center gap-1 text-xs text-primary-400 hover:text-primary-300 transition-colors"
+                        >
+                          <Upload className="h-3.5 w-3.5" />
+                          Upload
+                        </button>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          className="hidden"
+                          onChange={handleFileUpload}
+                        />
+                      </>
+                    )}
                   </div>
 
                   {attachments && attachments.length > 0 ? (
@@ -487,28 +527,30 @@ export function TaskDetailPanel() {
                           >
                             <Download className="h-4 w-4" />
                           </a>
-                          <button
-                            onClick={() =>
-                              deleteAttachment.mutate(
-                                {
-                                  taskId: task.id,
-                                  attachmentId: att.id,
-                                },
-                                {
-                                  onError: (err) =>
-                                    toast({
-                                      type: 'error',
-                                      title: 'Failed to delete attachment',
-                                      description: (err as Error).message,
-                                    }),
-                                },
-                              )
-                            }
-                            aria-label={`Delete ${att.originalName || att.filename}`}
-                            className="rounded-md p-1 text-surface-400 hover:text-red-400"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          {permissions.canEditTasks && (
+                            <button
+                              onClick={() =>
+                                deleteAttachment.mutate(
+                                  {
+                                    taskId: task.id,
+                                    attachmentId: att.id,
+                                  },
+                                  {
+                                    onError: (err) =>
+                                      toast({
+                                        type: 'error',
+                                        title: 'Failed to delete attachment',
+                                        description: (err as Error).message,
+                                      }),
+                                  },
+                                )
+                              }
+                              aria-label={`Delete ${att.originalName || att.filename}`}
+                              className="rounded-md p-1 text-surface-400 hover:text-red-400"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       ))}
                     </div>
