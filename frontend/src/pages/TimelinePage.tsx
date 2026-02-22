@@ -51,19 +51,27 @@ function getColumnWidth(scale: TimeScale): number {
 
 function getDateRange(tasks: Task[], scale: TimeScale) {
   const now = new Date();
-  let minDate = now;
-  let maxDate = addMonths(now, 2);
+  let minDate = addMonths(now, -1);
+  let maxDate = addMonths(now, 3);
+
+  // Only extend range for task dates within a reasonable window (±6 months)
+  const lowerBound = addMonths(now, -6);
+  const upperBound = addMonths(now, 6);
 
   tasks.forEach((task) => {
     if (task.startDate) {
       const s = new Date(task.startDate);
-      if (s < minDate) minDate = s;
-      if (s > maxDate) maxDate = s;
+      if (s >= lowerBound && s <= upperBound) {
+        if (s < minDate) minDate = s;
+        if (s > maxDate) maxDate = s;
+      }
     }
     if (task.dueDate) {
       const d = new Date(task.dueDate);
-      if (d < minDate) minDate = d;
-      if (d > maxDate) maxDate = d;
+      if (d >= lowerBound && d <= upperBound) {
+        if (d < minDate) minDate = d;
+        if (d > maxDate) maxDate = d;
+      }
     }
   });
 

@@ -461,7 +461,7 @@ export function AdminDashboardPage() {
       {activeTab === 'users' && (
         <div className="space-y-4">
           {/* Search + Create User button */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between gap-3">
             <div className="relative max-w-md flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-500" />
               <input

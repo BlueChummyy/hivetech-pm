@@ -24,6 +24,7 @@ import { useWorkspaces } from '@/hooks/useWorkspaces';
 import { useSpaces, useCreateSpace, useUpdateSpace, useDeleteSpace } from '@/hooks/useSpaces';
 import { useProjects, useCreateProject } from '@/hooks/useProjects';
 import { DropdownMenu, DropdownItem, DropdownSeparator } from '@/components/ui/DropdownMenu';
+import { CreateWorkspaceModal } from '@/components/CreateWorkspaceModal';
 import type { Space, Project } from '@/types/models.types';
 
 export function Sidebar() {
@@ -54,6 +55,7 @@ export function Sidebar() {
   }, [location.pathname]);
 
   const activeWorkspace = workspaces?.find((w) => w.id === activeWorkspaceId);
+  const [showCreateWsModal, setShowCreateWsModal] = useState(false);
 
   // Global admin check: user is OWNER or ADMIN in ANY workspace
   const isGlobalAdmin = workspaces?.some((ws) =>
@@ -82,7 +84,7 @@ export function Sidebar() {
         <div className="flex items-center gap-3">
           <img src="/logo.png" alt="HiveTech" className="h-8 w-8 shrink-0" />
           {!sidebarCollapsed && (
-            <span className="min-w-0 flex-1 truncate text-sm font-bold text-surface-100">
+            <span className="min-w-0 flex-1 text-sm font-bold leading-tight text-surface-100">
               HiveTech Project Management
             </span>
           )}
@@ -129,6 +131,13 @@ export function Sidebar() {
                   {ws.name}
                 </DropdownItem>
               ))}
+              <DropdownSeparator />
+              <DropdownItem
+                icon={<Plus className="h-4 w-4" />}
+                onClick={() => setShowCreateWsModal(true)}
+              >
+                Create Workspace
+              </DropdownItem>
             </DropdownMenu>
           </div>
         )}
@@ -185,6 +194,8 @@ export function Sidebar() {
           </Link>
         </div>
       )}
+
+      <CreateWorkspaceModal open={showCreateWsModal} onClose={() => setShowCreateWsModal(false)} />
     </aside>
   );
 }
@@ -398,6 +409,7 @@ function SpaceTreeItem({ space, workspaceId }: { space: Space; workspaceId: stri
         {!editing && (
           <DropdownMenu
             align="left"
+            portal
             trigger={
               <button
                 className="shrink-0 rounded p-0.5 text-surface-500 opacity-0 transition-opacity hover:text-surface-300 group-hover:opacity-100"

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { cn } from '@/utils/cn';
 
 interface DropdownMenuProps {
@@ -6,6 +7,7 @@ interface DropdownMenuProps {
   children: ReactNode;
   align?: 'left' | 'right';
   className?: string;
+  portal?: boolean;
 }
 
 interface DropdownItemProps {
@@ -16,14 +18,18 @@ interface DropdownItemProps {
   className?: string;
 }
 
-export function DropdownMenu({ trigger, children, align = 'right', className }: DropdownMenuProps) {
+export function DropdownMenu({ trigger, children, align = 'right', className, portal }: DropdownMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      if (
+        ref.current && !ref.current.contains(e.target as Node) &&
+        (!menuRef.current || !menuRef.current.contains(e.target as Node))
+      ) {
         setOpen(false);
       }
     }
@@ -32,6 +38,16 @@ export function DropdownMenu({ trigger, children, align = 'right', className }: 
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [open]);
+
+  // Compute fixed position when portal mode is on
+  useEffect(() => {
+    if (!open || !portal || !ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    setMenuPos({
+      top: rect.bottom + 4,
+      left: align === 'right' ? rect.right : rect.left,
+    });
+  }, [open, portal, align]);
 
   useEffect(() => {
     if (!open) return;
@@ -79,25 +95,33 @@ export function DropdownMenu({ trigger, children, align = 'right', className }: 
     setOpen((v) => !v);
   }, []);
 
+  const menuContent = open && (
+    <div
+      ref={menuRef}
+      role="menu"
+      className={cn(
+        'min-w-[180px] rounded-lg border border-surface-700 bg-surface-800 py-1 shadow-xl',
+        portal ? 'fixed z-[9999]' : 'absolute z-50 mt-1',
+        !portal && (align === 'right' ? 'right-0' : 'left-0'),
+        className,
+      )}
+      style={portal && menuPos ? {
+        top: menuPos.top,
+        left: align === 'right' ? undefined : menuPos.left,
+        right: align === 'right' ? (window.innerWidth - menuPos.left) : undefined,
+      } : undefined}
+      onClick={() => setOpen(false)}
+    >
+      {children}
+    </div>
+  );
+
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className={portal ? '' : 'relative'}>
       <div onClick={handleTriggerClick} aria-expanded={open} aria-haspopup="menu">
         {trigger}
       </div>
-      {open && (
-        <div
-          ref={menuRef}
-          role="menu"
-          className={cn(
-            'absolute z-50 mt-1 min-w-[180px] rounded-lg border border-surface-700 bg-surface-800 py-1 shadow-xl',
-            align === 'right' ? 'right-0' : 'left-0',
-            className,
-          )}
-          onClick={() => setOpen(false)}
-        >
-          {children}
-        </div>
-      )}
+      {portal ? menuContent && createPortal(menuContent, document.body) : menuContent}
     </div>
   );
 }

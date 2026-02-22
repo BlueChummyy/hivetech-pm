@@ -32,8 +32,8 @@ export function Header() {
         <Menu className="h-5 w-5" />
       </button>
 
-      <div className="flex-1 min-w-0">
-        <div className="relative max-w-md">
+      <div className="flex-1 flex justify-center min-w-0">
+        <div className="relative w-full max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-500" aria-hidden="true" />
           <input
             type="text"
