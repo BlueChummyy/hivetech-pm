@@ -17,10 +17,12 @@ export function validate(schemas: ValidationSchemas) {
         req.body = await schemas.body.parseAsync(req.body);
       }
       if (schemas.query) {
-        req.query = await schemas.query.parseAsync(req.query) as Record<string, string>;
+        const parsedQuery = await schemas.query.parseAsync(req.query);
+        Object.defineProperty(req, 'query', { value: parsedQuery, writable: true, configurable: true });
       }
       if (schemas.params) {
-        req.params = await schemas.params.parseAsync(req.params) as Record<string, string>;
+        const parsedParams = await schemas.params.parseAsync(req.params);
+        Object.defineProperty(req, 'params', { value: parsedParams, writable: true, configurable: true });
       }
       next();
     } catch (error) {
