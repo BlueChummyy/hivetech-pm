@@ -3,7 +3,6 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { TaskDetailPanel } from '@/components/task-detail/TaskDetailPanel';
 import { ToastContainer } from './ToastContainer';
-import { ConnectionStatus } from './ConnectionStatus';
 import { useUIStore } from '@/store/ui.store';
 import { useWorkspaceStore } from '@/store/workspace.store';
 import { useNotificationSocket } from '@/hooks/useNotificationSocket';
@@ -59,7 +58,6 @@ export function AppLayout() {
 
       <TaskDetailPanel />
       <ToastContainer />
-      <ConnectionStatus />
     </div>
   );
 }

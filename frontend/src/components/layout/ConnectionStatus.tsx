@@ -27,7 +27,7 @@ export function ConnectionStatus() {
   }, [socket]);
 
   return (
-    <div className="fixed bottom-3 left-3 z-50 flex items-center gap-1.5 rounded-full bg-[#1E1E26] px-2.5 py-1 border border-white/[0.06] text-xs text-gray-500">
+    <div className="flex items-center gap-1.5 rounded-full bg-surface-800/50 px-2.5 py-1 text-xs text-surface-500">
       <div className={cn(
         'h-1.5 w-1.5 rounded-full',
         connected ? 'bg-green-500' : 'bg-red-500'

@@ -6,9 +6,11 @@ import {
   CheckSquare,
   Bell,
   ChevronLeft,
+  ChevronDown,
   Hexagon,
   Settings,
   LogOut,
+  Check,
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useUIStore } from '@/store/ui.store';
@@ -18,6 +20,7 @@ import { useWorkspaces } from '@/hooks/useWorkspaces';
 import { Avatar } from '@/components/ui/Avatar';
 import { DropdownMenu, DropdownItem, DropdownSeparator } from '@/components/ui/DropdownMenu';
 import { authApi } from '@/api/auth';
+import { ConnectionStatus } from './ConnectionStatus';
 
 export function Sidebar() {
   const location = useLocation();
@@ -67,15 +70,36 @@ export function Sidebar() {
         sidebarCollapsed ? 'w-16' : 'w-64',
       )}
     >
-      {/* Workspace header */}
+      {/* Workspace header with switcher */}
       <div className="flex items-center gap-3 border-b border-surface-700 px-4 py-4">
         <Hexagon className="h-8 w-8 shrink-0 text-primary-400" />
         {!sidebarCollapsed && (
-          <div className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-bold text-surface-100">
-              {activeWorkspace?.name || 'HiveTech'}
-            </span>
-          </div>
+          <DropdownMenu
+            align="left"
+            trigger={
+              <button className="flex min-w-0 flex-1 items-center gap-1 rounded-md px-1 py-0.5 text-left transition-colors hover:bg-surface-800">
+                <span className="block truncate text-sm font-bold text-surface-100">
+                  {activeWorkspace?.name || 'HiveTech'}
+                </span>
+                <ChevronDown className="h-3 w-3 shrink-0 text-surface-400" />
+              </button>
+            }
+          >
+            {workspaces?.map((ws) => (
+              <DropdownItem
+                key={ws.id}
+                icon={ws.id === activeWorkspaceId
+                  ? <Check className="h-4 w-4 text-primary-400" />
+                  : <span className="h-4 w-4" />}
+                onClick={() => {
+                  setActiveWorkspace(ws.id);
+                  navigate(`/workspaces/${ws.id}/projects`);
+                }}
+              >
+                {ws.name}
+              </DropdownItem>
+            ))}
+          </DropdownMenu>
         )}
         <button
           onClick={() => collapseSidebar(!sidebarCollapsed)}
@@ -117,8 +141,15 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* User section */}
+      {/* Connection status + User section */}
       <div className="border-t border-surface-700 px-2 py-3">
+        {!sidebarCollapsed && (
+          <div className="mb-2 flex justify-center">
+            <ConnectionStatus />
+          </div>
+        )}
+      </div>
+      <div className="px-2 pb-3">
         <DropdownMenu
           align="left"
           trigger={
