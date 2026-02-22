@@ -113,7 +113,8 @@ export class ProjectsController {
   async updateStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const userId = req.user!.id;
-      const status = await projectsService.updateStatus(req.params.statusId as string, req.body, userId);
+      const projectId = req.params.id as string;
+      const status = await projectsService.updateStatus(req.params.statusId as string, req.body, userId, projectId);
       res.status(200).json(successResponse(status));
     } catch (err) {
       next(err);
@@ -123,8 +124,9 @@ export class ProjectsController {
   async deleteStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const userId = req.user!.id;
+      const projectId = req.params.id as string;
       const reassignToStatusId = req.query.reassignToStatusId as string | undefined;
-      await projectsService.deleteStatus(req.params.statusId as string, reassignToStatusId, userId);
+      await projectsService.deleteStatus(req.params.statusId as string, reassignToStatusId, userId, projectId);
       res.status(204).send();
     } catch (err) {
       next(err);

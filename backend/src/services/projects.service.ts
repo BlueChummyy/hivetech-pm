@@ -321,9 +321,14 @@ export class ProjectsService {
     return result;
   }
 
-  async updateStatus(statusId: string, data: { name?: string; color?: string; category?: string; position?: number; isDefault?: boolean }, userId: string) {
+  async updateStatus(statusId: string, data: { name?: string; color?: string; category?: string; position?: number; isDefault?: boolean }, userId: string, projectId?: string) {
     const status = await prisma.projectStatus.findUnique({ where: { id: statusId } });
     if (!status) throw ApiError.notFound('Status not found');
+
+    // Verify the status belongs to the project specified in the URL
+    if (projectId && status.projectId !== projectId) {
+      throw ApiError.notFound('Status not found in this project');
+    }
 
     const project = await prisma.project.findUnique({ where: { id: status.projectId } });
     if (!project) throw ApiError.notFound('Project not found');
@@ -353,9 +358,14 @@ export class ProjectsService {
     return result;
   }
 
-  async deleteStatus(statusId: string, reassignToStatusId?: string, userId?: string) {
+  async deleteStatus(statusId: string, reassignToStatusId?: string, userId?: string, projectId?: string) {
     const status = await prisma.projectStatus.findUnique({ where: { id: statusId } });
     if (!status) throw ApiError.notFound('Status not found');
+
+    // Verify the status belongs to the project specified in the URL
+    if (projectId && status.projectId !== projectId) {
+      throw ApiError.notFound('Status not found in this project');
+    }
 
     if (userId) {
       const project = await prisma.project.findUnique({ where: { id: status.projectId } });
