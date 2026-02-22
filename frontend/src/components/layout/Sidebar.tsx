@@ -11,12 +11,13 @@ import {
   Settings,
   LogOut,
   Check,
+  Shield,
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useUIStore } from '@/store/ui.store';
 import { useAuthStore } from '@/store/auth.store';
 import { useWorkspaceStore } from '@/store/workspace.store';
-import { useWorkspaces } from '@/hooks/useWorkspaces';
+import { useWorkspaces, useWorkspaceMembers } from '@/hooks/useWorkspaces';
 import { Avatar } from '@/components/ui/Avatar';
 import { DropdownMenu, DropdownItem, DropdownSeparator } from '@/components/ui/DropdownMenu';
 import { authApi } from '@/api/auth';
@@ -39,6 +40,10 @@ export function Sidebar() {
   }, [activeWorkspaceId, workspaces, setActiveWorkspace]);
 
   const activeWorkspace = workspaces?.find((w) => w.id === activeWorkspaceId);
+  const { data: wsMembers } = useWorkspaceMembers(activeWorkspaceId || '');
+  const isWorkspaceAdmin = wsMembers?.some(
+    (m) => m.userId === user?.id && (m.role === 'OWNER' || m.role === 'ADMIN'),
+  );
 
   const navItems = [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
@@ -51,6 +56,9 @@ export function Sidebar() {
     },
     { label: 'My Tasks', icon: CheckSquare, path: '/my-tasks' },
     { label: 'Notifications', icon: Bell, path: '/notifications' },
+    ...(isWorkspaceAdmin
+      ? [{ label: 'Admin', icon: Shield, path: '/admin' }]
+      : []),
   ];
 
   const handleLogout = async () => {

@@ -138,6 +138,7 @@ export interface Task {
   _count?: {
     subtasks: number;
     comments: number;
+    attachments: number;
   };
 }
 

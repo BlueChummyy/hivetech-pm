@@ -1,6 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Calendar, MessageSquare } from 'lucide-react';
+import { Calendar, MessageSquare, Paperclip } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/utils/cn';
 import { useUIStore } from '@/store/ui.store';
@@ -45,6 +45,7 @@ export function KanbanCard({ task, overlay }: KanbanCardProps) {
   const subtasks = task.subtasks ?? [];
   const completedSubtasks = subtasks.filter((s) => s.status?.category === 'DONE').length;
   const commentCount = task.comments?.length ?? task._count?.comments ?? 0;
+  const attachmentCount = task.attachments?.length ?? task._count?.attachments ?? 0;
 
   const handleClick = () => {
     useUIStore.getState().openTaskPanel(task.id);
@@ -126,6 +127,14 @@ export function KanbanCard({ task, overlay }: KanbanCardProps) {
           <div className="flex items-center gap-1 text-gray-400">
             <MessageSquare className="h-3 w-3" />
             <span className="text-[10px]">{commentCount}</span>
+          </div>
+        )}
+
+        {/* Attachments */}
+        {attachmentCount > 0 && (
+          <div className="flex items-center gap-1 text-gray-400">
+            <Paperclip className="h-3 w-3" />
+            <span className="text-[10px]">{attachmentCount}</span>
           </div>
         )}
 

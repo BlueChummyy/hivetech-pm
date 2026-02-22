@@ -55,6 +55,11 @@ const NotificationsPage = lazyPage(
   'NotificationsPage',
   'Notifications',
 );
+const AdminDashboardPage = lazyPage(
+  () => import('@/pages/AdminDashboardPage'),
+  'AdminDashboardPage',
+  'Admin Dashboard',
+);
 
 function PageLoader() {
   return (
@@ -104,6 +109,7 @@ export function App() {
               path="/my-tasks"
               element={<PlaceholderPage title="My Tasks" />}
             />
+            <Route path="/admin" element={withErrorBoundary(AdminDashboardPage)} />
           </Route>
         </Route>
 

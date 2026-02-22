@@ -122,7 +122,7 @@ export class TasksService {
           status: true,
           assignee: true,
           labels: { include: { label: true } },
-          _count: { select: { subtasks: { where: { deletedAt: null } }, comments: { where: { deletedAt: null } } } },
+          _count: { select: { subtasks: { where: { deletedAt: null } }, comments: { where: { deletedAt: null } }, attachments: true } },
         },
       }),
       prisma.task.count({ where }),
