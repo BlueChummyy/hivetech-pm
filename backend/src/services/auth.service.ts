@@ -36,22 +36,45 @@ export class AuthService {
     }
 
     const passwordHash = await hashPassword(password);
+    const refreshTokenValue = crypto.randomUUID();
 
-    const user = await prisma.user.create({
-      data: { email, passwordHash, displayName: name },
+    const newUser = await prisma.$transaction(async (tx: any) => {
+      const created = await tx.user.create({
+        data: { email, passwordHash, displayName: name },
+      });
+
+      // Add the new user to the default workspace so they can use the app
+      const defaultWorkspace = await tx.workspace.findFirst({
+        orderBy: { createdAt: 'asc' },
+      });
+      if (defaultWorkspace) {
+        await tx.workspaceMember.create({
+          data: {
+            workspaceId: defaultWorkspace.id,
+            userId: created.id,
+            role: 'MEMBER',
+          },
+        });
+      }
+
+      await tx.refreshToken.create({
+        data: {
+          token: refreshTokenValue,
+          userId: created.id,
+          expiresAt: computeRefreshExpiry(),
+        },
+      });
+
+      return created;
+    });
+
+    // Re-fetch with select to exclude passwordHash from the response
+    const user = await prisma.user.findUniqueOrThrow({
+      where: { id: newUser.id },
       select: userSelectWithoutPassword,
     });
 
     const accessToken = generateAccessToken({ sub: user.id, email: user.email });
-    const refreshTokenValue = crypto.randomUUID();
-
-    await prisma.refreshToken.create({
-      data: {
-        token: refreshTokenValue,
-        userId: user.id,
-        expiresAt: computeRefreshExpiry(),
-      },
-    });
 
     return { user, accessToken, refreshToken: refreshTokenValue };
   }
