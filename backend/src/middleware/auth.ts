@@ -30,16 +30,3 @@ export function authenticate(req: Request, _res: Response, next: NextFunction): 
   }
 }
 
-export function requireRole(...roles: string[]) {
-  return (req: Request, _res: Response, next: NextFunction): void => {
-    if (!req.user) {
-      next(ApiError.unauthorized());
-      return;
-    }
-
-    // Role checking is implemented at the service layer via
-    // requireWorkspaceMember/requireProjectMember with role arrays.
-    // This middleware ensures authentication only.
-    next();
-  };
-}
