@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Trash2, UserCircle, UserPlus } from 'lucide-react';
+import { Trash2, UserPlus } from 'lucide-react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { projectsApi } from '@/api/projects';
 import { usersApi } from '@/api/users';
@@ -7,6 +7,7 @@ import type { ProjectMember } from '@/types/models.types';
 import { ProjectRole } from '@/types/models.types';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
+import { Avatar } from '@/components/ui/Avatar';
 
 interface ProjectMembersProps {
   projectId: string;
@@ -100,19 +101,11 @@ export function ProjectMembers({ projectId, members }: ProjectMembersProps) {
                 <button
                   key={user.id}
                   onClick={() =>
-                    addMember.mutate({ userId: user.id, role: ProjectRole.MEMBER })
+                    addMember.mutate({ userId: user.id, role: ProjectRole.TEAM_MEMBER })
                   }
                   className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-surface-300 hover:bg-surface-700 transition-colors"
                 >
-                  {user.avatarUrl ? (
-                    <img
-                      src={user.avatarUrl}
-                      alt=""
-                      className="h-6 w-6 rounded-full object-cover"
-                    />
-                  ) : (
-                    <UserCircle className="h-6 w-6 text-surface-500" />
-                  )}
+                  <Avatar src={user.avatarUrl} name={user.name || user.displayName} size="sm" />
                   <span>{user.name || user.displayName}</span>
                   <span className="text-xs text-surface-500">{user.email}</span>
                 </button>
@@ -131,15 +124,7 @@ export function ProjectMembers({ projectId, members }: ProjectMembersProps) {
             key={member.id}
             className="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-surface-800/50"
           >
-            {member.user?.avatarUrl ? (
-              <img
-                src={member.user.avatarUrl}
-                alt=""
-                className="h-8 w-8 rounded-full object-cover"
-              />
-            ) : (
-              <UserCircle className="h-8 w-8 text-surface-500" />
-            )}
+            <Avatar src={member.user?.avatarUrl} name={member.user?.name || member.user?.displayName} size="md" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-surface-200 truncate">
                 {member.user?.name || member.user?.displayName || 'Unknown'}

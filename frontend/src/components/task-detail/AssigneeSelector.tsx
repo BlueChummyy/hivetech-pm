@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { UserCircle } from 'lucide-react';
 import type { User, ProjectMember } from '@/types/models.types';
 import { cn } from '@/utils/cn';
+import { Avatar } from '@/components/ui/Avatar';
 
 interface AssigneeSelectorProps {
   members: ProjectMember[];
@@ -45,15 +46,7 @@ export function AssigneeSelector({
         aria-expanded={open}
         className="flex items-center gap-2 rounded-md border border-surface-700 bg-surface-800 px-3 py-1.5 text-sm text-surface-200 hover:border-surface-600 transition-colors w-full"
       >
-        {currentAssignee?.avatarUrl ? (
-          <img
-            src={currentAssignee.avatarUrl}
-            alt=""
-            className="h-5 w-5 rounded-full object-cover"
-          />
-        ) : (
-          <UserCircle className="h-5 w-5 shrink-0 text-surface-500" />
-        )}
+        <Avatar src={currentAssignee?.avatarUrl} name={currentAssignee?.name || currentAssignee?.displayName} size="sm" />
         <span className="truncate">
           {currentAssignee?.name || currentAssignee?.displayName || 'Unassigned'}
         </span>
@@ -107,15 +100,7 @@ export function AssigneeSelector({
                     : 'text-surface-300',
                 )}
               >
-                {member.user?.avatarUrl ? (
-                  <img
-                    src={member.user.avatarUrl}
-                    alt=""
-                    className="h-5 w-5 rounded-full object-cover"
-                  />
-                ) : (
-                  <UserCircle className="h-5 w-5 shrink-0 text-surface-500" />
-                )}
+                <Avatar src={member.user?.avatarUrl} name={member.user?.name || member.user?.displayName} size="sm" />
                 <span className="truncate">{member.user?.name || member.user?.displayName || 'Unknown'}</span>
               </button>
             ))}

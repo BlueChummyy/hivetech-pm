@@ -1,6 +1,7 @@
-import { ChevronRight, UserCircle } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import type { Task } from '@/types/models.types';
 import { useUIStore } from '@/store/ui.store';
+import { Avatar } from '@/components/ui/Avatar';
 
 interface GanttTaskListProps {
   tasks: Task[];
@@ -40,15 +41,9 @@ export function GanttTaskList({ tasks, rowHeight }: GanttTaskListProps) {
             </span>
           </button>
           <div className="w-8 flex justify-center">
-            {task.assignee?.avatarUrl ? (
-              <img
-                src={task.assignee.avatarUrl}
-                alt=""
-                className="h-5 w-5 rounded-full object-cover"
-              />
-            ) : task.assigneeId ? (
-              <UserCircle className="h-5 w-5 text-surface-500" />
-            ) : null}
+            {task.assigneeId && (
+              <Avatar src={task.assignee?.avatarUrl} name={task.assignee?.name || task.assignee?.displayName} size="sm" />
+            )}
           </div>
         </div>
       ))}

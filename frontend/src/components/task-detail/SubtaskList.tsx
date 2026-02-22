@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Check, Plus, UserCircle } from 'lucide-react';
+import { Check, Plus } from 'lucide-react';
 import type { Task } from '@/types/models.types';
 import { StatusCategory } from '@/types/models.types';
 import { useUIStore } from '@/store/ui.store';
 import { useCreateTask, useUpdateTask } from '@/hooks/useTasks';
 import { useToast } from '@/components/ui/Toast';
 import { cn } from '@/utils/cn';
+import { Avatar } from '@/components/ui/Avatar';
 
 interface SubtaskListProps {
   parentTask: Task;
@@ -116,15 +117,11 @@ export function SubtaskList({ parentTask, subtasks, doneStatusId }: SubtaskListP
               >
                 {subtask.title}
               </button>
-              {subtask.assignee?.avatarUrl ? (
-                <img
-                  src={subtask.assignee.avatarUrl}
-                  alt=""
-                  className="h-5 w-5 rounded-full object-cover opacity-0 group-hover:opacity-100 transition-opacity"
-                />
-              ) : subtask.assigneeId ? (
-                <UserCircle className="h-5 w-5 text-surface-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-              ) : null}
+              {subtask.assigneeId && (
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Avatar src={subtask.assignee?.avatarUrl} name={subtask.assignee?.name || subtask.assignee?.displayName} size="sm" />
+                </div>
+              )}
             </div>
           );
         })}
