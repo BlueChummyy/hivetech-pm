@@ -9,7 +9,8 @@ import { useAuthStore } from '@/store/auth.store';
 import { isAxiosError } from 'axios';
 
 export function RegisterPage() {
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -41,9 +42,9 @@ export function RegisterPage() {
     setLoading(true);
 
     try {
-      const { data } = await authApi.register({ email, password, name });
+      const { data } = await authApi.register({ email, password, firstName, lastName });
       login(
-        { id: data.user.id, email: data.user.email, name: data.user.name || data.user.displayName || '', avatarUrl: data.user.avatarUrl, createdAt: '', updatedAt: '' },
+        { id: data.user.id, email: data.user.email, name: data.user.name || `${data.user.firstName || ''} ${data.user.lastName || ''}`.trim(), avatarUrl: data.user.avatarUrl, createdAt: '', updatedAt: '' },
         data.accessToken,
         data.refreshToken,
       );
@@ -80,15 +81,26 @@ export function RegisterPage() {
                   {error}
                 </div>
               )}
-              <Input
-                id="name"
-                label="Full name"
-                type="text"
-                placeholder="John Doe"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  id="firstName"
+                  label="First name"
+                  type="text"
+                  placeholder="John"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  required
+                />
+                <Input
+                  id="lastName"
+                  label="Last name"
+                  type="text"
+                  placeholder="Doe"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  required
+                />
+              </div>
               <Input
                 id="email"
                 label="Email"

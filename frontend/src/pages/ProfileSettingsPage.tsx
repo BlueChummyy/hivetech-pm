@@ -12,17 +12,22 @@ export function ProfileSettingsPage() {
   const changePassword = useChangePassword();
   const { toast } = useToast();
 
-  const [name, setName] = useState(user?.name || user?.displayName || '');
+  const [firstName, setFirstName] = useState(user?.firstName || '');
+  const [lastName, setLastName] = useState(user?.lastName || '');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState(false);
 
+  const hasNameChanged =
+    firstName.trim() !== (user?.firstName || '') ||
+    lastName.trim() !== (user?.lastName || '');
+
   function handleProfileSave() {
-    if (!name.trim()) return;
+    if (!firstName.trim() || !lastName.trim()) return;
     updateProfile.mutate(
-      { name: name.trim() },
+      { firstName: firstName.trim(), lastName: lastName.trim() },
       {
         onSuccess: () => {
           toast({ type: 'success', title: 'Profile updated successfully' });
@@ -100,11 +105,18 @@ export function ProfileSettingsPage() {
         </div>
 
         <div className="max-w-md space-y-4">
-          <Input
-            label="Display name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="First name"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+            />
+            <Input
+              label="Last name"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+            />
+          </div>
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-surface-300">
               Email
@@ -116,7 +128,7 @@ export function ProfileSettingsPage() {
           <Button
             onClick={handleProfileSave}
             loading={updateProfile.isPending}
-            disabled={!name.trim() || name === (user.name || user.displayName)}
+            disabled={!firstName.trim() || !lastName.trim() || !hasNameChanged}
           >
             Save profile
           </Button>

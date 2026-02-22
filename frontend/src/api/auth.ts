@@ -6,7 +6,7 @@ export const authApi = {
   login: (data: { email: string; password: string }) =>
     post<AuthResponse>('/auth/login', data),
 
-  register: (data: { email: string; password: string; name: string }) =>
+  register: (data: { email: string; password: string; firstName: string; lastName: string }) =>
     post<AuthResponse>('/auth/register', data),
 
   refresh: (data: { refreshToken: string }) =>

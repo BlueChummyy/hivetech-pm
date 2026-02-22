@@ -29,7 +29,8 @@ export interface LoginRequest {
 }
 
 export interface RegisterRequest {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   password: string;
 }
@@ -41,6 +42,8 @@ export interface AuthResponse {
     id: string;
     email: string;
     name: string;
+    firstName?: string;
+    lastName?: string;
     displayName?: string;
     avatarUrl: string | null;
   };

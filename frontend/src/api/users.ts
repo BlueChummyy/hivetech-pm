@@ -2,7 +2,8 @@ import { get, patch, post } from './client';
 import type { User } from '@/types/models.types';
 
 export interface UpdateProfileData {
-  name?: string;
+  firstName?: string;
+  lastName?: string;
   avatarUrl?: string | null;
 }
 
