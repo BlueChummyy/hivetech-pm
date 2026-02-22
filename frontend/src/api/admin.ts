@@ -58,6 +58,12 @@ export const adminApi = {
   deactivateUser: (userId: string) =>
     patch<{ message: string; isActive: boolean }>(`/admin/users/${userId}/deactivate`).then((r) => r.data),
 
+  assignWorkspace: (userId: string, workspaceId: string, role: string) =>
+    post<any>(`/admin/users/${userId}/assign-workspace`, { workspaceId, role }).then((r) => r.data),
+
+  removeWorkspace: (userId: string, workspaceId: string) =>
+    post<{ message: string }>(`/admin/users/${userId}/remove-workspace`, { workspaceId }).then((r) => r.data),
+
   // Workspaces
   listWorkspaces: () =>
     get<AdminWorkspace[]>('/admin/workspaces').then((r) => r.data),

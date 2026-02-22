@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { useProject, useUpdateProject } from '@/hooks/useProjects';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useProject, useUpdateProject, useDeleteProject } from '@/hooks/useProjects';
 import { useProjectMembers } from '@/hooks/useMembers';
+import { useProjectPermissions } from '@/hooks/useProjectRole';
 import { ProjectMembers } from '@/components/settings/ProjectMembers';
 import { LabelManager } from '@/components/settings/LabelManager';
 import { StatusManager } from '@/components/settings/StatusManager';
@@ -9,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { PageError } from '@/components/ui/PageError';
+import { Card, CardBody } from '@/components/ui/Card';
 import { useToast } from '@/components/ui/Toast';
 import { cn } from '@/utils/cn';
 
@@ -41,10 +43,14 @@ function SettingsSkeleton() {
 
 export function ProjectSettingsPage() {
   const { projectId } = useParams<{ projectId: string }>();
+  const navigate = useNavigate();
   const { data: project, isLoading, isError, error, refetch } = useProject(projectId || '');
   const { data: members } = useProjectMembers(projectId || '');
+  const permissions = useProjectPermissions(projectId);
   const updateProject = useUpdateProject();
+  const deleteProject = useDeleteProject();
   const { toast } = useToast();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const [activeTab, setActiveTab] = useState<Tab>('general');
   const [name, setName] = useState('');
@@ -150,6 +156,68 @@ export function ProjectSettingsPage() {
             >
               Save changes
             </Button>
+
+            {/* Danger Zone */}
+            {permissions.canManageProject && (
+              <div className="mt-8 border-t border-red-500/20 pt-6">
+                <h3 className="text-sm font-semibold text-red-400 mb-2">Danger Zone</h3>
+                <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-surface-200">Delete this project</p>
+                    <p className="text-xs text-surface-500 mt-0.5">
+                      This will permanently delete the project and all its tasks, comments, and data.
+                    </p>
+                  </div>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => setShowDeleteConfirm(true)}
+                  >
+                    Delete Project
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Delete confirmation modal */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+            <Card className="w-full max-w-md">
+              <CardBody className="space-y-4">
+                <h3 className="text-lg font-semibold text-red-400">Delete Project</h3>
+                <p className="text-sm text-surface-400">
+                  Are you sure you want to delete{' '}
+                  <span className="font-medium text-surface-200">{project?.name}</span>?
+                  This action cannot be undone. All tasks, comments, attachments, and data will be permanently removed.
+                </p>
+                <div className="flex justify-end gap-2">
+                  <Button variant="secondary" size="sm" onClick={() => setShowDeleteConfirm(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    loading={deleteProject.isPending}
+                    onClick={() => {
+                      if (!projectId) return;
+                      deleteProject.mutate(projectId, {
+                        onSuccess: () => {
+                          toast({ type: 'success', title: 'Project deleted' });
+                          navigate(`/workspaces/${project?.workspaceId}/projects`);
+                        },
+                        onError: (err) => {
+                          toast({ type: 'error', title: 'Failed to delete project', description: (err as Error).message });
+                        },
+                      });
+                    }}
+                  >
+                    Delete Project
+                  </Button>
+                </div>
+              </CardBody>
+            </Card>
           </div>
         )}
 

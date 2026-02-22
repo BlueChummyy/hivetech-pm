@@ -147,9 +147,9 @@ export class ProjectsService {
     });
 
     const hasProjectAdmin = projectMember?.role === 'ADMIN';
-    const hasWsOwner = wsMember?.role === 'OWNER';
+    const hasWsOwnerOrAdmin = wsMember?.role === 'OWNER' || wsMember?.role === 'ADMIN';
 
-    if (!hasProjectAdmin && !hasWsOwner) {
+    if (!hasProjectAdmin && !hasWsOwnerOrAdmin) {
       throw ApiError.forbidden('Insufficient permissions');
     }
 

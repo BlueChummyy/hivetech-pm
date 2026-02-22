@@ -288,6 +288,84 @@ router.patch(
   },
 );
 
+// ── POST /api/v1/admin/users/:id/assign-workspace — Add user to workspace ──
+const assignWorkspaceSchema = z.object({
+  workspaceId: z.string().min(1),
+  role: z.enum(['ADMIN', 'PROJECT_MANAGER', 'MEMBER', 'VIEWER']),
+});
+
+router.post(
+  '/users/:id/assign-workspace',
+  validate({ body: assignWorkspaceSchema }),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.params.id as string;
+      const { workspaceId, role } = req.body;
+
+      const user = await prisma.user.findFirst({ where: { id: userId, deletedAt: null } });
+      if (!user) throw ApiError.notFound('User not found');
+
+      const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId } });
+      if (!workspace) throw ApiError.notFound('Workspace not found');
+
+      const existing = await prisma.workspaceMember.findUnique({
+        where: { workspaceId_userId: { workspaceId, userId } },
+      });
+      if (existing) throw ApiError.conflict('User is already a member of this workspace');
+
+      const member = await prisma.workspaceMember.create({
+        data: { workspaceId, userId, role },
+        include: { user: true, workspace: true },
+      });
+
+      res.status(201).json(successResponse(member));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ── DELETE /api/v1/admin/users/:id/remove-workspace — Remove user from workspace
+const removeWorkspaceSchema = z.object({
+  workspaceId: z.string().min(1),
+});
+
+router.post(
+  '/users/:id/remove-workspace',
+  validate({ body: removeWorkspaceSchema }),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.params.id as string;
+      const { workspaceId } = req.body;
+
+      const membership = await prisma.workspaceMember.findUnique({
+        where: { workspaceId_userId: { workspaceId, userId } },
+      });
+      if (!membership) throw ApiError.notFound('User is not a member of this workspace');
+      if (membership.role === 'OWNER') throw ApiError.forbidden('Cannot remove a workspace owner');
+
+      await prisma.workspaceMember.delete({
+        where: { workspaceId_userId: { workspaceId, userId } },
+      });
+
+      // Also remove from projects in that workspace
+      const projectIds = await prisma.project.findMany({
+        where: { workspaceId },
+        select: { id: true },
+      });
+      if (projectIds.length > 0) {
+        await prisma.projectMember.deleteMany({
+          where: { userId, projectId: { in: projectIds.map((p) => p.id) } },
+        });
+      }
+
+      res.json(successResponse({ message: 'User removed from workspace' }));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 // ── GET /api/v1/admin/workspaces — List all workspaces ───────────────
 router.get(
   '/workspaces',

@@ -13,12 +13,14 @@ import {
   UserCheck,
   Building2,
   FolderKanban,
+  X,
 } from 'lucide-react';
 import { adminApi, type AdminUser } from '@/api/admin';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
 import { useToast } from '@/components/ui/Toast';
+import { useAuthStore } from '@/store/auth.store';
 import { cn } from '@/utils/cn';
 
 type Tab = 'users' | 'workspaces' | 'create';
@@ -38,6 +40,7 @@ export function AdminDashboardPage() {
   const [search, setSearch] = useState('');
   const { toast } = useToast();
   const qc = useQueryClient();
+  const currentUser = useAuthStore((s) => s.user);
 
   // ── Users list ───────────────────────────────────────────────────
   const { data: usersData, isLoading: usersLoading } = useQuery({
@@ -147,6 +150,37 @@ export function AdminDashboardPage() {
     },
   });
 
+  // ── Assign workspace ────────────────────────────────────────────────
+  const [assignTarget, setAssignTarget] = useState<AdminUser | null>(null);
+  const [assignWsId, setAssignWsId] = useState('');
+  const [assignRole, setAssignRole] = useState('MEMBER');
+
+  const assignWorkspaceMutation = useMutation({
+    mutationFn: () => adminApi.assignWorkspace(assignTarget!.id, assignWsId, assignRole),
+    onSuccess: () => {
+      toast({ type: 'success', title: 'User assigned to workspace' });
+      setAssignTarget(null);
+      setAssignWsId('');
+      setAssignRole('MEMBER');
+      qc.invalidateQueries({ queryKey: ['admin', 'users'] });
+    },
+    onError: (err) => {
+      toast({ type: 'error', title: 'Failed to assign workspace', description: (err as Error).message });
+    },
+  });
+
+  const removeWorkspaceMutation = useMutation({
+    mutationFn: ({ userId, workspaceId }: { userId: string; workspaceId: string }) =>
+      adminApi.removeWorkspace(userId, workspaceId),
+    onSuccess: () => {
+      toast({ type: 'success', title: 'User removed from workspace' });
+      qc.invalidateQueries({ queryKey: ['admin', 'users'] });
+    },
+    onError: (err) => {
+      toast({ type: 'error', title: 'Failed to remove from workspace', description: (err as Error).message });
+    },
+  });
+
   const tabs: { id: Tab; label: string; icon: typeof Users }[] = [
     { id: 'users', label: 'Manage Users', icon: Users },
     { id: 'workspaces', label: 'Workspaces', icon: Building2 },
@@ -226,7 +260,9 @@ export function AdminDashboardPage() {
                       </tr>
                     ))
                   ) : usersData?.users && usersData.users.length > 0 ? (
-                    usersData.users.map((user) => (
+                    usersData.users.map((user) => {
+                      const isSelf = user.id === currentUser?.id;
+                      return (
                       <tr key={user.id} className="border-b border-surface-700/50 hover:bg-surface-800/30">
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
@@ -255,20 +291,20 @@ export function AdminDashboardPage() {
                           )}
                         </td>
                         <td className="px-4 py-3">
-                          {user.workspaceMembers.length > 0 ? (
-                            <div className="space-y-1">
-                              {user.workspaceMembers.map((m) => {
-                                const isOwner = m.role === 'OWNER';
-                                return (
-                                  <div key={m.workspace.id} className="flex items-center gap-2">
-                                    <span className="text-xs text-surface-500 truncate max-w-[100px]" title={m.workspace.name}>
-                                      {m.workspace.name}:
+                          <div className="space-y-1">
+                            {user.workspaceMembers.map((m) => {
+                              const isOwner = m.role === 'OWNER';
+                              return (
+                                <div key={m.workspace.id} className="flex items-center gap-2">
+                                  <span className="text-xs text-surface-500 truncate max-w-[100px]" title={m.workspace.name}>
+                                    {m.workspace.name}:
+                                  </span>
+                                  {isOwner ? (
+                                    <span className="rounded-md bg-primary-600/20 px-2 py-0.5 text-xs font-medium text-primary-400">
+                                      Owner
                                     </span>
-                                    {isOwner ? (
-                                      <span className="rounded-md bg-primary-600/20 px-2 py-0.5 text-xs font-medium text-primary-400">
-                                        Owner
-                                      </span>
-                                    ) : (
+                                  ) : (
+                                    <>
                                       <select
                                         value={m.role}
                                         onChange={(e) =>
@@ -286,14 +322,29 @@ export function AdminDashboardPage() {
                                           </option>
                                         ))}
                                       </select>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          ) : (
-                            <span className="text-xs text-surface-500">No workspaces</span>
-                          )}
+                                      <button
+                                        onClick={() => removeWorkspaceMutation.mutate({ userId: user.id, workspaceId: m.workspace.id })}
+                                        title="Remove from workspace"
+                                        className="text-red-400/60 hover:text-red-400 transition-colors"
+                                      >
+                                        <X className="h-3 w-3" />
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              );
+                            })}
+                            <button
+                              onClick={() => {
+                                setAssignTarget(user);
+                                setAssignWsId('');
+                                setAssignRole('MEMBER');
+                              }}
+                              className="inline-flex items-center gap-1 text-xs text-primary-400 hover:text-primary-300 transition-colors mt-0.5"
+                            >
+                              + Assign workspace
+                            </button>
+                          </div>
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
@@ -309,28 +360,38 @@ export function AdminDashboardPage() {
                               <KeyRound className="h-3.5 w-3.5" />
                             </button>
                             <button
-                              onClick={() => deactivateUserMutation.mutate(user.id)}
-                              title={user.isActive ? 'Deactivate User' : 'Activate User'}
+                              onClick={() => !isSelf && deactivateUserMutation.mutate(user.id)}
+                              title={isSelf ? 'Cannot deactivate yourself' : user.isActive ? 'Deactivate User' : 'Activate User'}
+                              disabled={isSelf}
                               className={cn(
                                 'inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors',
-                                user.isActive
-                                  ? 'text-yellow-400 hover:bg-yellow-500/10'
-                                  : 'text-green-400 hover:bg-green-500/10',
+                                isSelf
+                                  ? 'text-surface-600 cursor-not-allowed'
+                                  : user.isActive
+                                    ? 'text-yellow-400 hover:bg-yellow-500/10'
+                                    : 'text-green-400 hover:bg-green-500/10',
                               )}
                             >
                               {user.isActive ? <UserX className="h-3.5 w-3.5" /> : <UserCheck className="h-3.5 w-3.5" />}
                             </button>
                             <button
-                              onClick={() => setDeleteTarget(user)}
-                              title="Delete User"
-                              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-red-400 hover:bg-red-500/10 transition-colors"
+                              onClick={() => !isSelf && setDeleteTarget(user)}
+                              title={isSelf ? 'Cannot delete yourself' : 'Delete User'}
+                              disabled={isSelf}
+                              className={cn(
+                                'inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors',
+                                isSelf
+                                  ? 'text-surface-600 cursor-not-allowed'
+                                  : 'text-red-400 hover:bg-red-500/10',
+                              )}
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
                           </div>
                         </td>
                       </tr>
-                    ))
+                      );
+                    })
                   ) : (
                     <tr>
                       <td colSpan={5} className="px-4 py-8 text-center text-surface-500">
@@ -415,6 +476,69 @@ export function AdminDashboardPage() {
                       onClick={() => deleteUserMutation.mutate(deleteTarget.id)}
                     >
                       {deleteUserMutation.isPending ? 'Deleting...' : 'Delete User'}
+                    </Button>
+                  </div>
+                </CardBody>
+              </Card>
+            </div>
+          )}
+          {/* Assign workspace modal */}
+          {assignTarget && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+              <Card className="w-full max-w-md">
+                <CardBody className="space-y-4">
+                  <h3 className="text-lg font-semibold text-surface-100">Assign Workspace</h3>
+                  <p className="text-sm text-surface-400">
+                    Add{' '}
+                    <span className="font-medium text-surface-200">
+                      {assignTarget.name || `${assignTarget.firstName} ${assignTarget.lastName}`}
+                    </span>{' '}
+                    to a workspace.
+                  </p>
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-surface-400">Workspace</label>
+                      <select
+                        value={assignWsId}
+                        onChange={(e) => setAssignWsId(e.target.value)}
+                        className="w-full rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-300 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      >
+                        <option value="">Select a workspace...</option>
+                        {workspacesData
+                          ?.filter((ws) => !assignTarget.workspaceMembers.some((m) => m.workspace.id === ws.id))
+                          .map((ws) => (
+                            <option key={ws.id} value={ws.id}>
+                              {ws.name}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-surface-400">Role</label>
+                      <select
+                        value={assignRole}
+                        onChange={(e) => setAssignRole(e.target.value)}
+                        className="w-full rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-300 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      >
+                        {ASSIGNABLE_ROLES.map((r) => (
+                          <option key={r.value} value={r.value}>
+                            {r.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="secondary" size="sm" onClick={() => setAssignTarget(null)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      disabled={!assignWsId || assignWorkspaceMutation.isPending}
+                      onClick={() => assignWorkspaceMutation.mutate()}
+                    >
+                      {assignWorkspaceMutation.isPending ? 'Assigning...' : 'Assign'}
                     </Button>
                   </div>
                 </CardBody>
