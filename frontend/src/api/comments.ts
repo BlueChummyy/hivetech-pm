@@ -11,7 +11,7 @@ export interface UpdateCommentData {
 
 export const commentsApi = {
   list: (taskId: string) =>
-    get<Comment[]>('/comments', { params: { taskId } }).then((r) => r.data),
+    get<{ comments: Comment[] }>('/comments', { params: { taskId } }).then((r) => r.data.comments),
 
   create: (taskId: string, data: CreateCommentData) =>
     post<Comment>('/comments', { ...data, taskId }).then((r) => r.data),
