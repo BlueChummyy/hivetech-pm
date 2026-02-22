@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
 import { GripVertical, Plus, Trash2 } from 'lucide-react';
-import type { ProjectStatus } from '@/types/models.types';
 import { StatusCategory } from '@/types/models.types';
 import {
   useStatuses,
@@ -67,7 +66,7 @@ export function StatusManager({ projectId }: StatusManagerProps) {
         onSuccess: () => {
           setNewName('');
           setNewColor(PRESET_COLORS[4]);
-          setNewCategory(StatusCategory.TODO);
+          setNewCategory(StatusCategory.NOT_STARTED);
           setAdding(false);
         },
         onError: (err) => {
