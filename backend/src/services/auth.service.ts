@@ -88,6 +88,11 @@ export class AuthService {
   }
 
   async refresh(refreshToken: string) {
+    // Opportunistically prune expired tokens (limit to small batch to avoid blocking)
+    await prisma.refreshToken.deleteMany({
+      where: { expiresAt: { lt: new Date() } },
+    });
+
     const stored = await prisma.refreshToken.findUnique({
       where: { token: refreshToken },
       include: { user: { select: { id: true, email: true, isActive: true, deletedAt: true } } },
