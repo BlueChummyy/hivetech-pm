@@ -182,7 +182,7 @@ export class TasksService {
     position?: number;
     dueDate?: Date | null;
     estimatedHours?: number | null;
-  }) {
+  }, updatedByUserId?: string) {
     // Fetch existing task to get projectId
     const existing = await prisma.task.findFirst({
       where: { id, deletedAt: null },
@@ -219,8 +219,8 @@ export class TasksService {
 
     emitToProject(task.projectId, 'task:updated', task);
 
-    // Notify new assignee about task assignment (if assignee changed)
-    if (data.assigneeId && data.assigneeId !== existing.assigneeId && data.assigneeId !== existing.reporterId) {
+    // Notify new assignee about task assignment (if assignee changed and not self-assigning)
+    if (data.assigneeId && data.assigneeId !== existing.assigneeId && data.assigneeId !== updatedByUserId) {
       const notification = await prisma.notification.create({
         data: {
           userId: data.assigneeId,

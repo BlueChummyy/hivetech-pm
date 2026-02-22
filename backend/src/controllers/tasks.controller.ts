@@ -86,7 +86,7 @@ export class TasksController {
         position,
         dueDate: dueDate === null ? null : dueDate ? new Date(dueDate) : undefined,
         estimatedHours: estimatedHours === null ? null : estimatedHours,
-      });
+      }, req.user!.id);
 
       res.json(successResponse(task));
     } catch (err) {
