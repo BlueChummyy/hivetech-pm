@@ -1,6 +1,7 @@
 import { prisma } from '../prisma/client.js';
 import { ApiError } from '../utils/api-error.js';
 import { emitToProject, emitToUser } from '../utils/socket.js';
+import { logAudit } from './audit.service.js';
 
 export class CommentsService {
   async create(data: { taskId: string; authorId: string; content: string }) {
@@ -22,6 +23,12 @@ export class CommentsService {
     });
 
     emitToProject(task.projectId, 'comment:created', { ...comment, taskId: data.taskId });
+
+    // Audit log
+    const proj = await prisma.project.findUnique({ where: { id: task.projectId }, select: { workspaceId: true } });
+    if (proj) {
+      logAudit({ workspaceId: proj.workspaceId, userId: data.authorId, action: 'commented', entityType: 'comment', entityId: comment.id, metadata: { taskId: data.taskId, taskTitle: task.title } });
+    }
 
     // Notify task assignee about new comment (if commenter is different)
     if (task.assigneeId && task.assigneeId !== data.authorId) {
@@ -127,6 +134,11 @@ export class CommentsService {
     });
     if (task) {
       emitToProject(task.projectId, 'comment:deleted', { id, taskId: comment.taskId });
+      // Audit log
+      const proj = await prisma.project.findUnique({ where: { id: task.projectId }, select: { workspaceId: true } });
+      if (proj) {
+        logAudit({ workspaceId: proj.workspaceId, userId, action: 'comment_deleted', entityType: 'comment', entityId: id, metadata: { taskId: comment.taskId } });
+      }
     }
 
     return { id };

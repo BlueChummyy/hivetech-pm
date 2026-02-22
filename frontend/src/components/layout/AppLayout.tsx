@@ -7,7 +7,6 @@ import { useUIStore } from '@/store/ui.store';
 import { useWorkspaceStore } from '@/store/workspace.store';
 import { useNotificationSocket } from '@/hooks/useNotificationSocket';
 import { useWorkspaceSocketEvents } from '@/hooks/useWorkspaceSocketEvents';
-import { cn } from '@/utils/cn';
 
 export function AppLayout() {
   const { sidebarOpen } = useUIStore();
@@ -20,22 +19,17 @@ export function AppLayout() {
     <div className="flex h-screen bg-surface-950 text-surface-100">
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:z-[200] focus:bg-indigo-600 focus:text-white focus:px-4 focus:py-2 focus:rounded-md focus:top-2 focus:left-2"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-[200] focus:bg-primary-600 focus:text-white focus:px-4 focus:py-2 focus:rounded-md focus:top-2 focus:left-2"
       >
         Skip to content
       </a>
 
-      {/* Desktop sidebar */}
-      <aside
-        className={cn(
-          'hidden lg:block',
-          !sidebarOpen && 'lg:hidden',
-        )}
-      >
+      {/* Desktop sidebar - always visible on lg+ */}
+      <aside className="hidden lg:block">
         <Sidebar />
       </aside>
 
-      {/* Mobile sidebar overlay */}
+      {/* Mobile sidebar overlay - only shown when sidebarOpen on small screens */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div

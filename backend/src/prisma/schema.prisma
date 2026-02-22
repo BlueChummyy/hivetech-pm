@@ -115,22 +115,24 @@ model Workspace {
 }
 
 model Space {
-  id          String   @id @default(cuid())
-  workspaceId String   @map("workspace_id")
+  id          String    @id @default(cuid())
+  workspaceId String    @map("workspace_id")
   name        String
   slug        String
   description String?
   color       String?
   icon        String?
-  position    Float    @default(0)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  position    Float     @default(0)
+  deletedAt   DateTime? @map("deleted_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   projects  Project[]
 
   @@unique([workspaceId, slug])
   @@index([workspaceId])
+  @@index([deletedAt])
   @@map("spaces")
 }
 
@@ -150,15 +152,16 @@ model WorkspaceMember {
 }
 
 model Project {
-  id          String   @id @default(cuid())
-  workspaceId String   @map("workspace_id")
-  spaceId     String?  @map("space_id")
+  id          String    @id @default(cuid())
+  workspaceId String    @map("workspace_id")
+  spaceId     String?   @map("space_id")
   name        String
   key         String
   description String?
-  taskCounter Int      @default(0) @map("task_counter")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  taskCounter Int       @default(0) @map("task_counter")
+  deletedAt   DateTime? @map("deleted_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   space     Space?          @relation(fields: [spaceId], references: [id], onDelete: SetNull)
@@ -169,6 +172,7 @@ model Project {
 
   @@unique([workspaceId, key])
   @@index([spaceId])
+  @@index([deletedAt])
   @@map("projects")
 }
 

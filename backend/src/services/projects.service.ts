@@ -2,6 +2,7 @@ import { prisma } from '../prisma/client.js';
 import { ApiError } from '../utils/api-error.js';
 import { requireWorkspaceMember } from '../utils/authorization.js';
 import { emitToWorkspace, emitToProject } from '../utils/socket.js';
+import { logAudit } from './audit.service.js';
 
 export class ProjectsService {
   async create(data: { workspaceId: string; spaceId?: string; name: string; key: string; description?: string }, userId: string) {
@@ -56,13 +57,15 @@ export class ProjectsService {
 
     emitToWorkspace(project.workspaceId, 'project:created', project);
 
+    logAudit({ workspaceId: data.workspaceId, userId, action: 'created', entityType: 'project', entityId: project.id, metadata: { name: data.name, key: data.key } });
+
     return project;
   }
 
   async list(workspaceId: string, userId: string, spaceId?: string) {
     await requireWorkspaceMember(workspaceId, userId);
 
-    const where: any = { workspaceId };
+    const where: any = { workspaceId, deletedAt: null };
     if (spaceId) where.spaceId = spaceId;
 
     return prisma.project.findMany({
@@ -137,12 +140,15 @@ export class ProjectsService {
 
     emitToWorkspace(project.workspaceId, 'project:updated', updated);
 
+    logAudit({ workspaceId: project.workspaceId, userId, action: 'updated', entityType: 'project', entityId: id, metadata: { changes: data } });
+
     return updated;
   }
 
   async delete(id: string, userId: string) {
     const project = await prisma.project.findUnique({ where: { id } });
     if (!project) throw ApiError.notFound('Project not found');
+    if (project.deletedAt) throw ApiError.notFound('Project not found');
 
     const projectMember = await prisma.projectMember.findUnique({
       where: { projectId_userId: { projectId: id, userId } },
@@ -158,9 +164,12 @@ export class ProjectsService {
       throw ApiError.forbidden('Insufficient permissions');
     }
 
-    await prisma.project.delete({ where: { id } });
+    // Soft-delete the project
+    await prisma.project.update({ where: { id }, data: { deletedAt: new Date() } });
 
     emitToWorkspace(project.workspaceId, 'project:deleted', { id });
+
+    logAudit({ workspaceId: project.workspaceId, userId, action: 'deleted', entityType: 'project', entityId: id, metadata: { name: project.name } });
   }
 
   async listMembers(projectId: string, requesterId: string) {

@@ -45,7 +45,7 @@ function FilterDropdown({ label, children }: DropdownProps) {
         className={cn(
           'flex items-center gap-1 rounded-md border border-white/[0.08] px-3 py-1.5 text-sm transition-colors',
           open
-            ? 'border-indigo-500/50 text-white'
+            ? 'border-primary-500/50 text-white'
             : 'text-gray-400 hover:border-white/[0.15] hover:text-gray-300',
         )}
       >
@@ -102,7 +102,7 @@ export function FilterBar({ filters, onFiltersChange, statuses }: FilterBarProps
           aria-label="Search tasks"
           value={filters.search}
           onChange={(e) => onFiltersChange({ ...filters, search: e.target.value })}
-          className="w-full sm:w-56 rounded-md border border-white/[0.08] bg-[#1E1E26] py-1.5 pl-9 pr-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="w-full sm:w-56 rounded-md border border-white/[0.08] bg-[#1E1E26] py-1.5 pl-9 pr-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
         />
       </div>
 
@@ -118,7 +118,7 @@ export function FilterBar({ filters, onFiltersChange, statuses }: FilterBarProps
               className={cn(
                 'flex h-4 w-4 items-center justify-center rounded border',
                 filters.statusIds.includes(status.id)
-                  ? 'border-indigo-500 bg-indigo-500'
+                  ? 'border-primary-500 bg-primary-500'
                   : 'border-white/[0.15]',
               )}
             >
@@ -155,7 +155,7 @@ export function FilterBar({ filters, onFiltersChange, statuses }: FilterBarProps
               className={cn(
                 'flex h-4 w-4 items-center justify-center rounded border',
                 filters.priorities.includes(p.value)
-                  ? 'border-indigo-500 bg-indigo-500'
+                  ? 'border-primary-500 bg-primary-500'
                   : 'border-white/[0.15]',
               )}
             >

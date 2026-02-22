@@ -8,7 +8,7 @@ import {
   ChevronLeft,
   ChevronDown,
   ChevronRight,
-  Hexagon,
+
   Settings,
   LogOut,
   Check,
@@ -18,6 +18,8 @@ import {
   Pencil,
   Trash2,
   Circle,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useUIStore } from '@/store/ui.store';
@@ -25,7 +27,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { useWorkspaceStore } from '@/store/workspace.store';
 import { useWorkspaces } from '@/hooks/useWorkspaces';
 import { useSpaces, useCreateSpace, useUpdateSpace, useDeleteSpace } from '@/hooks/useSpaces';
-import { useProjects } from '@/hooks/useProjects';
+import { useProjects, useCreateProject } from '@/hooks/useProjects';
 import { Avatar } from '@/components/ui/Avatar';
 import { DropdownMenu, DropdownItem, DropdownSeparator } from '@/components/ui/DropdownMenu';
 import { authApi } from '@/api/auth';
@@ -35,7 +37,7 @@ import type { Space, Project } from '@/types/models.types';
 export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { sidebarCollapsed, collapseSidebar } = useUIStore();
+  const { sidebarCollapsed, collapseSidebar, theme, setTheme } = useUIStore();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const { activeWorkspaceId, setActiveWorkspace } = useWorkspaceStore();
@@ -97,7 +99,7 @@ export function Sidebar() {
     >
       {/* Workspace header with switcher */}
       <div className="flex items-center gap-3 border-b border-surface-700 px-4 py-4">
-        <Hexagon className="h-8 w-8 shrink-0 text-primary-400" />
+        <img src="/logo.png" alt="HiveTech" className="h-8 w-8 shrink-0" />
         {!sidebarCollapsed && (
           <DropdownMenu
             align="left"
@@ -209,6 +211,12 @@ export function Sidebar() {
           >
             Settings
           </DropdownItem>
+          <DropdownItem
+            icon={theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          >
+            {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          </DropdownItem>
           <DropdownSeparator />
           <DropdownItem
             icon={<LogOut className="h-4 w-4" />}
@@ -312,17 +320,30 @@ function SpacesSection({ workspaceId }: { workspaceId: string }) {
 // ---- Space Tree Item ----
 
 const SPACE_COLORS = [
-  '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e',
+  '#4ade80', '#8b5cf6', '#ec4899', '#f43f5e',
   '#f97316', '#eab308', '#22c55e', '#06b6d4',
 ];
 
+function generateProjectKey(name: string): string {
+  return name
+    .replace(/[^a-zA-Z0-9\s]/g, '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 3) || 'PRJ';
+}
+
 function SpaceTreeItem({ space, workspaceId }: { space: Space; workspaceId: string }) {
-  const navigate = useNavigate();
   const [expanded, setExpanded] = useState(true);
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(space.name);
+  const [creatingProject, setCreatingProject] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
   const updateSpace = useUpdateSpace();
   const deleteSpace = useDeleteSpace();
+  const createProject = useCreateProject();
 
   const spaceColor = space.color || SPACE_COLORS[space.position % SPACE_COLORS.length];
   const projectsList = space.projects ?? [];
@@ -346,6 +367,26 @@ function SpaceTreeItem({ space, workspaceId }: { space: Space; workspaceId: stri
   const handleDelete = async () => {
     try {
       await deleteSpace.mutateAsync({ workspaceId, id: space.id });
+    } catch { /* ignore */ }
+  };
+
+  const handleCreateProject = async () => {
+    const name = newProjectName.trim();
+    if (!name) {
+      setCreatingProject(false);
+      setNewProjectName('');
+      return;
+    }
+    try {
+      await createProject.mutateAsync({
+        workspaceId,
+        spaceId: space.id,
+        name,
+        key: generateProjectKey(name),
+      });
+      setNewProjectName('');
+      setCreatingProject(false);
+      setExpanded(true);
     } catch { /* ignore */ }
   };
 
@@ -417,7 +458,7 @@ function SpaceTreeItem({ space, workspaceId }: { space: Space; workspaceId: stri
             </DropdownItem>
             <DropdownItem
               icon={<Plus className="h-3.5 w-3.5" />}
-              onClick={() => navigate(`/workspaces/${workspaceId}/projects`)}
+              onClick={() => { setCreatingProject(true); setExpanded(true); }}
             >
               Add project
             </DropdownItem>
@@ -436,7 +477,7 @@ function SpaceTreeItem({ space, workspaceId }: { space: Space; workspaceId: stri
       {/* Nested projects */}
       {expanded && (
         <div className="ml-4 space-y-0.5">
-          {projectsList.length === 0 && (
+          {projectsList.length === 0 && !creatingProject && (
             <span className="block px-3 py-1 text-[10px] italic text-surface-600">
               No projects
             </span>
@@ -444,6 +485,31 @@ function SpaceTreeItem({ space, workspaceId }: { space: Space; workspaceId: stri
           {projectsList.map((project) => (
             <ProjectTreeItem key={project.id} project={project} />
           ))}
+          {creatingProject && (
+            <div className="px-2 py-1">
+              <input
+                autoFocus
+                type="text"
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleCreateProject();
+                  if (e.key === 'Escape') { setCreatingProject(false); setNewProjectName(''); }
+                }}
+                onBlur={() => {
+                  if (newProjectName.trim()) handleCreateProject();
+                  else { setCreatingProject(false); setNewProjectName(''); }
+                }}
+                placeholder="Project name..."
+                className="w-full rounded-md border border-surface-600 bg-surface-800 px-2 py-1 text-xs text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              />
+              {newProjectName.trim() && (
+                <span className="mt-0.5 block text-[10px] text-surface-500">
+                  Key: {generateProjectKey(newProjectName)}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

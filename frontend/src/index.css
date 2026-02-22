@@ -5,8 +5,35 @@
 @tailwind utilities;
 
 :root {
-  --color-primary: 99 102 241;
-  --color-surface: 15 23 42;
+  --color-primary: 74 222 128;
+  --color-surface: 17 24 39;
+  --app-bg: #030712;
+  --app-text: #f3f4f6;
+  --card-bg: #1E1E26;
+  --card-bg-hover: #252530;
+  --card-bg-alt: #18181E;
+  --card-bg-deep: #14141A;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --overlay-subtle: rgba(255, 255, 255, 0.04);
+  --overlay-hover: rgba(255, 255, 255, 0.06);
+  --scrollbar-track: #111827;
+  --scrollbar-thumb: #374151;
+  --scrollbar-thumb-hover: #4b5563;
+}
+
+html.light {
+  --app-bg: #f9fafb;
+  --app-text: #111827;
+  --card-bg: #ffffff;
+  --card-bg-hover: #f3f4f6;
+  --card-bg-alt: #f9fafb;
+  --card-bg-deep: #f3f4f6;
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --overlay-subtle: rgba(0, 0, 0, 0.02);
+  --overlay-hover: rgba(0, 0, 0, 0.04);
+  --scrollbar-track: #f3f4f6;
+  --scrollbar-thumb: #d1d5db;
+  --scrollbar-thumb-hover: #9ca3af;
 }
 
 @layer base {
@@ -20,7 +47,8 @@
   }
 
   body {
-    @apply bg-surface-950 text-surface-100;
+    background-color: var(--app-bg);
+    color: var(--app-text);
   }
 
   ::-webkit-scrollbar {
@@ -28,22 +56,31 @@
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-surface-900;
+    background-color: var(--scrollbar-track);
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply rounded-full bg-surface-700 hover:bg-surface-600;
+    @apply rounded-full;
+    background-color: var(--scrollbar-thumb);
   }
 
-  * {
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover);
+  }
+
+  .dark * {
     @apply border-surface-700;
+  }
+
+  .light * {
+    @apply border-surface-200;
   }
 }
 
 @layer base {
   /* Focus visible styles for keyboard users */
   *:focus-visible {
-    outline: 2px solid #5B5BD6;
+    outline: 2px solid #22c55e;
     outline-offset: 2px;
   }
 
@@ -51,6 +88,66 @@
   *:focus:not(:focus-visible) {
     outline: none;
   }
+}
+
+/* Light mode overrides for hardcoded dark backgrounds */
+html.light {
+  /* Override hardcoded hex dark backgrounds */
+  .bg-\[\#1E1E26\] { background-color: var(--card-bg) !important; }
+  .bg-\[\#18181E\] { background-color: var(--card-bg-alt) !important; }
+  .bg-\[\#14141A\] { background-color: var(--card-bg-deep) !important; }
+  .hover\:bg-\[\#252530\]:hover { background-color: var(--card-bg-hover) !important; }
+  .hover\:bg-\[\#1E1E26\]:hover { background-color: var(--card-bg) !important; }
+
+  /* Override white/opacity borders and overlays */
+  .border-white\/\[0\.08\] { border-color: var(--border-subtle) !important; }
+  .bg-white\/\[0\.04\] { background-color: var(--overlay-subtle) !important; }
+  .bg-white\/\[0\.06\] { background-color: var(--overlay-hover) !important; }
+  .hover\:bg-white\/\[0\.04\]:hover { background-color: var(--overlay-subtle) !important; }
+  .hover\:bg-white\/\[0\.06\]:hover { background-color: var(--overlay-hover) !important; }
+  .bg-white\/\[0\.08\] { background-color: rgba(0, 0, 0, 0.06) !important; }
+
+  /* Surface overrides */
+  .bg-surface-950 { background-color: var(--app-bg) !important; }
+  .bg-surface-900 { background-color: #f3f4f6 !important; }
+  .bg-surface-800 { background-color: #ffffff !important; }
+  .bg-surface-700 { background-color: #e5e7eb !important; }
+  .bg-surface-700\/60 { background-color: rgba(229, 231, 235, 0.6) !important; }
+  .bg-surface-600 { background-color: #d1d5db !important; }
+  .hover\:bg-surface-800:hover { background-color: #f3f4f6 !important; }
+  .hover\:bg-surface-700:hover { background-color: #e5e7eb !important; }
+  .hover\:bg-surface-600:hover { background-color: #d1d5db !important; }
+  .text-surface-100 { color: #111827 !important; }
+  .text-surface-200 { color: #1f2937 !important; }
+  .text-surface-300 { color: #374151 !important; }
+  .text-surface-400 { color: #6b7280 !important; }
+  .text-surface-500 { color: #9ca3af !important; }
+  .text-surface-600 { color: #4b5563 !important; }
+  .border-surface-700 { border-color: #e5e7eb !important; }
+  .border-surface-600 { border-color: #d1d5db !important; }
+  .ring-offset-surface-900 { --tw-ring-offset-color: #f9fafb !important; }
+  .focus-visible\:ring-offset-surface-900:focus-visible { --tw-ring-offset-color: #f9fafb !important; }
+
+  /* Text overrides */
+  .text-white { color: #111827 !important; }
+  .text-gray-300 { color: #374151 !important; }
+  .text-gray-400 { color: #6b7280 !important; }
+  .text-gray-500 { color: #9ca3af !important; }
+  .text-gray-600 { color: #4b5563 !important; }
+  .placeholder-gray-400::placeholder { color: #9ca3af !important; }
+  .placeholder-gray-500::placeholder { color: #9ca3af !important; }
+  .placeholder-surface-500::placeholder { color: #9ca3af !important; }
+
+  /* Black overlay for modals */
+  .bg-black\/50 { background-color: rgba(0, 0, 0, 0.3) !important; }
+  .bg-black\/60 { background-color: rgba(0, 0, 0, 0.4) !important; }
+
+  /* Shadow overrides */
+  .shadow-xl { box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08) !important; }
+  .shadow-black\/40 { --tw-shadow-color: rgba(0, 0, 0, 0.08) !important; }
+
+  /* Date input color scheme */
+  .\[color-scheme\:dark\] { color-scheme: light !important; }
 }
 
 @layer utilities {

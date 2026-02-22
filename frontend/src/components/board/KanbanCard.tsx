@@ -81,8 +81,8 @@ export function KanbanCard({ task, overlay }: KanbanCardProps) {
               key={tl.id}
               className="inline-block rounded px-1.5 py-0.5 text-[10px] font-medium"
               style={{
-                backgroundColor: `${tl.label?.color ?? '#6366f1'}20`,
-                color: tl.label?.color ?? '#6366f1',
+                backgroundColor: `${tl.label?.color ?? '#4ade80'}20`,
+                color: tl.label?.color ?? '#4ade80',
               }}
             >
               {tl.label?.name}
@@ -151,7 +151,7 @@ export function KanbanCard({ task, overlay }: KanbanCardProps) {
                 className="h-5 w-5 rounded-full"
               />
             ) : (
-              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-medium text-white">
+              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary-600 text-[10px] font-medium text-white">
                 {(task.assignee.name || task.assignee.displayName || '?').charAt(0).toUpperCase()}
               </div>
             )}

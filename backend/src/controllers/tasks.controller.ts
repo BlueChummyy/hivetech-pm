@@ -124,7 +124,7 @@ export class TasksController {
       const existing = await tasksService.getById(id);
       await requireProjectMember(existing.project.id, req.user!.id);
 
-      await tasksService.softDelete(id);
+      await tasksService.softDelete(id, req.user!.id);
       res.status(204).send();
     } catch (err) {
       next(err);

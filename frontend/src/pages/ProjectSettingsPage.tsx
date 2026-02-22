@@ -104,7 +104,7 @@ export function ProjectSettingsPage() {
       <h1 className="text-xl sm:text-2xl font-bold text-surface-100">Project Settings</h1>
 
       {/* Tabs */}
-      <div className="flex gap-1 overflow-x-auto border-b border-surface-700 -mx-2 px-2 sm:mx-0 sm:px-0">
+      <div className="flex gap-1 border-b border-surface-700 -mx-2 px-2 sm:mx-0 sm:px-0 overflow-x-auto sm:overflow-x-visible">
         {TABS.map((tab) => (
           <button
             key={tab.key}

@@ -65,7 +65,7 @@ export function KanbanColumn({ status, tasks, projectId }: KanbanColumnProps) {
       aria-label={status.name}
       className={cn(
         'flex h-full w-[85vw] sm:w-72 3xl:w-80 4xl:w-96 shrink-0 flex-col rounded-lg bg-[#14141A] snap-center sm:snap-align-none',
-        isOver && 'ring-1 ring-indigo-500/40',
+        isOver && 'ring-1 ring-primary-500/40',
       )}
     >
       {/* Column header */}
@@ -101,7 +101,7 @@ export function KanbanColumn({ status, tasks, projectId }: KanbanColumnProps) {
               onKeyDown={handleKeyDown}
               placeholder="Task title..."
               aria-label={`New task in ${status.name}`}
-              className="w-full rounded-md border border-white/[0.08] bg-[#1E1E26] px-3 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-md border border-white/[0.08] bg-[#1E1E26] px-3 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-primary-500"
             />
           ) : (
             <button

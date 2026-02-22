@@ -38,6 +38,29 @@ export interface CreateUserData {
   workspaceRole?: 'ADMIN' | 'PROJECT_MANAGER' | 'MEMBER' | 'VIEWER';
 }
 
+export interface AdminSpace {
+  id: string;
+  name: string;
+  color: string | null;
+  position: number;
+  workspaceId: string;
+  workspace: { id: string; name: string };
+  projects: { id: string; name: string; key: string }[];
+  _count: { projects: number };
+}
+
+export interface AdminProject {
+  id: string;
+  name: string;
+  key: string;
+  description: string | null;
+  workspaceId: string;
+  spaceId: string | null;
+  workspace: { id: string; name: string };
+  space: { id: string; name: string } | null;
+  _count: { tasks: number; members: number };
+}
+
 export const adminApi = {
   // Users
   listUsers: (params?: { search?: string; page?: number; limit?: number }) =>
@@ -70,4 +93,59 @@ export const adminApi = {
 
   deleteWorkspace: (workspaceId: string) =>
     del<{ message: string }>(`/admin/workspaces/${workspaceId}`).then((r) => r.data),
+
+  // Spaces
+  listSpaces: () =>
+    get<AdminSpace[]>('/admin/spaces').then((r) => r.data),
+
+  // Projects
+  listProjects: () =>
+    get<AdminProject[]>('/admin/projects').then((r) => r.data),
+
+  assignProjectSpace: (projectId: string, spaceId: string | null) =>
+    patch<any>(`/admin/projects/${projectId}/space`, { spaceId }).then((r) => r.data),
+
+  // Deleted users
+  listDeletedUsers: () =>
+    get<AdminUser[]>('/admin/users/deleted').then((r) => r.data),
+
+  restoreUser: (userId: string) =>
+    post<AdminUser>(`/admin/users/${userId}/restore`).then((r) => r.data),
+
+  hardDeleteUser: (userId: string) =>
+    del<{ message: string }>(`/admin/users/${userId}/hard-delete`).then((r) => r.data),
+
+  // Deleted tasks
+  listDeletedTasks: () =>
+    get<any[]>('/admin/tasks/deleted').then((r) => r.data),
+
+  restoreTask: (taskId: string) =>
+    post<{ message: string }>(`/admin/tasks/${taskId}/restore`).then((r) => r.data),
+
+  hardDeleteTask: (taskId: string) =>
+    del<{ message: string }>(`/admin/tasks/${taskId}/hard-delete`).then((r) => r.data),
+
+  // Deleted projects
+  listDeletedProjects: () =>
+    get<any[]>('/admin/projects/deleted').then((r) => r.data),
+
+  restoreProject: (projectId: string) =>
+    post<{ message: string }>(`/admin/projects/${projectId}/restore`).then((r) => r.data),
+
+  hardDeleteProject: (projectId: string) =>
+    del<{ message: string }>(`/admin/projects/${projectId}/hard-delete`).then((r) => r.data),
+
+  // Deleted spaces
+  listDeletedSpaces: () =>
+    get<any[]>('/admin/spaces/deleted').then((r) => r.data),
+
+  restoreSpace: (spaceId: string) =>
+    post<{ message: string }>(`/admin/spaces/${spaceId}/restore`).then((r) => r.data),
+
+  hardDeleteSpace: (spaceId: string) =>
+    del<{ message: string }>(`/admin/spaces/${spaceId}/hard-delete`).then((r) => r.data),
+
+  // Audit log
+  listAuditLogs: (params?: { page?: number; limit?: number; entityType?: string; action?: string }) =>
+    get<{ logs: any[]; pagination: any }>('/admin/audit-log', { params }).then((r) => r.data),
 };

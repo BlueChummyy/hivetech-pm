@@ -64,7 +64,7 @@ function TaskMobileCard({ task, statuses }: { task: Task; statuses: ProjectStatu
             {task.assignee.avatarUrl ? (
               <img src={task.assignee.avatarUrl} alt="" className="h-6 w-6 rounded-full" />
             ) : (
-              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-medium text-white">
+              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary-600 text-[10px] font-medium text-white">
                 {(task.assignee.name || task.assignee.displayName || '?').charAt(0).toUpperCase()}
               </div>
             )}
@@ -116,7 +116,12 @@ export function TaskTable({ tasks, statuses }: TaskTableProps) {
   const [sortField, setSortField] = useState<SortField>('position');
   const [sortDir, setSortDir] = useState<SortDirection>('asc');
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
   const updatePosition = useUpdateTaskPosition();
+
+  const toggleExpand = useCallback((taskId: string) => {
+    setExpandedTasks((prev) => ({ ...prev, [taskId]: !prev[taskId] }));
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -176,6 +181,40 @@ export function TaskTable({ tasks, statuses }: TaskTableProps) {
 
   const isDragEnabled = sortField === 'position';
 
+  // Build parent/child hierarchy
+  const { parentTasks, childrenMap } = useMemo(() => {
+    const parents: Task[] = [];
+    const children: Record<string, Task[]> = {};
+
+    for (const task of sortedTasks) {
+      if (!task.parentId) {
+        parents.push(task);
+      } else {
+        if (!children[task.parentId]) children[task.parentId] = [];
+        children[task.parentId].push(task);
+      }
+    }
+
+    return { parentTasks: parents, childrenMap: children };
+  }, [sortedTasks]);
+
+  // Build flat render list respecting expand state
+  const renderList = useMemo(() => {
+    const list: { task: Task; depth: number }[] = [];
+
+    for (const parent of parentTasks) {
+      list.push({ task: parent, depth: 0 });
+      const kids = childrenMap[parent.id];
+      if (kids && expandedTasks[parent.id]) {
+        for (const child of kids) {
+          list.push({ task: child, depth: 1 });
+        }
+      }
+    }
+
+    return list;
+  }, [parentTasks, childrenMap, expandedTasks]);
+
   const handleDragStart = useCallback(
     (event: DragStartEvent) => {
       const task = sortedTasks.find((t) => t.id === event.active.id);
@@ -226,7 +265,7 @@ export function TaskTable({ tasks, statuses }: TaskTableProps) {
     );
   }
 
-  const taskIds = sortedTasks.map((t) => t.id);
+  const taskIds = renderList.map((item) => item.task.id);
 
   return (
     <DndContext
@@ -285,14 +324,23 @@ export function TaskTable({ tasks, statuses }: TaskTableProps) {
           </thead>
           <tbody>
             <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
-              {sortedTasks.map((task) => (
-                <TaskTableRow
-                  key={task.id}
-                  task={task}
-                  statuses={statuses}
-                  dragEnabled={isDragEnabled}
-                />
-              ))}
+              {renderList.map(({ task, depth }) => {
+                const kids = childrenMap[task.id];
+                const hasChildren = !!(kids && kids.length > 0);
+                return (
+                  <TaskTableRow
+                    key={task.id}
+                    task={task}
+                    statuses={statuses}
+                    dragEnabled={isDragEnabled && depth === 0}
+                    depth={depth}
+                    hasChildren={hasChildren}
+                    isExpanded={!!expandedTasks[task.id]}
+                    onToggleExpand={() => toggleExpand(task.id)}
+                    subtaskCount={hasChildren ? kids!.length : undefined}
+                  />
+                );
+              })}
             </SortableContext>
           </tbody>
         </table>

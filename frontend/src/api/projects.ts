@@ -6,6 +6,7 @@ export interface CreateProjectData {
   name: string;
   key: string;
   description?: string;
+  spaceId?: string;
 }
 
 export interface UpdateProjectData {

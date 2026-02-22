@@ -2,6 +2,7 @@ import { prisma } from '../prisma/client.js';
 import { ApiError } from '../utils/api-error.js';
 import { requireWorkspaceMember } from '../utils/authorization.js';
 import { emitToWorkspace } from '../utils/socket.js';
+import { logAudit } from './audit.service.js';
 
 function slugify(text: string): string {
   return text
@@ -47,6 +48,9 @@ export class SpacesService {
     });
 
     emitToWorkspace(data.workspaceId, 'space:created', space);
+
+    logAudit({ workspaceId: data.workspaceId, userId, action: 'created', entityType: 'space', entityId: space.id, metadata: { name: data.name } });
+
     return space;
   }
 
@@ -54,7 +58,7 @@ export class SpacesService {
     await requireWorkspaceMember(workspaceId, userId);
 
     return prisma.space.findMany({
-      where: { workspaceId },
+      where: { workspaceId, deletedAt: null },
       orderBy: { position: 'asc' },
       include: {
         projects: {
@@ -112,12 +116,16 @@ export class SpacesService {
     });
 
     emitToWorkspace(space.workspaceId, 'space:updated', updated);
+
+    logAudit({ workspaceId: space.workspaceId, userId, action: 'updated', entityType: 'space', entityId: id, metadata: { changes: data } });
+
     return updated;
   }
 
   async delete(id: string, userId: string) {
     const space = await prisma.space.findUnique({ where: { id } });
     if (!space) throw ApiError.notFound('Space not found');
+    if (space.deletedAt) throw ApiError.notFound('Space not found');
 
     await requireWorkspaceMember(space.workspaceId, userId, ['OWNER', 'ADMIN']);
 
@@ -127,8 +135,11 @@ export class SpacesService {
       data: { spaceId: null },
     });
 
-    await prisma.space.delete({ where: { id } });
+    // Soft-delete the space
+    await prisma.space.update({ where: { id }, data: { deletedAt: new Date() } });
 
     emitToWorkspace(space.workspaceId, 'space:deleted', { id });
+
+    logAudit({ workspaceId: space.workspaceId, userId, action: 'deleted', entityType: 'space', entityId: id, metadata: { name: space.name } });
   }
 }

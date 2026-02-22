@@ -33,7 +33,7 @@ export function ProjectMembers({ projectId, workspaceId, members }: ProjectMembe
   const { data: searchResults } = useQuery({
     queryKey: ['workspace-members', workspaceId, { search }],
     queryFn: () => workspacesApi.listMembers(workspaceId, { search }),
-    enabled: adding && search.length >= 2,
+    enabled: adding,
   });
 
   const addMember = useMutation({
@@ -113,7 +113,7 @@ export function ProjectMembers({ projectId, workspaceId, members }: ProjectMembe
               ))}
             </div>
           )}
-          {search.length >= 2 && filteredResults.length === 0 && (
+          {filteredResults.length === 0 && searchResults && (
             <p className="text-sm text-surface-500 px-1">No workspace members found</p>
           )}
         </div>

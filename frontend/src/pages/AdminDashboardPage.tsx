@@ -14,6 +14,13 @@ import {
   Building2,
   FolderKanban,
   X,
+  Layers,
+  Circle,
+  Archive,
+  RotateCcw,
+  ClipboardList,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { adminApi, type AdminUser } from '@/api/admin';
 import { Card, CardBody } from '@/components/ui/Card';
@@ -23,7 +30,28 @@ import { useToast } from '@/components/ui/Toast';
 import { useAuthStore } from '@/store/auth.store';
 import { cn } from '@/utils/cn';
 
-type Tab = 'users' | 'workspaces' | 'create';
+type Tab = 'users' | 'workspaces' | 'spaces' | 'deleted' | 'audit' | 'create';
+
+function timeAgo(dateStr: string): string {
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const seconds = Math.floor((now - then) / 1000);
+  if (seconds < 60) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString();
+}
+
+const ENTITY_TYPES = ['project', 'task', 'space', 'comment', 'workspace'];
+const AUDIT_ACTIONS = [
+  'created', 'updated', 'deleted', 'restored', 'hard_deleted',
+  'commented', 'comment_deleted', 'member_added', 'member_removed',
+  'member_role_changed', 'status_changed', 'assigned', 'unassigned',
+];
 
 const WORKSPACE_ROLES = [
   { value: 'OWNER', label: 'Owner' },
@@ -52,6 +80,18 @@ export function AdminDashboardPage() {
   const { data: workspacesData, isLoading: workspacesLoading } = useQuery({
     queryKey: ['admin', 'workspaces'],
     queryFn: () => adminApi.listWorkspaces(),
+  });
+
+  // ── Spaces list ────────────────────────────────────────────────
+  const { data: spacesData, isLoading: spacesLoading } = useQuery({
+    queryKey: ['admin', 'spaces'],
+    queryFn: () => adminApi.listSpaces(),
+  });
+
+  // ── Projects list (for space assignment) ────────────────────────
+  const { data: projectsData, isLoading: projectsLoading } = useQuery({
+    queryKey: ['admin', 'projects'],
+    queryFn: () => adminApi.listProjects(),
   });
 
   // ── Create user form ─────────────────────────────────────────────
@@ -181,9 +221,158 @@ export function AdminDashboardPage() {
     },
   });
 
+  // ── Assign project space mutation ──────────────────────────────────
+  const assignProjectSpaceMutation = useMutation({
+    mutationFn: ({ projectId, spaceId }: { projectId: string; spaceId: string | null }) =>
+      adminApi.assignProjectSpace(projectId, spaceId),
+    onSuccess: () => {
+      toast({ type: 'success', title: 'Project space updated' });
+      qc.invalidateQueries({ queryKey: ['admin', 'spaces'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'projects'] });
+    },
+    onError: (err) => {
+      toast({ type: 'error', title: 'Failed to update project space', description: (err as Error).message });
+    },
+  });
+
+  // ── Deleted items queries ──────────────────────────────────────────
+  const { data: deletedUsers } = useQuery({
+    queryKey: ['admin', 'users', 'deleted'],
+    queryFn: () => adminApi.listDeletedUsers(),
+    enabled: activeTab === 'deleted',
+  });
+
+  const { data: deletedTasks } = useQuery({
+    queryKey: ['admin', 'tasks', 'deleted'],
+    queryFn: () => adminApi.listDeletedTasks(),
+    enabled: activeTab === 'deleted',
+  });
+
+  const { data: deletedProjects } = useQuery({
+    queryKey: ['admin', 'projects', 'deleted'],
+    queryFn: () => adminApi.listDeletedProjects(),
+    enabled: activeTab === 'deleted',
+  });
+
+  const { data: deletedSpaces } = useQuery({
+    queryKey: ['admin', 'spaces', 'deleted'],
+    queryFn: () => adminApi.listDeletedSpaces(),
+    enabled: activeTab === 'deleted',
+  });
+
+  const restoreUserMutation = useMutation({
+    mutationFn: (userId: string) => adminApi.restoreUser(userId),
+    onSuccess: () => {
+      toast({ type: 'success', title: 'User restored' });
+      qc.invalidateQueries({ queryKey: ['admin', 'users'] });
+    },
+    onError: (err) => {
+      toast({ type: 'error', title: 'Failed to restore user', description: (err as Error).message });
+    },
+  });
+
+  const hardDeleteUserMutation = useMutation({
+    mutationFn: (userId: string) => adminApi.hardDeleteUser(userId),
+    onSuccess: () => {
+      toast({ type: 'success', title: 'User permanently deleted' });
+      qc.invalidateQueries({ queryKey: ['admin', 'users'] });
+    },
+    onError: (err) => {
+      toast({ type: 'error', title: 'Failed to permanently delete user', description: (err as Error).message });
+    },
+  });
+
+  const restoreTaskMutation = useMutation({
+    mutationFn: (taskId: string) => adminApi.restoreTask(taskId),
+    onSuccess: () => {
+      toast({ type: 'success', title: 'Task restored' });
+      qc.invalidateQueries({ queryKey: ['admin', 'tasks', 'deleted'] });
+    },
+    onError: (err) => {
+      toast({ type: 'error', title: 'Failed to restore task', description: (err as Error).message });
+    },
+  });
+
+  const hardDeleteTaskMutation = useMutation({
+    mutationFn: (taskId: string) => adminApi.hardDeleteTask(taskId),
+    onSuccess: () => {
+      toast({ type: 'success', title: 'Task permanently deleted' });
+      qc.invalidateQueries({ queryKey: ['admin', 'tasks', 'deleted'] });
+    },
+    onError: (err) => {
+      toast({ type: 'error', title: 'Failed to permanently delete task', description: (err as Error).message });
+    },
+  });
+
+  const restoreProjectMutation = useMutation({
+    mutationFn: (projectId: string) => adminApi.restoreProject(projectId),
+    onSuccess: () => {
+      toast({ type: 'success', title: 'Project restored' });
+      qc.invalidateQueries({ queryKey: ['admin', 'projects', 'deleted'] });
+    },
+    onError: (err) => {
+      toast({ type: 'error', title: 'Failed to restore project', description: (err as Error).message });
+    },
+  });
+
+  const hardDeleteProjectMutation = useMutation({
+    mutationFn: (projectId: string) => adminApi.hardDeleteProject(projectId),
+    onSuccess: () => {
+      toast({ type: 'success', title: 'Project permanently deleted' });
+      qc.invalidateQueries({ queryKey: ['admin', 'projects', 'deleted'] });
+    },
+    onError: (err) => {
+      toast({ type: 'error', title: 'Failed to permanently delete project', description: (err as Error).message });
+    },
+  });
+
+  const restoreSpaceMutation = useMutation({
+    mutationFn: (spaceId: string) => adminApi.restoreSpace(spaceId),
+    onSuccess: () => {
+      toast({ type: 'success', title: 'Space restored' });
+      qc.invalidateQueries({ queryKey: ['admin', 'spaces', 'deleted'] });
+    },
+    onError: (err) => {
+      toast({ type: 'error', title: 'Failed to restore space', description: (err as Error).message });
+    },
+  });
+
+  const hardDeleteSpaceMutation = useMutation({
+    mutationFn: (spaceId: string) => adminApi.hardDeleteSpace(spaceId),
+    onSuccess: () => {
+      toast({ type: 'success', title: 'Space permanently deleted' });
+      qc.invalidateQueries({ queryKey: ['admin', 'spaces', 'deleted'] });
+    },
+    onError: (err) => {
+      toast({ type: 'error', title: 'Failed to permanently delete space', description: (err as Error).message });
+    },
+  });
+
+  const [hardDeleteConfirm, setHardDeleteConfirm] = useState<{ type: string; id: string; name: string } | null>(null);
+
+  // ── Audit log ──────────────────────────────────────────────────────
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditEntityFilter, setAuditEntityFilter] = useState('');
+  const [auditActionFilter, setAuditActionFilter] = useState('');
+
+  const { data: auditData, isLoading: auditLoading } = useQuery({
+    queryKey: ['admin', 'audit-log', auditPage, auditEntityFilter, auditActionFilter],
+    queryFn: () =>
+      adminApi.listAuditLogs({
+        page: auditPage,
+        limit: 25,
+        ...(auditEntityFilter ? { entityType: auditEntityFilter } : {}),
+        ...(auditActionFilter ? { action: auditActionFilter } : {}),
+      }),
+    enabled: activeTab === 'audit',
+  });
+
   const tabs: { id: Tab; label: string; icon: typeof Users }[] = [
     { id: 'users', label: 'Manage Users', icon: Users },
     { id: 'workspaces', label: 'Workspaces', icon: Building2 },
+    { id: 'spaces', label: 'Spaces', icon: Layers },
+    { id: 'deleted', label: 'Deleted Items', icon: Archive },
+    { id: 'audit', label: 'Audit Log', icon: ClipboardList },
     { id: 'create', label: 'Create User', icon: UserPlus },
   ];
 
@@ -658,6 +847,577 @@ export function AdminDashboardPage() {
                   </div>
                 </CardBody>
               </Card>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Spaces Tab ─────────────────────────────────────────────── */}
+      {activeTab === 'spaces' && (
+        <div className="space-y-6">
+          {spacesLoading || projectsLoading ? (
+            <Card>
+              <CardBody>
+                <div className="space-y-3">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="h-5 w-full animate-pulse rounded bg-surface-700" />
+                  ))}
+                </div>
+              </CardBody>
+            </Card>
+          ) : (
+            <>
+              {/* Group spaces by workspace */}
+              {(() => {
+                const grouped = new Map<string, { wsName: string; spaces: NonNullable<typeof spacesData> }>();
+                for (const space of spacesData ?? []) {
+                  const wsId = space.workspace.id;
+                  if (!grouped.has(wsId)) {
+                    grouped.set(wsId, { wsName: space.workspace.name, spaces: [] });
+                  }
+                  grouped.get(wsId)!.spaces.push(space);
+                }
+
+                // Unassigned projects (no spaceId)
+                const unassigned = (projectsData ?? []).filter((p) => !p.spaceId);
+
+                return (
+                  <>
+                    {Array.from(grouped.entries()).map(([wsId, { wsName, spaces }]) => (
+                      <div key={wsId}>
+                        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-surface-200">
+                          <Building2 className="h-4 w-4 text-surface-400" />
+                          {wsName}
+                        </h3>
+                        <div className="space-y-3">
+                          {spaces.map((space) => (
+                            <Card key={space.id}>
+                              <CardBody>
+                                <div className="flex items-center gap-3 mb-3">
+                                  <Circle
+                                    className="h-4 w-4 shrink-0"
+                                    fill={space.color || '#4ade80'}
+                                    stroke={space.color || '#4ade80'}
+                                  />
+                                  <h4 className="font-medium text-surface-100">{space.name}</h4>
+                                  <span className="rounded-full bg-surface-700 px-2 py-0.5 text-xs text-surface-400">
+                                    {space._count.projects} project{space._count.projects !== 1 ? 's' : ''}
+                                  </span>
+                                </div>
+                                {space.projects.length > 0 ? (
+                                  <div className="space-y-1.5">
+                                    {space.projects.map((project) => (
+                                      <div
+                                        key={project.id}
+                                        className="flex items-center justify-between rounded-lg border border-surface-700 px-3 py-2"
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <FolderKanban className="h-3.5 w-3.5 text-surface-500" />
+                                          <span className="text-sm text-surface-200">{project.name}</span>
+                                          <span className="rounded bg-surface-700 px-1.5 py-0.5 text-[10px] text-surface-500">
+                                            {project.key}
+                                          </span>
+                                        </div>
+                                        <button
+                                          onClick={() =>
+                                            assignProjectSpaceMutation.mutate({ projectId: project.id, spaceId: null })
+                                          }
+                                          title="Remove from space"
+                                          className="text-xs text-red-400/60 hover:text-red-400 transition-colors"
+                                        >
+                                          <X className="h-3.5 w-3.5" />
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="text-xs italic text-surface-500">No projects in this space</p>
+                                )}
+                              </CardBody>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Unassigned projects */}
+                    {unassigned.length > 0 && (
+                      <div>
+                        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-surface-200">
+                          <FolderKanban className="h-4 w-4 text-surface-400" />
+                          Unassigned Projects
+                        </h3>
+                        <Card>
+                          <CardBody>
+                            <div className="space-y-2">
+                              {unassigned.map((project) => {
+                                // Get available spaces for this project's workspace
+                                const availableSpaces = (spacesData ?? []).filter(
+                                  (s) => s.workspaceId === project.workspaceId,
+                                );
+                                return (
+                                  <div
+                                    key={project.id}
+                                    className="flex items-center justify-between rounded-lg border border-surface-700 px-3 py-2"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <FolderKanban className="h-3.5 w-3.5 text-surface-500" />
+                                      <span className="text-sm text-surface-200">{project.name}</span>
+                                      <span className="rounded bg-surface-700 px-1.5 py-0.5 text-[10px] text-surface-500">
+                                        {project.key}
+                                      </span>
+                                      <span className="text-[10px] text-surface-500">
+                                        ({project.workspace.name})
+                                      </span>
+                                    </div>
+                                    {availableSpaces.length > 0 && (
+                                      <select
+                                        defaultValue=""
+                                        onChange={(e) => {
+                                          if (e.target.value) {
+                                            assignProjectSpaceMutation.mutate({
+                                              projectId: project.id,
+                                              spaceId: e.target.value,
+                                            });
+                                          }
+                                        }}
+                                        className="rounded-md border border-surface-700 bg-surface-800 px-2 py-1 text-xs text-surface-300 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                      >
+                                        <option value="">Move to space...</option>
+                                        {availableSpaces.map((s) => (
+                                          <option key={s.id} value={s.id}>
+                                            {s.name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </CardBody>
+                        </Card>
+                      </div>
+                    )}
+
+                    {(spacesData ?? []).length === 0 && unassigned.length === 0 && (
+                      <Card>
+                        <CardBody>
+                          <p className="text-center text-surface-500 py-4">
+                            No spaces or unassigned projects found.
+                          </p>
+                        </CardBody>
+                      </Card>
+                    )}
+                  </>
+                );
+              })()}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ── Deleted Items Tab ─────────────────────────────────────── */}
+      {activeTab === 'deleted' && (
+        <div className="space-y-6">
+          {/* Deleted Users */}
+          <div>
+            <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-surface-200">
+              <Users className="h-4 w-4 text-surface-400" />
+              Deleted Users
+              {deletedUsers && deletedUsers.length > 0 && (
+                <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-xs text-red-400">
+                  {deletedUsers.length}
+                </span>
+              )}
+            </h3>
+            <Card>
+              <CardBody>
+                {!deletedUsers || deletedUsers.length === 0 ? (
+                  <p className="text-sm text-surface-500 text-center py-2">No deleted users</p>
+                ) : (
+                  <div className="space-y-2">
+                    {deletedUsers.map((user: any) => (
+                      <div key={user.id} className="flex items-center justify-between rounded-lg border border-surface-700 px-3 py-2">
+                        <div className="flex items-center gap-3">
+                          <Avatar src={user.avatarUrl} name={user.name || `${user.firstName} ${user.lastName}`} size="sm" />
+                          <div>
+                            <p className="text-sm font-medium text-surface-200 line-through opacity-70">
+                              {user.name || `${user.firstName} ${user.lastName}`}
+                            </p>
+                            <p className="text-xs text-surface-500">{user.email}</p>
+                          </div>
+                          <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] text-red-400">
+                            Deleted {user.deletedAt ? new Date(user.deletedAt).toLocaleDateString() : ''}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => restoreUserMutation.mutate(user.id)}
+                            title="Restore user"
+                            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-green-400 hover:bg-green-500/10 transition-colors"
+                          >
+                            <RotateCcw className="h-3.5 w-3.5" />
+                            Restore
+                          </button>
+                          <button
+                            onClick={() => setHardDeleteConfirm({ type: 'user', id: user.id, name: user.name || `${user.firstName} ${user.lastName}` })}
+                            title="Permanently delete"
+                            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-red-400 hover:bg-red-500/10 transition-colors"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardBody>
+            </Card>
+          </div>
+
+          {/* Deleted Projects */}
+          <div>
+            <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-surface-200">
+              <FolderKanban className="h-4 w-4 text-surface-400" />
+              Deleted Projects
+              {deletedProjects && deletedProjects.length > 0 && (
+                <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-xs text-red-400">
+                  {deletedProjects.length}
+                </span>
+              )}
+            </h3>
+            <Card>
+              <CardBody>
+                {!deletedProjects || deletedProjects.length === 0 ? (
+                  <p className="text-sm text-surface-500 text-center py-2">No deleted projects</p>
+                ) : (
+                  <div className="space-y-2">
+                    {deletedProjects.map((project: any) => (
+                      <div key={project.id} className="flex items-center justify-between rounded-lg border border-surface-700 px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <FolderKanban className="h-3.5 w-3.5 text-surface-500" />
+                          <span className="text-sm text-surface-200 line-through opacity-70">{project.name}</span>
+                          <span className="rounded bg-surface-700 px-1.5 py-0.5 text-[10px] text-surface-500">{project.key}</span>
+                          <span className="text-[10px] text-surface-500">({project.workspace?.name})</span>
+                          <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] text-red-400">
+                            Deleted {project.deletedAt ? new Date(project.deletedAt).toLocaleDateString() : ''}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => restoreProjectMutation.mutate(project.id)}
+                            title="Restore project"
+                            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-green-400 hover:bg-green-500/10 transition-colors"
+                          >
+                            <RotateCcw className="h-3.5 w-3.5" />
+                            Restore
+                          </button>
+                          <button
+                            onClick={() => setHardDeleteConfirm({ type: 'project', id: project.id, name: project.name })}
+                            title="Permanently delete"
+                            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-red-400 hover:bg-red-500/10 transition-colors"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardBody>
+            </Card>
+          </div>
+
+          {/* Deleted Tasks */}
+          <div>
+            <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-surface-200">
+              <Archive className="h-4 w-4 text-surface-400" />
+              Deleted Tasks
+              {deletedTasks && deletedTasks.length > 0 && (
+                <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-xs text-red-400">
+                  {deletedTasks.length}
+                </span>
+              )}
+            </h3>
+            <Card>
+              <CardBody>
+                {!deletedTasks || deletedTasks.length === 0 ? (
+                  <p className="text-sm text-surface-500 text-center py-2">No deleted tasks</p>
+                ) : (
+                  <div className="space-y-2">
+                    {deletedTasks.map((task: any) => (
+                      <div key={task.id} className="flex items-center justify-between rounded-lg border border-surface-700 px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-surface-500">#{task.taskNumber}</span>
+                          <span className="text-sm text-surface-200 line-through opacity-70">{task.title}</span>
+                          <span className="text-[10px] text-surface-500">({task.project?.name})</span>
+                          <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] text-red-400">
+                            Deleted {task.deletedAt ? new Date(task.deletedAt).toLocaleDateString() : ''}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => restoreTaskMutation.mutate(task.id)}
+                            title="Restore task"
+                            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-green-400 hover:bg-green-500/10 transition-colors"
+                          >
+                            <RotateCcw className="h-3.5 w-3.5" />
+                            Restore
+                          </button>
+                          <button
+                            onClick={() => setHardDeleteConfirm({ type: 'task', id: task.id, name: task.title })}
+                            title="Permanently delete"
+                            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-red-400 hover:bg-red-500/10 transition-colors"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardBody>
+            </Card>
+          </div>
+
+          {/* Deleted Spaces */}
+          <div>
+            <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-surface-200">
+              <Layers className="h-4 w-4 text-surface-400" />
+              Deleted Spaces
+              {deletedSpaces && deletedSpaces.length > 0 && (
+                <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-xs text-red-400">
+                  {deletedSpaces.length}
+                </span>
+              )}
+            </h3>
+            <Card>
+              <CardBody>
+                {!deletedSpaces || deletedSpaces.length === 0 ? (
+                  <p className="text-sm text-surface-500 text-center py-2">No deleted spaces</p>
+                ) : (
+                  <div className="space-y-2">
+                    {deletedSpaces.map((space: any) => (
+                      <div key={space.id} className="flex items-center justify-between rounded-lg border border-surface-700 px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <Circle className="h-3 w-3" fill={space.color || '#4ade80'} stroke={space.color || '#4ade80'} />
+                          <span className="text-sm text-surface-200 line-through opacity-70">{space.name}</span>
+                          <span className="text-[10px] text-surface-500">({space.workspace?.name})</span>
+                          <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] text-red-400">
+                            Deleted {space.deletedAt ? new Date(space.deletedAt).toLocaleDateString() : ''}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => restoreSpaceMutation.mutate(space.id)}
+                            title="Restore space"
+                            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-green-400 hover:bg-green-500/10 transition-colors"
+                          >
+                            <RotateCcw className="h-3.5 w-3.5" />
+                            Restore
+                          </button>
+                          <button
+                            onClick={() => setHardDeleteConfirm({ type: 'space', id: space.id, name: space.name })}
+                            title="Permanently delete"
+                            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-red-400 hover:bg-red-500/10 transition-colors"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardBody>
+            </Card>
+          </div>
+
+          {/* Hard delete confirmation modal */}
+          {hardDeleteConfirm && (
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-4">
+              <Card className="w-full max-w-md">
+                <CardBody className="space-y-4">
+                  <h3 className="text-lg font-semibold text-red-400">Permanently Delete</h3>
+                  <p className="text-sm text-surface-400">
+                    Are you sure you want to permanently delete{' '}
+                    <span className="font-medium text-surface-200">{hardDeleteConfirm.name}</span>?
+                    This action cannot be undone.
+                  </p>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="secondary" size="sm" onClick={() => setHardDeleteConfirm(null)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => {
+                        const { type, id } = hardDeleteConfirm;
+                        if (type === 'user') hardDeleteUserMutation.mutate(id);
+                        else if (type === 'task') hardDeleteTaskMutation.mutate(id);
+                        else if (type === 'project') hardDeleteProjectMutation.mutate(id);
+                        else if (type === 'space') hardDeleteSpaceMutation.mutate(id);
+                        setHardDeleteConfirm(null);
+                      }}
+                    >
+                      Permanently Delete
+                    </Button>
+                  </div>
+                </CardBody>
+              </Card>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Audit Log Tab ──────────────────────────────────────────── */}
+      {activeTab === 'audit' && (
+        <div className="space-y-4">
+          {/* Filters */}
+          <div className="flex flex-wrap gap-3">
+            <select
+              value={auditEntityFilter}
+              onChange={(e) => { setAuditEntityFilter(e.target.value); setAuditPage(1); }}
+              className="rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-300 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            >
+              <option value="">All entity types</option>
+              {ENTITY_TYPES.map((t) => (
+                <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+              ))}
+            </select>
+            <select
+              value={auditActionFilter}
+              onChange={(e) => { setAuditActionFilter(e.target.value); setAuditPage(1); }}
+              className="rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-300 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            >
+              <option value="">All actions</option>
+              {AUDIT_ACTIONS.map((a) => (
+                <option key={a} value={a}>{a.replace(/_/g, ' ')}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Audit table */}
+          <Card>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-surface-700">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-surface-400">Time</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-surface-400">User</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-surface-400">Action</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-surface-400">Entity</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-surface-400">Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {auditLoading ? (
+                    Array.from({ length: 8 }).map((_, i) => (
+                      <tr key={i} className="border-b border-surface-700/50">
+                        <td className="px-4 py-3" colSpan={5}>
+                          <div className="h-5 w-full animate-pulse rounded bg-surface-700" />
+                        </td>
+                      </tr>
+                    ))
+                  ) : auditData?.logs && auditData.logs.length > 0 ? (
+                    auditData.logs.map((log: any) => (
+                      <tr key={log.id} className="border-b border-surface-700/50 hover:bg-surface-800/30">
+                        <td className="px-4 py-3 text-xs text-surface-400 whitespace-nowrap" title={new Date(log.createdAt).toLocaleString()}>
+                          {timeAgo(log.createdAt)}
+                        </td>
+                        <td className="px-4 py-3">
+                          {log.user ? (
+                            <div className="flex items-center gap-2">
+                              <Avatar
+                                src={log.user.avatarUrl}
+                                name={log.user.name || `${log.user.firstName} ${log.user.lastName}`}
+                                size="sm"
+                              />
+                              <span className="text-xs text-surface-300 whitespace-nowrap">
+                                {log.user.name || `${log.user.firstName} ${log.user.lastName}`}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-surface-500">System</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={cn(
+                            'inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium',
+                            log.action?.includes('delete') ? 'bg-red-500/10 text-red-400'
+                              : log.action?.includes('create') || log.action?.includes('restore') ? 'bg-green-500/10 text-green-400'
+                              : log.action?.includes('update') || log.action?.includes('change') ? 'bg-blue-500/10 text-blue-400'
+                              : 'bg-surface-700 text-surface-300',
+                          )}>
+                            {(log.action || '').replace(/_/g, ' ')}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1.5">
+                            <span className="rounded bg-surface-700 px-1.5 py-0.5 text-[10px] text-surface-400 uppercase">
+                              {log.entityType}
+                            </span>
+                            {log.entityName && (
+                              <span className="text-xs text-surface-300 truncate max-w-[150px]" title={log.entityName}>
+                                {log.entityName}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          {log.metadata && Object.keys(log.metadata).length > 0 ? (
+                            <span className="text-[10px] text-surface-500 font-mono truncate max-w-[200px] block" title={JSON.stringify(log.metadata)}>
+                              {JSON.stringify(log.metadata).slice(0, 80)}
+                              {JSON.stringify(log.metadata).length > 80 ? '...' : ''}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-surface-600">--</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-8 text-center text-surface-500">
+                        No audit logs found
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+
+          {/* Pagination */}
+          {auditData?.pagination && auditData.pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-surface-500">
+                Page {auditData.pagination.page} of {auditData.pagination.totalPages} ({auditData.pagination.total} entries)
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setAuditPage((p) => Math.max(1, p - 1))}
+                  disabled={auditPage <= 1}
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors',
+                    auditPage <= 1 ? 'text-surface-600 cursor-not-allowed' : 'text-surface-300 hover:bg-surface-700',
+                  )}
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  Prev
+                </button>
+                <button
+                  onClick={() => setAuditPage((p) => Math.min(auditData.pagination.totalPages, p + 1))}
+                  disabled={auditPage >= auditData.pagination.totalPages}
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors',
+                    auditPage >= auditData.pagination.totalPages ? 'text-surface-600 cursor-not-allowed' : 'text-surface-300 hover:bg-surface-700',
+                  )}
+                >
+                  Next
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
           )}
         </div>

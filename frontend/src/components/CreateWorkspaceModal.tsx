@@ -121,7 +121,7 @@ export function CreateWorkspaceModal({ open, onClose }: CreateWorkspaceModalProp
               placeholder="What does your team work on?"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="block w-full rounded-lg border border-white/[0.08] bg-[#1E1E26] px-3 py-2 text-sm text-white placeholder-gray-500 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="block w-full rounded-lg border border-white/[0.08] bg-[#1E1E26] px-3 py-2 text-sm text-white placeholder-gray-500 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
 

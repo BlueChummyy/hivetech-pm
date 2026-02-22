@@ -47,7 +47,7 @@ export function ToastContainer() {
             {toast.type === 'success' ? (
               <CheckCircle2 className="h-5 w-5 text-green-400" />
             ) : (
-              <Bell className="h-5 w-5 text-indigo-400" />
+              <Bell className="h-5 w-5 text-primary-400" />
             )}
           </div>
           <div className="flex-1 min-w-0">

@@ -71,7 +71,7 @@ export function ProjectLayout() {
                 className={cn(
                   'flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition-colors',
                   isActive
-                    ? 'border-indigo-500 text-white'
+                    ? 'border-primary-500 text-white'
                     : 'border-transparent text-gray-400 hover:text-gray-200',
                 )}
               >

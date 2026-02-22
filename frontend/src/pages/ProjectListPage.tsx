@@ -17,11 +17,11 @@ function ProjectCard({ project }: { project: Project }) {
         'group block overflow-hidden rounded-lg border border-white/[0.08] bg-[#18181E] transition-colors hover:bg-[#1E1E26]',
       )}
     >
-      <div className="h-1.5 bg-indigo-600" />
+      <div className="h-1.5 bg-primary-600" />
       <div className="p-5">
         <div className="flex items-start justify-between">
           <div className="min-w-0 flex-1">
-            <h3 className="truncate text-sm font-semibold text-white group-hover:text-indigo-400 transition-colors">
+            <h3 className="truncate text-sm font-semibold text-white group-hover:text-primary-400 transition-colors">
               {project.name}
             </h3>
             <span className="mt-0.5 inline-block rounded bg-white/[0.06] px-1.5 py-0.5 text-xs font-medium text-gray-500">

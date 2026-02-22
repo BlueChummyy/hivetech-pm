@@ -4,7 +4,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { format } from 'date-fns';
 import { useParams } from 'react-router-dom';
-import { GripVertical } from 'lucide-react';
+import { GripVertical, ChevronRight, ChevronDown } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useUIStore } from '@/store/ui.store';
 import { useUpdateTask } from '@/hooks/useTasks';
@@ -256,7 +256,7 @@ function AssigneeBadge({ task }: { task: Task }) {
                 className="h-5 w-5 rounded-full"
               />
             ) : (
-              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-medium text-white">
+              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary-600 text-[10px] font-medium text-white">
                 {(task.assignee.name || task.assignee.displayName || '?').charAt(0).toUpperCase()}
               </div>
             )}
@@ -282,7 +282,7 @@ function AssigneeBadge({ task }: { task: Task }) {
                 placeholder="Search members..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded bg-white/[0.06] px-2 py-1 text-sm text-white placeholder-gray-500 outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded bg-white/[0.06] px-2 py-1 text-sm text-white placeholder-gray-500 outline-none focus:ring-1 focus:ring-primary-500"
               />
             </div>
             <button
@@ -316,7 +316,7 @@ function AssigneeBadge({ task }: { task: Task }) {
                   {user.avatarUrl ? (
                     <img src={user.avatarUrl} alt={displayName} className="h-5 w-5 rounded-full" />
                   ) : (
-                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-medium text-white">
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary-600 text-[10px] font-medium text-white">
                       {displayName.charAt(0).toUpperCase()}
                     </div>
                   )}
@@ -381,7 +381,7 @@ function InlineTitle({ task }: { task: Task }) {
           if (e.key === 'Escape') cancel();
         }}
         onClick={(e) => e.stopPropagation()}
-        className="w-full rounded bg-white/[0.06] px-1.5 py-0.5 text-sm text-white outline-none ring-1 ring-indigo-500"
+        className="w-full rounded bg-white/[0.06] px-1.5 py-0.5 text-sm text-white outline-none ring-1 ring-primary-500"
       />
     );
   }
@@ -401,10 +401,81 @@ function InlineTitle({ task }: { task: Task }) {
           setEditing(true);
         }
       }}
-      className="cursor-text text-sm text-white group-hover:text-indigo-400 transition-colors"
+      className="cursor-text text-sm text-white group-hover:text-primary-400 transition-colors"
     >
       {task.title}
     </span>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  DatePickerBadge (portal)                                          */
+/* ------------------------------------------------------------------ */
+function DatePickerBadge({
+  task,
+  field,
+}: {
+  task: Task;
+  field: 'startDate' | 'dueDate';
+}) {
+  const { open, pos, triggerRef, dropdownRef, toggle, close } = usePortalDropdown();
+  const updateTask = useUpdateTask();
+  const dateValue = task[field];
+
+  const handleChange = (newDate: string) => {
+    close();
+    updateTask.mutate({ id: task.id, data: { [field]: newDate || null } });
+  };
+
+  const handleClear = () => {
+    close();
+    updateTask.mutate({ id: task.id, data: { [field]: null } });
+  };
+
+  // Format for the input value (yyyy-MM-dd)
+  const inputValue = dateValue ? format(new Date(dateValue), 'yyyy-MM-dd') : '';
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        onClick={toggle}
+        className="rounded px-2 py-0.5 text-sm transition-colors hover:bg-white/[0.06] whitespace-nowrap"
+      >
+        {dateValue ? (
+          <span className="text-gray-300">{format(new Date(dateValue), 'MMM d, yyyy')}</span>
+        ) : (
+          <span className="text-gray-500">Set date</span>
+        )}
+      </button>
+      {open &&
+        pos &&
+        createPortal(
+          <div
+            ref={dropdownRef}
+            className="fixed z-[9999] rounded-lg border border-white/[0.08] bg-[#1E1E26] p-3 shadow-xl"
+            style={{ top: pos.top, left: pos.left }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <input
+              type="date"
+              value={inputValue}
+              onChange={(e) => handleChange(e.target.value)}
+              className="rounded border border-white/[0.08] bg-surface-800 px-2 py-1.5 text-sm text-white outline-none focus:ring-1 focus:ring-primary-500 [color-scheme:dark]"
+              autoFocus
+            />
+            {dateValue && (
+              <button
+                onClick={handleClear}
+                className="mt-2 w-full rounded px-2 py-1 text-xs text-red-400 hover:bg-red-500/10 transition-colors"
+              >
+                Clear date
+              </button>
+            )}
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
 
@@ -416,9 +487,14 @@ interface TaskTableRowProps {
   statuses: ProjectStatus[];
   dragEnabled?: boolean;
   overlay?: boolean;
+  depth?: number;
+  hasChildren?: boolean;
+  isExpanded?: boolean;
+  onToggleExpand?: () => void;
+  subtaskCount?: number;
 }
 
-export function TaskTableRow({ task, statuses, dragEnabled, overlay }: TaskTableRowProps) {
+export function TaskTableRow({ task, statuses, dragEnabled, overlay, depth = 0, hasChildren, isExpanded, onToggleExpand, subtaskCount }: TaskTableRowProps) {
   const {
     attributes,
     listeners,
@@ -470,23 +546,52 @@ export function TaskTableRow({ task, statuses, dragEnabled, overlay }: TaskTable
 
       {/* Title */}
       <td className="px-4 py-2.5">
-        <InlineTitle task={task} />
-        {task.labels && task.labels.length > 0 && (
-          <div className="mt-1 flex gap-1">
-            {task.labels.map((tl) => (
-              <span
-                key={tl.id}
-                className="inline-block rounded px-1.5 py-0.5 text-[10px] font-medium"
-                style={{
-                  backgroundColor: `${tl.label?.color ?? '#6366f1'}20`,
-                  color: tl.label?.color ?? '#6366f1',
-                }}
-              >
-                {tl.label?.name}
-              </span>
-            ))}
+        <div className="flex items-center gap-1" style={depth > 0 ? { paddingLeft: `${depth * 24}px` } : undefined}>
+          {hasChildren ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleExpand?.();
+              }}
+              className="flex items-center justify-center rounded p-0.5 text-gray-500 hover:text-gray-300 hover:bg-white/[0.04]"
+              aria-label={isExpanded ? 'Collapse subtasks' : 'Expand subtasks'}
+            >
+              {isExpanded ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+            </button>
+          ) : depth > 0 ? (
+            <span className="w-5" />
+          ) : null}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <InlineTitle task={task} />
+              {subtaskCount != null && subtaskCount > 0 && (
+                <span className="shrink-0 rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-gray-400">
+                  {subtaskCount} subtask{subtaskCount !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+            {task.labels && task.labels.length > 0 && (
+              <div className="mt-1 flex gap-1">
+                {task.labels.map((tl) => (
+                  <span
+                    key={tl.id}
+                    className="inline-block rounded px-1.5 py-0.5 text-[10px] font-medium"
+                    style={{
+                      backgroundColor: `${tl.label?.color ?? '#4ade80'}20`,
+                      color: tl.label?.color ?? '#4ade80',
+                    }}
+                  >
+                    {tl.label?.name}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </td>
 
       {/* Status */}
@@ -505,13 +610,13 @@ export function TaskTableRow({ task, statuses, dragEnabled, overlay }: TaskTable
       </td>
 
       {/* Start date */}
-      <td className="whitespace-nowrap px-4 py-2.5 text-sm text-gray-400">
-        {task.startDate ? format(new Date(task.startDate), 'MMM d, yyyy') : '\u2014'}
+      <td className="px-4 py-2.5">
+        <DatePickerBadge task={task} field="startDate" />
       </td>
 
       {/* Due date */}
-      <td className="whitespace-nowrap px-4 py-2.5 text-sm text-gray-400">
-        {task.dueDate ? format(new Date(task.dueDate), 'MMM d, yyyy') : '\u2014'}
+      <td className="px-4 py-2.5">
+        <DatePickerBadge task={task} field="dueDate" />
       </td>
     </tr>
   );

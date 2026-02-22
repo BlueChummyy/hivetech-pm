@@ -36,6 +36,7 @@ export function useCreateProject() {
     mutationFn: (data: CreateProjectData) => projectsApi.create(data),
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['projects', { workspaceId: variables.workspaceId }] });
+      qc.invalidateQueries({ queryKey: ['spaces', { workspaceId: variables.workspaceId }] });
     },
   });
 }

@@ -1,6 +1,7 @@
 import { prisma } from '../prisma/client.js';
 import { ApiError } from '../utils/api-error.js';
 import { emitToProject, emitToUser } from '../utils/socket.js';
+import { logAudit } from './audit.service.js';
 
 export class TasksService {
   async create(data: {
@@ -71,6 +72,12 @@ export class TasksService {
     });
 
     emitToProject(task.projectId, 'task:created', task);
+
+    // Audit log
+    const project = await prisma.project.findUnique({ where: { id: task.projectId }, select: { workspaceId: true } });
+    if (project) {
+      logAudit({ workspaceId: project.workspaceId, userId: data.reporterId, action: 'created', entityType: 'task', entityId: task.id, metadata: { title: task.title, taskNumber: task.taskNumber } });
+    }
 
     // Notify assignee about task assignment
     if (task.assigneeId && task.assigneeId !== data.reporterId) {
@@ -238,6 +245,19 @@ export class TasksService {
 
     emitToProject(task.projectId, 'task:updated', task);
 
+    // Audit log
+    const proj = await prisma.project.findUnique({ where: { id: task.projectId }, select: { workspaceId: true } });
+    if (proj && updatedByUserId) {
+      const changes: Record<string, unknown> = {};
+      if (data.title !== undefined && data.title !== existing.title) changes.title = { from: existing.title, to: data.title };
+      if (data.statusId !== undefined && data.statusId !== existing.statusId) changes.statusId = { from: existing.statusId, to: data.statusId };
+      if (data.priority !== undefined && data.priority !== existing.priority) changes.priority = { from: existing.priority, to: data.priority };
+      if (data.assigneeId !== undefined && data.assigneeId !== existing.assigneeId) changes.assigneeId = { from: existing.assigneeId, to: data.assigneeId };
+      if (data.startDate !== undefined) changes.startDate = { to: data.startDate };
+      if (data.dueDate !== undefined) changes.dueDate = { to: data.dueDate };
+      logAudit({ workspaceId: proj.workspaceId, userId: updatedByUserId, action: 'updated', entityType: 'task', entityId: task.id, metadata: { title: task.title, changes } });
+    }
+
     // Notify new assignee about task assignment (if assignee changed and not self-assigning)
     if (data.assigneeId && data.assigneeId !== existing.assigneeId && data.assigneeId !== updatedByUserId) {
       const notification = await prisma.notification.create({
@@ -256,10 +276,10 @@ export class TasksService {
     return task;
   }
 
-  async softDelete(id: string) {
+  async softDelete(id: string, deletedByUserId?: string) {
     const task = await prisma.task.findFirst({
       where: { id, deletedAt: null },
-      select: { id: true, projectId: true },
+      select: { id: true, projectId: true, title: true, taskNumber: true },
     });
     if (!task) throw ApiError.notFound('Task not found');
 
@@ -278,6 +298,14 @@ export class TasksService {
     });
 
     emitToProject(task.projectId, 'task:deleted', { id: task.id });
+
+    // Audit log
+    if (deletedByUserId) {
+      const proj = await prisma.project.findUnique({ where: { id: task.projectId }, select: { workspaceId: true } });
+      if (proj) {
+        logAudit({ workspaceId: proj.workspaceId, userId: deletedByUserId, action: 'deleted', entityType: 'task', entityId: task.id, metadata: { title: task.title, taskNumber: task.taskNumber } });
+      }
+    }
 
     return task;
   }

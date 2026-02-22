@@ -46,6 +46,7 @@ export function useDeleteSpace() {
       spacesApi.remove(workspaceId, id),
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['spaces', { workspaceId: variables.workspaceId }] });
+      qc.invalidateQueries({ queryKey: ['projects', { workspaceId: variables.workspaceId }] });
     },
   });
 }

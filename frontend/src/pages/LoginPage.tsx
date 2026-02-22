@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { Hexagon } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardBody } from '@/components/ui/Card';
@@ -50,7 +49,7 @@ export function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-surface-950 px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center">
-          <Hexagon className="mb-3 h-12 w-12 text-primary-400" />
+          <img src="/logo.png" alt="HiveTech" className="mb-3 h-12 w-12" />
           <h1 className="text-2xl font-bold text-surface-100">
             Welcome back
           </h1>
