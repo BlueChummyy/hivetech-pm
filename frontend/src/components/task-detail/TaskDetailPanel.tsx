@@ -480,7 +480,7 @@ export function TaskDetailPanel() {
                             </p>
                           </div>
                           <a
-                            href={`/api/v1/tasks/${task.id}/attachments/${att.id}/download`}
+                            href={`/api/v1/attachments/${att.id}/download`}
                             download
                             aria-label={`Download ${att.originalName || att.filename}`}
                             className="rounded-md p-1 text-surface-400 hover:text-surface-200"
