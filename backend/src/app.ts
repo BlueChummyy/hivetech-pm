@@ -17,7 +17,7 @@ import { tasksRoutes } from './routes/tasks.routes.js';
 import { commentsRoutes } from './routes/comments.routes.js';
 import { labelsRoutes } from './routes/labels.routes.js';
 import { notificationsRoutes } from './routes/notifications.routes.js';
-import { attachmentsRoutes } from './routes/attachments.routes.js';
+import { attachmentsRoutes, taskAttachmentsRoutes } from './routes/attachments.routes.js';
 
 export function createApp() {
   const app = express();
@@ -45,6 +45,7 @@ export function createApp() {
   app.use('/api/v1/labels', labelsRoutes);
   app.use('/api/v1/notifications', notificationsRoutes);
   app.use('/api/v1/attachments', attachmentsRoutes);
+  app.use('/api/v1/tasks/:taskId/attachments', taskAttachmentsRoutes);
 
   // 404 handler for undefined routes
   app.use((_req, res) => {

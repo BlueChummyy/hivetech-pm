@@ -66,4 +66,27 @@ router.get('/:id/download', controller.download);
 // DELETE /api/v1/attachments/:id — Delete an attachment
 router.delete('/:id', controller.delete);
 
-export { router as attachmentsRoutes };
+// --- Task-scoped attachment routes (mounted at /api/v1/tasks/:taskId/attachments) ---
+const taskScopedRouter = Router({ mergeParams: true });
+taskScopedRouter.use(authenticate);
+
+// POST /api/v1/tasks/:taskId/attachments — Upload an attachment
+taskScopedRouter.post(
+  '/',
+  upload.single('file'),
+  controller.upload,
+);
+
+// GET /api/v1/tasks/:taskId/attachments — List attachments for a task
+taskScopedRouter.get('/', controller.list);
+
+// GET /api/v1/tasks/:taskId/attachments/:id — Get attachment metadata
+taskScopedRouter.get('/:id', controller.getById);
+
+// GET /api/v1/tasks/:taskId/attachments/:id/download — Download attachment file
+taskScopedRouter.get('/:id/download', controller.download);
+
+// DELETE /api/v1/tasks/:taskId/attachments/:id — Delete an attachment
+taskScopedRouter.delete('/:id', controller.delete);
+
+export { router as attachmentsRoutes, taskScopedRouter as taskAttachmentsRoutes };

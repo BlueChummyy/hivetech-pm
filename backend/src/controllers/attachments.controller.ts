@@ -10,7 +10,8 @@ const attachmentsService = new AttachmentsService();
 export class AttachmentsController {
   async upload(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { taskId } = req.body;
+      const taskId = req.params.taskId || req.body.taskId;
+      if (!taskId) throw ApiError.badRequest('taskId is required');
       if (!req.file) throw ApiError.badRequest('No file uploaded');
 
       // Get task to check project membership
@@ -30,17 +31,18 @@ export class AttachmentsController {
 
   async list(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { taskId } = req.query as any;
+      const taskId = (req.params.taskId || req.query.taskId) as string;
+      if (!taskId) throw ApiError.badRequest('taskId is required');
 
       // Get task to check project membership
       const task = await prisma.task.findFirst({
-        where: { id: taskId as string, deletedAt: null },
+        where: { id: taskId, deletedAt: null },
         select: { projectId: true },
       });
       if (!task) throw ApiError.notFound('Task not found');
       await requireProjectMember(task.projectId, req.user!.id);
 
-      const attachments = await attachmentsService.list(taskId as string);
+      const attachments = await attachmentsService.list(taskId);
       res.json(successResponse(attachments));
     } catch (err) {
       next(err);
