@@ -7,6 +7,9 @@ import { validate } from '../middleware/validate.js';
 const router = Router();
 const controller = new TasksController();
 
+// Accepts both "2026-02-21" and full ISO 8601 datetime strings, coerces to ISO string
+const flexibleDateSchema = z.string().pipe(z.coerce.date()).transform((d) => d.toISOString());
+
 // All task routes require authentication
 router.use(authenticate);
 
@@ -22,7 +25,7 @@ router.post(
       assigneeId: z.string().optional(),
       parentId: z.string().optional(),
       priority: z.enum(['URGENT', 'HIGH', 'MEDIUM', 'LOW', 'NONE']).optional(),
-      dueDate: z.string().datetime().optional(),
+      dueDate: flexibleDateSchema.optional(),
       estimatedHours: z.number().positive().optional(),
     }),
   }),
@@ -61,7 +64,7 @@ router.patch(
       assigneeId: z.string().nullable().optional(),
       priority: z.enum(['URGENT', 'HIGH', 'MEDIUM', 'LOW', 'NONE']).optional(),
       position: z.number().optional(),
-      dueDate: z.string().datetime().nullable().optional(),
+      dueDate: flexibleDateSchema.nullable().optional(),
       estimatedHours: z.number().positive().nullable().optional(),
     }),
   }),
