@@ -24,7 +24,7 @@ services:
     restart: "no"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-hivetech}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hivetech}?schema=public
-    command: npx prisma db push --schema=src/prisma/schema.prisma --accept-data-loss
+    command: npx prisma migrate deploy --schema=src/prisma/schema.prisma
     depends_on:
       postgres:
         condition: service_healthy
