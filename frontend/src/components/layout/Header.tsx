@@ -6,6 +6,7 @@ import { useWorkspaceStore } from '@/store/workspace.store';
 import { Avatar } from '@/components/ui/Avatar';
 import { DropdownMenu, DropdownItem, DropdownSeparator } from '@/components/ui/DropdownMenu';
 import { NotificationDropdown } from './NotificationDropdown';
+import { authApi } from '@/api/auth';
 
 export function Header() {
   const navigate = useNavigate();
@@ -13,7 +14,8 @@ export function Header() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try { await authApi.logout(); } catch { /* ignore */ }
     logout();
     useWorkspaceStore.getState().clearActiveWorkspace();
     useUIStore.getState().closeTaskPanel();
