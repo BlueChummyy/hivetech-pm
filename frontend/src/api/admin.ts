@@ -1,4 +1,4 @@
-import { get, post, patch } from './client';
+import { get, post, patch, del } from './client';
 
 export interface AdminUser {
   id: string;
@@ -19,15 +19,27 @@ export interface AdminUsersResponse {
   pagination: { page: number; limit: number; total: number; totalPages: number };
 }
 
+export interface AdminWorkspace {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+  _count: { members: number; projects: number };
+  members: { user: { id: string; firstName: string; lastName: string; email: string } }[];
+}
+
 export interface CreateUserData {
   email: string;
   password: string;
   firstName: string;
   lastName: string;
-  workspaceRole?: 'ADMIN' | 'MEMBER' | 'VIEWER';
+  workspaceRole?: 'ADMIN' | 'PROJECT_MANAGER' | 'MEMBER' | 'VIEWER';
 }
 
 export const adminApi = {
+  // Users
   listUsers: (params?: { search?: string; page?: number; limit?: number }) =>
     get<AdminUsersResponse>('/admin/users', { params }).then((r) => r.data),
 
@@ -39,4 +51,17 @@ export const adminApi = {
 
   updateRole: (userId: string, workspaceId: string, role: string) =>
     patch<any>(`/admin/users/${userId}/role`, { workspaceId, role }).then((r) => r.data),
+
+  deleteUser: (userId: string) =>
+    del<{ message: string }>(`/admin/users/${userId}`).then((r) => r.data),
+
+  deactivateUser: (userId: string) =>
+    patch<{ message: string; isActive: boolean }>(`/admin/users/${userId}/deactivate`).then((r) => r.data),
+
+  // Workspaces
+  listWorkspaces: () =>
+    get<AdminWorkspace[]>('/admin/workspaces').then((r) => r.data),
+
+  deleteWorkspace: (workspaceId: string) =>
+    del<{ message: string }>(`/admin/workspaces/${workspaceId}`).then((r) => r.data),
 };

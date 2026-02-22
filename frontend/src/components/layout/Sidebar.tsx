@@ -17,7 +17,7 @@ import { cn } from '@/utils/cn';
 import { useUIStore } from '@/store/ui.store';
 import { useAuthStore } from '@/store/auth.store';
 import { useWorkspaceStore } from '@/store/workspace.store';
-import { useWorkspaces, useWorkspaceMembers } from '@/hooks/useWorkspaces';
+import { useWorkspaces } from '@/hooks/useWorkspaces';
 import { Avatar } from '@/components/ui/Avatar';
 import { DropdownMenu, DropdownItem, DropdownSeparator } from '@/components/ui/DropdownMenu';
 import { authApi } from '@/api/auth';
@@ -40,9 +40,12 @@ export function Sidebar() {
   }, [activeWorkspaceId, workspaces, setActiveWorkspace]);
 
   const activeWorkspace = workspaces?.find((w) => w.id === activeWorkspaceId);
-  const { data: wsMembers } = useWorkspaceMembers(activeWorkspaceId || '');
-  const isWorkspaceAdmin = wsMembers?.some(
-    (m) => m.userId === user?.id && (m.role === 'OWNER' || m.role === 'ADMIN'),
+
+  // Global admin check: user is OWNER or ADMIN in ANY workspace
+  const isGlobalAdmin = workspaces?.some((ws) =>
+    (ws as any).members?.some(
+      (m: any) => m.userId === user?.id && (m.role === 'OWNER' || m.role === 'ADMIN'),
+    ),
   );
 
   const navItems = [
@@ -56,7 +59,7 @@ export function Sidebar() {
     },
     { label: 'My Tasks', icon: CheckSquare, path: '/my-tasks' },
     { label: 'Notifications', icon: Bell, path: '/notifications' },
-    ...(isWorkspaceAdmin
+    ...(isGlobalAdmin
       ? [{ label: 'Admin', icon: Shield, path: '/admin' }]
       : []),
   ];

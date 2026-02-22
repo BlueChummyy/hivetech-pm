@@ -12,6 +12,7 @@ datasource db {
 enum WorkspaceRole {
   OWNER
   ADMIN
+  PROJECT_MANAGER
   MEMBER
   VIEWER
 }

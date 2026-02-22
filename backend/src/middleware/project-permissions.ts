@@ -6,16 +6,17 @@ import { ApiError } from '../utils/api-error.js';
  * Project permissions by role.
  *
  * ADMIN:           Full project access
- * PROJECT_MANAGER: Manage tasks, assign, comment, change status, manage settings
- * TEAM_MEMBER:     View, comment, change status on own tasks
- * VIEWER:          View and comment only
- * GUEST:           View only, no comments
+ * PROJECT_MANAGER: Assign tasks, mark as completed, assign due dates, create/edit/delete tasks
+ * TEAM_MEMBER:     View, comment, change status (except complete)
+ * VIEWER:          View only
+ * GUEST:           View only
  */
 
 export type ProjectPermission =
   | 'VIEW_TASKS'
   | 'COMMENT'
   | 'CHANGE_TASK_STATUS'
+  | 'COMPLETE_TASK'
   | 'ASSIGN_TASK'
   | 'ASSIGN_DATE'
   | 'CREATE_TASK'
@@ -33,12 +34,13 @@ const ROLE_HIERARCHY: Record<string, number> = {
 
 const PERMISSION_MIN_ROLE: Record<ProjectPermission, string> = {
   VIEW_TASKS: 'GUEST',
-  COMMENT: 'VIEWER',
+  COMMENT: 'TEAM_MEMBER',
   CHANGE_TASK_STATUS: 'TEAM_MEMBER',
+  COMPLETE_TASK: 'PROJECT_MANAGER',
   CREATE_TASK: 'TEAM_MEMBER',
   EDIT_TASK: 'TEAM_MEMBER',
-  DELETE_TASK: 'TEAM_MEMBER',
-  ASSIGN_DATE: 'TEAM_MEMBER',
+  DELETE_TASK: 'PROJECT_MANAGER',
+  ASSIGN_DATE: 'PROJECT_MANAGER',
   ASSIGN_TASK: 'PROJECT_MANAGER',
   MANAGE_PROJECT: 'ADMIN',
 };
@@ -104,6 +106,7 @@ async function getUserProjectRole(projectId: string, userId: string): Promise<st
 
   // Map workspace roles to project-level access
   if (wsMember.role === 'OWNER' || wsMember.role === 'ADMIN') return 'ADMIN';
+  if (wsMember.role === 'PROJECT_MANAGER') return 'PROJECT_MANAGER';
   if (wsMember.role === 'MEMBER') return 'TEAM_MEMBER';
   if (wsMember.role === 'VIEWER') return 'VIEWER';
 

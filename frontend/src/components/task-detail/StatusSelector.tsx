@@ -6,9 +6,10 @@ interface StatusSelectorProps {
   statuses: ProjectStatus[];
   currentStatusId: string;
   onChange: (statusId: string) => void;
+  disabledCategories?: string[];
 }
 
-export function StatusSelector({ statuses, currentStatusId, onChange }: StatusSelectorProps) {
+export function StatusSelector({ statuses, currentStatusId, onChange, disabledCategories = [] }: StatusSelectorProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -45,29 +46,36 @@ export function StatusSelector({ statuses, currentStatusId, onChange }: StatusSe
           {statuses
             .slice()
             .sort((a, b) => a.position - b.position)
-            .map((status) => (
-              <button
-                key={status.id}
-                role="option"
-                aria-selected={status.id === currentStatusId}
-                onClick={() => {
-                  onChange(status.id);
-                  setOpen(false);
-                }}
-                className={cn(
-                  'flex w-full items-center gap-2 px-3 py-1.5 text-sm transition-colors hover:bg-surface-700',
-                  status.id === currentStatusId
-                    ? 'text-surface-100 bg-surface-700/50'
-                    : 'text-surface-300',
-                )}
-              >
-                <span
-                  className="h-2.5 w-2.5 rounded-full shrink-0"
-                  style={{ backgroundColor: status.color }}
-                />
-                <span className="truncate">{status.name}</span>
-              </button>
-            ))}
+            .map((status) => {
+              const isDisabled = disabledCategories.includes(status.category);
+              return (
+                <button
+                  key={status.id}
+                  role="option"
+                  aria-selected={status.id === currentStatusId}
+                  aria-disabled={isDisabled || undefined}
+                  onClick={() => {
+                    if (isDisabled) return;
+                    onChange(status.id);
+                    setOpen(false);
+                  }}
+                  className={cn(
+                    'flex w-full items-center gap-2 px-3 py-1.5 text-sm transition-colors',
+                    isDisabled
+                      ? 'text-surface-600 cursor-not-allowed'
+                      : status.id === currentStatusId
+                        ? 'text-surface-100 bg-surface-700/50 hover:bg-surface-700'
+                        : 'text-surface-300 hover:bg-surface-700',
+                  )}
+                >
+                  <span
+                    className={cn('h-2.5 w-2.5 rounded-full shrink-0', isDisabled && 'opacity-40')}
+                    style={{ backgroundColor: status.color }}
+                  />
+                  <span className="truncate">{status.name}</span>
+                </button>
+              );
+            })}
         </div>
       )}
     </div>

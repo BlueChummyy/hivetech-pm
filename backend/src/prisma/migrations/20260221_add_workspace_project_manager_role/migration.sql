@@ -1,0 +1,2 @@
+-- Add PROJECT_MANAGER to WorkspaceRole enum
+ALTER TYPE "WorkspaceRole" ADD VALUE IF NOT EXISTS 'PROJECT_MANAGER';

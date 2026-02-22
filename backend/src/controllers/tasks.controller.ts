@@ -3,6 +3,7 @@ import { TasksService } from '../services/tasks.service.js';
 import { requireProjectMember } from '../utils/authorization.js';
 import { ApiError } from '../utils/api-error.js';
 import { successResponse, paginatedResponse } from '../utils/api-response.js';
+import { prisma } from '../prisma/client.js';
 
 const tasksService = new TasksService();
 
@@ -76,6 +77,18 @@ export class TasksController {
       await requireProjectMember(existing.project.id, req.user!.id);
 
       const { title, description, statusId, assigneeId, priority, position, dueDate, estimatedHours } = req.body;
+
+      // If changing status to a DONE category, require PROJECT_MANAGER+ role
+      if (statusId) {
+        const targetStatus = await prisma.status.findUnique({ where: { id: statusId } });
+        if (targetStatus?.category === 'DONE') {
+          const userRole = (req as any).projectRole as string;
+          const roleLevel: Record<string, number> = { ADMIN: 5, PROJECT_MANAGER: 4, TEAM_MEMBER: 3, VIEWER: 2, GUEST: 1 };
+          if ((roleLevel[userRole] ?? 0) < roleLevel['PROJECT_MANAGER']) {
+            throw ApiError.forbidden('Only Project Managers and above can mark tasks as completed');
+          }
+        }
+      }
 
       const task = await tasksService.update(id, {
         title,

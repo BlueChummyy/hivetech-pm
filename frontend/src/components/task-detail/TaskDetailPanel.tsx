@@ -282,6 +282,7 @@ export function TaskDetailPanel() {
                         statuses={statuses}
                         currentStatusId={task.statusId}
                         onChange={handleStatusChange}
+                        disabledCategories={permissions.canCompleteTasks ? [] : ['DONE']}
                       />
                     ) : (
                       <div className="rounded-md border border-surface-700 bg-surface-800 px-3 py-1.5 text-sm text-surface-300">
@@ -324,7 +325,7 @@ export function TaskDetailPanel() {
                     <label className="text-xs font-medium text-surface-500">Due date</label>
                     <div className="flex items-center gap-2 rounded-md border border-surface-700 bg-surface-800 px-3 py-1.5">
                       <Calendar className="h-4 w-4 text-surface-500" />
-                      {permissions.canEditTasks ? (
+                      {permissions.canAssignDates ? (
                         <input
                           type="date"
                           value={task.dueDate ? task.dueDate.split('T')[0] : ''}
