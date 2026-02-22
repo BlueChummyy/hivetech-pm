@@ -1,4 +1,5 @@
 import { prisma } from '../prisma/client.js';
+import { ApiError } from '../utils/api-error.js';
 import { emitToUser } from '../utils/socket.js';
 
 export class NotificationsService {
@@ -47,8 +48,13 @@ export class NotificationsService {
   }
 
   async markAsRead(id: string, userId: string) {
-    return prisma.notification.updateMany({
+    const notification = await prisma.notification.findFirst({
       where: { id, userId },
+    });
+    if (!notification) throw ApiError.notFound('Notification not found');
+
+    return prisma.notification.update({
+      where: { id },
       data: { isRead: true },
     });
   }
@@ -61,8 +67,13 @@ export class NotificationsService {
   }
 
   async delete(id: string, userId: string) {
-    return prisma.notification.deleteMany({
+    const notification = await prisma.notification.findFirst({
       where: { id, userId },
+    });
+    if (!notification) throw ApiError.notFound('Notification not found');
+
+    return prisma.notification.delete({
+      where: { id },
     });
   }
 }
