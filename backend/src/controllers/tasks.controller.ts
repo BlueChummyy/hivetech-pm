@@ -80,7 +80,7 @@ export class TasksController {
 
       // If changing status to a DONE category, require PROJECT_MANAGER+ role
       if (statusId) {
-        const targetStatus = await prisma.status.findUnique({ where: { id: statusId } });
+        const targetStatus = await prisma.projectStatus.findUnique({ where: { id: statusId } });
         if (targetStatus?.category === 'DONE') {
           const userRole = (req as any).projectRole as string;
           const roleLevel: Record<string, number> = { ADMIN: 5, PROJECT_MANAGER: 4, TEAM_MEMBER: 3, VIEWER: 2, GUEST: 1 };
