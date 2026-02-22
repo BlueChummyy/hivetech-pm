@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { TasksController } from '../controllers/tasks.controller.js';
 import { authenticate } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
+import { requireProjectPermission, requireOwnTaskOrManager } from '../middleware/project-permissions.js';
 
 const router = Router();
 const controller = new TasksController();
@@ -29,6 +30,7 @@ router.post(
       estimatedHours: z.number().positive().optional(),
     }),
   }),
+  requireProjectPermission('CREATE_TASK'),
   controller.create,
 );
 
@@ -68,11 +70,18 @@ router.patch(
       estimatedHours: z.number().positive().nullable().optional(),
     }),
   }),
+  requireProjectPermission('EDIT_TASK'),
+  requireOwnTaskOrManager(),
   controller.update,
 );
 
 // DELETE /api/v1/tasks/:id — Soft delete task
-router.delete('/:id', controller.delete);
+router.delete(
+  '/:id',
+  requireProjectPermission('DELETE_TASK'),
+  requireOwnTaskOrManager(),
+  controller.delete,
+);
 
 // POST /api/v1/tasks/:id/dependencies — Add task dependency
 router.post(
@@ -83,11 +92,18 @@ router.post(
       type: z.enum(['FINISH_TO_START', 'START_TO_START', 'FINISH_TO_FINISH', 'START_TO_FINISH']).optional(),
     }),
   }),
+  requireProjectPermission('EDIT_TASK'),
+  requireOwnTaskOrManager(),
   controller.addDependency,
 );
 
 // DELETE /api/v1/tasks/:id/dependencies/:dependencyId — Remove dependency
-router.delete('/:id/dependencies/:dependencyId', controller.removeDependency);
+router.delete(
+  '/:id/dependencies/:dependencyId',
+  requireProjectPermission('EDIT_TASK'),
+  requireOwnTaskOrManager(),
+  controller.removeDependency,
+);
 
 // PATCH /api/v1/tasks/:id/position — Update task position (reorder)
 router.patch(
@@ -98,6 +114,8 @@ router.patch(
       statusId: z.string().optional(),
     }),
   }),
+  requireProjectPermission('CHANGE_TASK_STATUS'),
+  requireOwnTaskOrManager(),
   controller.updatePosition,
 );
 

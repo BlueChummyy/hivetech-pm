@@ -18,8 +18,10 @@ enum WorkspaceRole {
 
 enum ProjectRole {
   ADMIN
-  MEMBER
+  PROJECT_MANAGER
+  TEAM_MEMBER
   VIEWER
+  GUEST
 }
 
 enum StatusCategory {
@@ -149,7 +151,7 @@ model ProjectMember {
   id        String      @id @default(cuid())
   projectId String      @map("project_id")
   userId    String      @map("user_id")
-  role      ProjectRole @default(MEMBER)
+  role      ProjectRole @default(TEAM_MEMBER)
   createdAt DateTime    @default(now()) @map("created_at")
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)

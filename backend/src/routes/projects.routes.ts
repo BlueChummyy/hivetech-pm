@@ -59,7 +59,7 @@ router.post(
   validate({
     body: z.object({
       userId: z.string(),
-      role: z.enum(['ADMIN', 'MEMBER', 'VIEWER']),
+      role: z.enum(['ADMIN', 'PROJECT_MANAGER', 'TEAM_MEMBER', 'VIEWER', 'GUEST']),
     }),
   }),
   controller.addMember,
@@ -70,7 +70,7 @@ router.patch(
   '/:id/members/:userId',
   validate({
     body: z.object({
-      role: z.enum(['ADMIN', 'MEMBER', 'VIEWER']),
+      role: z.enum(['ADMIN', 'PROJECT_MANAGER', 'TEAM_MEMBER', 'VIEWER', 'GUEST']),
     }),
   }),
   controller.updateMember,

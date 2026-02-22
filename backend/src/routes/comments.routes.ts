@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { CommentsController } from '../controllers/comments.controller.js';
 import { authenticate } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
+import { requireProjectPermission } from '../middleware/project-permissions.js';
 
 const router = Router();
 const controller = new CommentsController();
@@ -19,6 +20,7 @@ router.post(
       content: z.string().min(1),
     }),
   }),
+  requireProjectPermission('COMMENT'),
   controller.create,
 );
 
@@ -32,6 +34,7 @@ router.get(
       limit: z.coerce.number().optional(),
     }),
   }),
+  requireProjectPermission('VIEW_TASKS'),
   controller.list,
 );
 
