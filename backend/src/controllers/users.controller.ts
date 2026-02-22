@@ -38,8 +38,8 @@ export class UsersController {
   async list(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const search = req.query.search as string | undefined;
-      const page = req.query.page ? parseInt(req.query.page as string, 10) : undefined;
-      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+      const page = req.query.page as number | undefined;
+      const limit = req.query.limit as number | undefined;
       const result = await usersService.list({ search, page, limit });
       res.status(200).json(paginatedResponse(result.data, result.pagination));
     } catch (err) {
