@@ -150,7 +150,7 @@ export function TaskDetailPanel() {
   function handleDueDateChange(date: string) {
     if (!task) return;
     updateTask.mutate(
-      { id: task.id, data: { dueDate: date || null } },
+      { id: task.id, data: { dueDate: date ? `${date}T00:00:00.000Z` : null } },
       { onError: onMutationError },
     );
   }
