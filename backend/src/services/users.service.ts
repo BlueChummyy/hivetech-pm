@@ -83,7 +83,7 @@ export class UsersService {
   }
 
   async changePassword(userId: string, oldPassword: string, newPassword: string) {
-    const user = await prisma.user.findFirst({ where: { id: userId, deletedAt: null, isActive: true } });
+    const user = await prisma.user.findFirst({ where: { id: userId, deletedAt: null, isActive: true }, omit: { passwordHash: false } });
     if (!user) {
       throw ApiError.notFound('User not found');
     }

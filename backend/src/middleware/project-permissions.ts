@@ -55,13 +55,13 @@ function hasMinRole(userRole: string, requiredRole: string): boolean {
 async function resolveProjectId(req: Request): Promise<string | null> {
   // Direct projectId in body, params, or query
   if (req.body?.projectId) return req.body.projectId;
-  if (req.params?.projectId) return req.params.projectId;
+  if (req.params?.projectId) return req.params.projectId as string;
   if (req.query?.projectId) return req.query.projectId as string;
 
   // For task routes: if there's a task ID param, look up the task's project
   if (req.params?.id) {
     const task = await prisma.task.findFirst({
-      where: { id: req.params.id, deletedAt: null },
+      where: { id: req.params.id as string, deletedAt: null },
       select: { projectId: true },
     });
     if (task) return task.projectId;
@@ -166,7 +166,7 @@ export function requireOwnTaskOrManager() {
       // TEAM_MEMBER can only modify their own assigned tasks
       if (userRole === 'TEAM_MEMBER' && req.params?.id) {
         const task = await prisma.task.findFirst({
-          where: { id: req.params.id, deletedAt: null },
+          where: { id: req.params.id as string, deletedAt: null },
           select: { assigneeId: true, reporterId: true },
         });
         if (task && (task.assigneeId === userId || task.reporterId === userId)) {
