@@ -19,17 +19,15 @@ const priorityColors: Record<Priority, string> = {
 };
 
 const statusCategoryColors: Record<StatusCategory, string> = {
-  BACKLOG: 'bg-surface-500/15 text-surface-400',
-  TODO: 'bg-blue-500/15 text-blue-400',
-  IN_PROGRESS: 'bg-amber-500/15 text-amber-400',
+  NOT_STARTED: 'bg-surface-500/15 text-surface-400',
+  ACTIVE: 'bg-amber-500/15 text-amber-400',
   DONE: 'bg-emerald-500/15 text-emerald-400',
   CANCELLED: 'bg-red-500/15 text-red-400',
 };
 
 const dotColors: Record<StatusCategory, string> = {
-  BACKLOG: 'bg-surface-400',
-  TODO: 'bg-blue-400',
-  IN_PROGRESS: 'bg-amber-400',
+  NOT_STARTED: 'bg-surface-400',
+  ACTIVE: 'bg-amber-400',
   DONE: 'bg-emerald-400',
   CANCELLED: 'bg-red-400',
 };
