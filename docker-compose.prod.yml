@@ -63,7 +63,6 @@ services:
       dockerfile: Dockerfile.prod
       args:
         VITE_API_URL: /api/v1
-        VITE_WS_URL: ${PUBLIC_URL:-http://localhost}
     restart: always
     ports:
       - '${PORT:-80}:80'

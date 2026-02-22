@@ -23,7 +23,8 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const s = io(import.meta.env.VITE_WS_URL || 'http://localhost:3000', {
+    const wsUrl = import.meta.env.VITE_WS_URL || window.location.origin;
+    const s = io(wsUrl, {
       auth: { token: accessToken },
       transports: ['websocket'],
       reconnection: true,
