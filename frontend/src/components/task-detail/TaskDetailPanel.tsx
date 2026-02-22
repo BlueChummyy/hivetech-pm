@@ -473,7 +473,7 @@ export function TaskDetailPanel() {
 
                 {/* Comments */}
                 <div className="border-t border-surface-700 pt-4">
-                  <CommentSection taskId={task.id} canComment={permissions.canComment} />
+                  <CommentSection taskId={task.id} canComment={permissions.canComment} isProjectAdmin={permissions.canManageProject} />
                 </div>
 
                 {/* Attachments */}

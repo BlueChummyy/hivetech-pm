@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Send } from 'lucide-react';
+import { Send, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import type { Comment } from '@/types/models.types';
-import { useComments, useCreateComment } from '@/hooks/useComments';
+import { useComments, useCreateComment, useDeleteComment } from '@/hooks/useComments';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/components/ui/Toast';
 import { Avatar } from '@/components/ui/Avatar';
@@ -10,12 +10,14 @@ import { Avatar } from '@/components/ui/Avatar';
 interface CommentSectionProps {
   taskId: string;
   canComment?: boolean;
+  isProjectAdmin?: boolean;
 }
 
-export function CommentSection({ taskId, canComment = true }: CommentSectionProps) {
+export function CommentSection({ taskId, canComment = true, isProjectAdmin = false }: CommentSectionProps) {
   const [content, setContent] = useState('');
   const { data: comments, isLoading } = useComments(taskId);
   const createComment = useCreateComment();
+  const deleteComment = useDeleteComment();
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -27,6 +29,17 @@ export function CommentSection({ taskId, canComment = true }: CommentSectionProp
         onSuccess: () => setContent(''),
         onError: (err) => {
           toast({ type: 'error', title: 'Failed to post comment', description: (err as Error).message });
+        },
+      },
+    );
+  }
+
+  function handleDelete(commentId: string) {
+    deleteComment.mutate(
+      { taskId, commentId },
+      {
+        onError: (err) => {
+          toast({ type: 'error', title: 'Failed to delete comment', description: (err as Error).message });
         },
       },
     );
@@ -50,24 +63,38 @@ export function CommentSection({ taskId, canComment = true }: CommentSectionProp
         </div>
       ) : comments && comments.length > 0 ? (
         <div className="space-y-4 max-h-80 overflow-y-auto">
-          {comments.map((comment: Comment) => (
-            <div key={comment.id} className="flex gap-3">
-              <Avatar src={comment.author?.avatarUrl} name={comment.author?.name || comment.author?.displayName} size="md" />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-sm font-medium text-surface-200">
-                    {comment.author?.name || comment.author?.displayName || 'Unknown'}
-                  </span>
-                  <span className="text-xs text-surface-500">
-                    {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
-                  </span>
+          {comments.map((comment: Comment) => {
+            const isOwnComment = user?.id === comment.authorId;
+            const canDelete = isProjectAdmin || isOwnComment;
+
+            return (
+              <div key={comment.id} className="group flex gap-3">
+                <Avatar src={comment.author?.avatarUrl} name={comment.author?.name || comment.author?.displayName} size="md" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-sm font-medium text-surface-200">
+                      {comment.author?.name || comment.author?.displayName || 'Unknown'}
+                    </span>
+                    <span className="text-xs text-surface-500">
+                      {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                    </span>
+                    {canDelete && (
+                      <button
+                        onClick={() => handleDelete(comment.id)}
+                        aria-label="Delete comment"
+                        className="ml-auto opacity-0 group-hover:opacity-100 rounded p-0.5 text-surface-500 hover:text-red-400 transition-opacity"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  <p className="mt-1 text-sm text-surface-300 whitespace-pre-wrap break-words">
+                    {comment.content}
+                  </p>
                 </div>
-                <p className="mt-1 text-sm text-surface-300 whitespace-pre-wrap break-words">
-                  {comment.content}
-                </p>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <p className="text-sm text-surface-500">No comments yet</p>
@@ -75,15 +102,7 @@ export function CommentSection({ taskId, canComment = true }: CommentSectionProp
 
       {canComment ? (
         <div className="flex gap-2 items-start">
-          {user?.avatarUrl ? (
-            <img
-              src={user.avatarUrl}
-              alt=""
-              className="h-8 w-8 shrink-0 rounded-full object-cover mt-0.5"
-            />
-          ) : (
-            <UserCircle className="h-8 w-8 shrink-0 text-surface-500 mt-0.5" />
-          )}
+          <Avatar src={user?.avatarUrl} name={user?.name} size="md" className="mt-0.5" />
           <div className="flex-1 flex gap-2">
             <textarea
               value={content}
