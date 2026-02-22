@@ -388,9 +388,106 @@ All commits include meaningful descriptions and `Co-Authored-By` attribution. No
 
 ---
 
+## Live Application Testing
+
+**App URL:** `http://10.21.59.56`
+**Test Date:** 2026-02-22
+**Test Method:** curl-based API testing and HTTP inspection
+
+### Important Finding: Deployed Code is Pre-Audit
+
+The live application is running code from **before** the audit fixes were committed. Evidence:
+- No rate limit headers on auth endpoints (fix `492e2be` not deployed)
+- Notification mark-read with nonexistent ID returns success instead of 404 (fix `97a06da` not deployed)
+- Undefined API routes return Express default HTML error page instead of JSON (fix `bf9f47f` not deployed)
+
+**All test results below reflect the pre-audit codebase behavior.** A redeployment is required to verify audit fixes in production.
+
+---
+
+### 1. Frontend Serving
+
+| Test | Result | Details |
+|------|--------|---------|
+| HTML entry point (`/`) | PASS (200) | Returns valid HTML with React root div, Vite assets |
+| JS bundle (`/assets/index-BdYniEMS.js`) | PASS (200) | JavaScript bundle loads successfully |
+| CSS bundle (`/assets/index-BLStsSrG.css`) | PASS (200) | Stylesheet loads successfully |
+| SPA routing (`/dashboard`) | PASS (200) | Returns index.html for client-side routing |
+
+### 2. Authentication Endpoints
+
+| Test | Result | Details |
+|------|--------|---------|
+| Login (seed user `admin@hivetech.dev`) | PASS (200) | Returns user object, accessToken, refreshToken |
+| Login (provided creds `amatthews@hive-tech.co`) | FAIL (500) | Returns `INTERNAL_ERROR` -- user exists in DB but login fails (likely bcrypt issue with stored password hash) |
+| Login (non-existent user) | PASS (401) | Returns `Invalid email or password` -- proper error handling |
+| Login (invalid email format) | PASS (400) | Zod validation catches it: `Invalid email` |
+| Register (new user) | FAIL (500) | Returns `INTERNAL_ERROR` for all new registrations -- unknown root cause |
+| Refresh token | PASS (200) | Returns new accessToken and refreshToken |
+| Logout | PASS (204) | Successfully invalidates session |
+| GET /auth/me | PASS (200) | Returns authenticated user profile without password hash |
+| Rate limit headers | NOT PRESENT | Confirms rate limiting fix not deployed |
+
+### 3. Core API Endpoints (Authenticated as `admin@hivetech.dev`)
+
+| Test | Result | Details |
+|------|--------|---------|
+| GET /workspaces | PASS (200) | Returns 1 workspace with member count |
+| GET /projects?workspaceId=... | PASS (200) | Returns 1 project with `_count` |
+| GET /projects/:id | PASS (200) | Returns full project with statuses, members |
+| GET /tasks?projectId=... | PASS (200) | Returns paginated task list |
+| POST /tasks | PASS (201) | Successfully creates task with taskNumber, status |
+| PATCH /tasks/:id | PASS (200) | Successfully updates title and priority |
+| DELETE /tasks/:id | PASS (204) | Soft delete succeeds |
+| GET /notifications | PASS (200) | Returns paginated (empty) notifications |
+| PATCH /notifications/read-all | PASS (200) | Mark-all-as-read endpoint exists and responds |
+| GET /users | PASS (200) | Returns paginated user list (3 users) |
+| GET /attachments?taskId=... | PASS (404) | Correctly returns "Task not found" for invalid taskId |
+| GET /attachments/:id/download | PASS (404) | Correctly returns "Attachment not found" for invalid ID |
+
+### 4. Specific Fix Verification (Live)
+
+| Fix | Live Status | Notes |
+|-----|-------------|-------|
+| Rate limiting on auth routes | NOT DEPLOYED | No `RateLimit-*` headers in auth responses |
+| Notification 404 on non-existent ID | NOT DEPLOYED | `PATCH /notifications/nonexistent-id/read` returns 200 with `{"id":"nonexistent-id","isRead":true}` |
+| Notification delete on non-existent ID | NOT DEPLOYED | `DELETE /notifications/nonexistent-id` returns 204 (silent success) |
+| 404 handler for undefined routes | NOT DEPLOYED | `GET /api/v1/nonexistent-route` returns Express default HTML: `Cannot GET /api/v1/nonexistent-route` |
+| Attachment endpoint exists | PASS | `GET /api/v1/attachments/:id/download` exists and returns proper 404 for invalid IDs |
+| Health endpoint | PASS | `GET /health` returns `{"status":"ok","timestamp":"..."}` |
+
+### 5. Additional Observations
+
+| Finding | Severity | Details |
+|---------|----------|---------|
+| Registration is broken | HIGH | All new user registrations return 500. Root cause unknown from outside; likely a schema mismatch or bcrypt issue in the deployed container |
+| Login fails for `amatthews@hive-tech.co` | MEDIUM | User exists in DB (visible in user list) but login returns 500 instead of success or "invalid password". May indicate corrupted password hash |
+| `docker-compose.prod.yml` migrate service still uses `db push` | HIGH | Line 27: `command: npx prisma db push --schema=src/prisma/schema.prisma --accept-data-loss` -- this overrides the Dockerfile.prod CMD fix from commit `2b2829b` |
+| CORS origin is `http://localhost` | LOW | The production CORS_ORIGIN defaults to `http://localhost` but the app is served from `http://10.21.59.56`. Browser-based requests from the frontend's origin will work since the browser sends requests to the same origin (proxied through nginx) |
+
+---
+
+## Overall System Health Assessment
+
+**Backend:** Strong. All 10 fixes are correctly implemented in the codebase. The rate limiting, path traversal protection, and notification existence checks significantly improve security posture. The one PARTIAL fix (pino-http TypeScript error) is cosmetic and does not affect runtime behavior.
+
+**Database:** Strong. Schema changes are sound, migration is idempotent, and the BFS cycle detection is a significant correctness improvement. Index additions are well-targeted for actual query patterns.
+
+**Frontend:** Strong. All 7 fixes resolve real issues (build errors, runtime crashes, incomplete logout). TypeScript compilation is now clean. State management and error recovery improvements are well-implemented.
+
+**Integration:** One critical gap remains -- the frontend attachment API module uses URL patterns that do not exist on the backend. This is a pre-existing issue, not a regression from the audit fixes, but it must be resolved for attachment functionality to work.
+
+**Live Application:** The deployed application is running pre-audit code. The fixes exist in the local codebase (git) but have not been redeployed. Additionally, user registration is broken in the live environment, and the `docker-compose.prod.yml` migrate service overrides the Dockerfile.prod CMD fix. A redeployment with rebuild is required.
+
+---
+
 ## Recommended Follow-Up Actions
 
 1. **[CRITICAL]** Resolve frontend-backend attachment URL mismatch
-2. **[HIGH]** Create a Prisma baseline migration for existing databases before deploying the `migrate deploy` change
-3. **[LOW]** Fix `pino-http` import to use named export for TypeScript compatibility
-4. **[LOW]** Consider adding `migration_lock.toml` to the migrations directory for Prisma migration tooling
+2. **[CRITICAL]** Redeploy the application to pick up all audit fixes
+3. **[HIGH]** Fix `docker-compose.prod.yml` line 27: change `prisma db push --accept-data-loss` to `prisma migrate deploy` in the migrate service command (this overrides the Dockerfile fix)
+4. **[HIGH]** Investigate and fix user registration 500 errors in the live environment
+5. **[HIGH]** Investigate login failure for `amatthews@hive-tech.co` (500 error despite user existing)
+6. **[HIGH]** Create a Prisma baseline migration for existing databases before deploying the `migrate deploy` change
+7. **[LOW]** Fix `pino-http` import to use named export for TypeScript compatibility
+8. **[LOW]** Consider adding `migration_lock.toml` to the migrations directory for Prisma migration tooling
