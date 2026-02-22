@@ -53,6 +53,9 @@ router.patch(
 // DELETE /api/v1/projects/:id — Delete project
 router.delete('/:id', controller.delete);
 
+// GET /api/v1/projects/:id/members — List project members
+router.get('/:id/members', controller.listMembers);
+
 // POST /api/v1/projects/:id/members — Add member to project
 router.post(
   '/:id/members',

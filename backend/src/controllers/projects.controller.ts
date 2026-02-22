@@ -57,6 +57,16 @@ export class ProjectsController {
     }
   }
 
+  async listMembers(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user!.id;
+      const members = await projectsService.listMembers(req.params.id as string, userId);
+      res.status(200).json(successResponse(members));
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async addMember(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const requesterId = req.user!.id;

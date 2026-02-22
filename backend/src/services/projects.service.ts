@@ -158,6 +158,21 @@ export class ProjectsService {
     emitToWorkspace(project.workspaceId, 'project:deleted', { id });
   }
 
+  async listMembers(projectId: string, requesterId: string) {
+    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) throw ApiError.notFound('Project not found');
+
+    await requireWorkspaceMember(project.workspaceId, requesterId);
+
+    const members = await prisma.projectMember.findMany({
+      where: { projectId },
+      include: { user: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return members;
+  }
+
   async addMember(projectId: string, data: { userId: string; role: string }, requesterId: string) {
     const project = await prisma.project.findUnique({ where: { id: projectId } });
     if (!project) throw ApiError.notFound('Project not found');
