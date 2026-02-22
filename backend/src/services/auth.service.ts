@@ -20,7 +20,8 @@ function computeRefreshExpiry(): Date {
 const userSelectWithoutPassword = {
   id: true,
   email: true,
-  displayName: true,
+  firstName: true,
+  lastName: true,
   avatarUrl: true,
   isActive: true,
   createdAt: true,
@@ -28,7 +29,7 @@ const userSelectWithoutPassword = {
 } as const;
 
 export class AuthService {
-  async register(email: string, password: string, name: string) {
+  async register(email: string, password: string, firstName: string, lastName: string) {
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
       // Don't reveal whether the account is active or deleted
@@ -40,7 +41,7 @@ export class AuthService {
 
     const newUser = await prisma.$transaction(async (tx: any) => {
       const created = await tx.user.create({
-        data: { email, passwordHash, displayName: name },
+        data: { email, passwordHash, firstName, lastName },
       });
 
       // Add the new user to the default workspace so they can use the app

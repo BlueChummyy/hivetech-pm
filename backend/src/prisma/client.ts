@@ -14,11 +14,11 @@ function createPrismaClient() {
   }).$extends({
     result: {
       user: {
-        // Computed field: aliases displayName as name for frontend compatibility
+        // Computed field: combines firstName and lastName for frontend compatibility
         name: {
-          needs: { displayName: true },
+          needs: { firstName: true, lastName: true },
           compute(user) {
-            return user.displayName;
+            return `${user.firstName} ${user.lastName}`.trim();
           },
         },
       },

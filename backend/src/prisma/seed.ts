@@ -14,7 +14,8 @@ async function main() {
     create: {
       email: 'admin@hivetech.dev',
       passwordHash,
-      displayName: 'Admin User',
+      firstName: 'Admin',
+      lastName: 'User',
     },
   });
 

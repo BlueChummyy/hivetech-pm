@@ -5,7 +5,8 @@ import { hashPassword, comparePassword } from '../utils/password.js';
 const userSelectWithoutPassword = {
   id: true,
   email: true,
-  displayName: true,
+  firstName: true,
+  lastName: true,
   avatarUrl: true,
   isActive: true,
   createdAt: true,
@@ -25,7 +26,8 @@ export class UsersService {
 
     if (params.search) {
       where.OR = [
-        { displayName: { contains: params.search, mode: 'insensitive' } },
+        { firstName: { contains: params.search, mode: 'insensitive' } },
+        { lastName: { contains: params.search, mode: 'insensitive' } },
         { email: { contains: params.search, mode: 'insensitive' } },
       ];
     }
@@ -36,7 +38,7 @@ export class UsersService {
         select: userSelectWithoutPassword,
         skip,
         take: limit,
-        orderBy: { displayName: 'asc' },
+        orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
       }),
       prisma.user.count({ where }),
     ]);
@@ -65,7 +67,7 @@ export class UsersService {
     return user;
   }
 
-  async updateProfile(userId: string, data: { displayName?: string; avatarUrl?: string }) {
+  async updateProfile(userId: string, data: { firstName?: string; lastName?: string; avatarUrl?: string }) {
     const existing = await prisma.user.findFirst({
       where: { id: userId, deletedAt: null, isActive: true },
     });
@@ -98,7 +100,7 @@ export class UsersService {
     });
   }
 
-  async update(id: string, data: { displayName?: string; avatarUrl?: string }) {
+  async update(id: string, data: { firstName?: string; lastName?: string; avatarUrl?: string }) {
     const existing = await prisma.user.findFirst({
       where: { id, deletedAt: null, isActive: true },
     });

@@ -8,7 +8,8 @@ const router = Router();
 const controller = new UsersController();
 
 const updateProfileSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
+  firstName: z.string().min(1).max(50).optional(),
+  lastName: z.string().min(1).max(50).optional(),
   avatarUrl: z.string().url().nullable().optional(),
 });
 

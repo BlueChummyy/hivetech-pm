@@ -17,8 +17,8 @@ export class UsersController {
 
   async updateMe(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { name, avatarUrl } = req.body;
-      const user = await usersService.updateProfile(req.user!.id, { displayName: name, avatarUrl });
+      const { firstName, lastName, avatarUrl } = req.body;
+      const user = await usersService.updateProfile(req.user!.id, { firstName, lastName, avatarUrl });
       res.status(200).json(successResponse(user));
     } catch (err) {
       next(err);
@@ -64,8 +64,8 @@ export class UsersController {
       if (id !== req.user!.id) {
         throw ApiError.forbidden('You can only update your own profile');
       }
-      const { name, avatarUrl } = req.body;
-      const user = await usersService.update(id, { displayName: name, avatarUrl });
+      const { firstName, lastName, avatarUrl } = req.body;
+      const user = await usersService.update(id, { firstName, lastName, avatarUrl });
       res.status(200).json(successResponse(user));
     } catch (err) {
       next(err);
