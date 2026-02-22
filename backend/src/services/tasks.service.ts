@@ -244,9 +244,18 @@ export class TasksService {
     });
     if (!task) throw ApiError.notFound('Task not found');
 
-    await prisma.task.update({
-      where: { id },
-      data: { deletedAt: new Date() },
+    const now = new Date();
+
+    // Soft-delete the task and all its non-deleted subtasks in a transaction
+    await prisma.$transaction(async (tx: any) => {
+      await tx.task.update({
+        where: { id },
+        data: { deletedAt: now },
+      });
+      await tx.task.updateMany({
+        where: { parentId: id, deletedAt: null },
+        data: { deletedAt: now },
+      });
     });
 
     emitToProject(task.projectId, 'task:deleted', { id: task.id });

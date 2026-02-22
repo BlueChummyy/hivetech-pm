@@ -15,7 +15,7 @@ const userSelectWithoutPassword = {
 export class UsersService {
   async list(params: { search?: string; page?: number; limit?: number }) {
     const page = params.page ?? 1;
-    const limit = params.limit ?? 20;
+    const limit = Math.min(params.limit ?? 20, 100);
     const skip = (page - 1) * limit;
 
     const where: Record<string, unknown> = {

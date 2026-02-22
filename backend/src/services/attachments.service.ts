@@ -51,12 +51,25 @@ export class AttachmentsService {
     return result;
   }
 
-  async list(taskId: string) {
-    return prisma.attachment.findMany({
-      where: { taskId },
-      orderBy: { createdAt: 'desc' },
-      include: { uploadedBy: { select: { id: true, displayName: true } } },
-    });
+  async list(taskId: string, params: { page?: number; limit?: number } = {}) {
+    const page = params.page || 1;
+    const limit = Math.min(params.limit || 25, 100);
+    const skip = (page - 1) * limit;
+
+    const where = { taskId };
+
+    const [attachments, total] = await Promise.all([
+      prisma.attachment.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: { uploadedBy: { select: { id: true, displayName: true } } },
+      }),
+      prisma.attachment.count({ where }),
+    ]);
+
+    return { attachments, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
   }
 
   async getById(id: string) {
