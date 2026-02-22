@@ -280,12 +280,26 @@ export class TasksService {
       throw ApiError.badRequest('Both tasks must be in the same project');
     }
 
-    // Check for circular dependency (basic: A depends on B, B depends on A)
-    const reverse = await prisma.taskDependency.findFirst({
-      where: { taskId: dependsOnTaskId, dependsOnTaskId: taskId },
-    });
-    if (reverse) {
-      throw ApiError.badRequest('Circular dependency detected');
+    // Check for circular dependency by walking the dependency chain
+    // If dependsOnTaskId transitively depends on taskId, adding this edge creates a cycle
+    const visited = new Set<string>();
+    const queue = [taskId];
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      if (current === dependsOnTaskId) {
+        throw ApiError.badRequest('Circular dependency detected');
+      }
+      if (visited.has(current)) continue;
+      visited.add(current);
+      const deps = await prisma.taskDependency.findMany({
+        where: { dependsOnTaskId: current },
+        select: { taskId: true },
+      });
+      for (const dep of deps) {
+        if (!visited.has(dep.taskId)) {
+          queue.push(dep.taskId);
+        }
+      }
     }
 
     const dependency = await prisma.taskDependency.create({
