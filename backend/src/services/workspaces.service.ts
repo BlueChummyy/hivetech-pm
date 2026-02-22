@@ -31,7 +31,7 @@ export class WorkspacesService {
         where: { id: ws.id },
         include: {
           members: {
-            include: { user: { select: { id: true, email: true, displayName: true, avatarUrl: true } } },
+            include: { user: true },
           },
         },
       });
@@ -55,7 +55,7 @@ export class WorkspacesService {
       where: { id },
       include: {
         members: {
-          include: { user: { select: { id: true, email: true, displayName: true, avatarUrl: true } } },
+          include: { user: true },
         },
         _count: { select: { projects: true, members: true } },
       },
@@ -81,7 +81,7 @@ export class WorkspacesService {
       data,
       include: {
         members: {
-          include: { user: { select: { id: true, email: true, displayName: true, avatarUrl: true } } },
+          include: { user: true },
         },
       },
     });
@@ -120,7 +120,7 @@ export class WorkspacesService {
         userId: targetUser.id,
         role: data.role as any,
       },
-      include: { user: { select: { id: true, email: true, displayName: true, avatarUrl: true } } },
+      include: { user: true },
     });
 
     emitToWorkspace(workspaceId, 'workspace:member:added', result);
@@ -146,7 +146,7 @@ export class WorkspacesService {
     const result = await prisma.workspaceMember.update({
       where: { workspaceId_userId: { workspaceId, userId: targetUserId } },
       data: { role: role as any },
-      include: { user: { select: { id: true, email: true, displayName: true, avatarUrl: true } } },
+      include: { user: true },
     });
 
     emitToWorkspace(workspaceId, 'workspace:member:updated', result);

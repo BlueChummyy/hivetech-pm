@@ -46,7 +46,7 @@ export class ProjectsService {
         include: {
           statuses: { orderBy: { position: 'asc' } },
           members: {
-            include: { user: { select: { id: true, email: true, displayName: true, avatarUrl: true } } },
+            include: { user: true },
           },
           _count: { select: { tasks: { where: { deletedAt: null } }, members: true } },
         },
@@ -75,7 +75,7 @@ export class ProjectsService {
       include: {
         statuses: { orderBy: { position: 'asc' } },
         members: {
-          include: { user: { select: { id: true, email: true, displayName: true, avatarUrl: true } } },
+          include: { user: true },
         },
         _count: { select: { tasks: { where: { deletedAt: null } }, members: true } },
       },
@@ -125,7 +125,7 @@ export class ProjectsService {
       include: {
         statuses: { orderBy: { position: 'asc' } },
         members: {
-          include: { user: { select: { id: true, email: true, displayName: true, avatarUrl: true } } },
+          include: { user: true },
         },
       },
     });
@@ -199,7 +199,7 @@ export class ProjectsService {
         userId: data.userId,
         role: data.role as any,
       },
-      include: { user: { select: { id: true, email: true, displayName: true, avatarUrl: true } } },
+      include: { user: true },
     });
 
     emitToProject(projectId, 'member:added', result);
@@ -237,7 +237,7 @@ export class ProjectsService {
     const result = await prisma.projectMember.update({
       where: { projectId_userId: { projectId, userId: targetUserId } },
       data: { role: role as any },
-      include: { user: { select: { id: true, email: true, displayName: true, avatarUrl: true } } },
+      include: { user: true },
     });
 
     emitToProject(projectId, 'member:updated', result);

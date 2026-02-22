@@ -64,7 +64,7 @@ export class AttachmentsService {
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
-        include: { uploadedBy: { select: { id: true, displayName: true } } },
+        include: { uploadedBy: true },
       }),
       prisma.attachment.count({ where }),
     ]);

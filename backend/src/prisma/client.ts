@@ -2,6 +2,11 @@ import { PrismaClient } from '@prisma/client';
 
 function createPrismaClient() {
   return new PrismaClient({
+    omit: {
+      user: {
+        passwordHash: true,
+      },
+    },
     log:
       process.env.NODE_ENV === 'development'
         ? ['query', 'info', 'warn', 'error']

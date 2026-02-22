@@ -61,8 +61,8 @@ export class TasksService {
         },
         include: {
           status: true,
-          assignee: { select: { id: true, displayName: true, email: true, avatarUrl: true } },
-          reporter: { select: { id: true, displayName: true, email: true, avatarUrl: true } },
+          assignee: true,
+          reporter: true,
           labels: { include: { label: true } },
         },
       });
@@ -120,7 +120,7 @@ export class TasksService {
         orderBy: { position: 'asc' },
         include: {
           status: true,
-          assignee: { select: { id: true, displayName: true, avatarUrl: true } },
+          assignee: true,
           labels: { include: { label: true } },
           _count: { select: { subtasks: { where: { deletedAt: null } }, comments: { where: { deletedAt: null } } } },
         },
@@ -136,15 +136,15 @@ export class TasksService {
       where: { id, deletedAt: null },
       include: {
         status: true,
-        assignee: { select: { id: true, displayName: true, email: true, avatarUrl: true } },
-        reporter: { select: { id: true, displayName: true, email: true, avatarUrl: true } },
+        assignee: true,
+        reporter: true,
         parent: { select: { id: true, title: true, taskNumber: true } },
         subtasks: {
           where: { deletedAt: null },
           orderBy: { position: 'asc' },
           include: {
             status: true,
-            assignee: { select: { id: true, displayName: true, avatarUrl: true } },
+            assignee: true,
           },
         },
         labels: { include: { label: true } },
@@ -162,7 +162,7 @@ export class TasksService {
           where: { deletedAt: null },
           orderBy: { createdAt: 'asc' },
           include: {
-            author: { select: { id: true, displayName: true, avatarUrl: true } },
+            author: true,
           },
         },
         attachments: { orderBy: { createdAt: 'desc' } },
@@ -211,8 +211,8 @@ export class TasksService {
       },
       include: {
         status: true,
-        assignee: { select: { id: true, displayName: true, email: true, avatarUrl: true } },
-        reporter: { select: { id: true, displayName: true, email: true, avatarUrl: true } },
+        assignee: true,
+        reporter: true,
         labels: { include: { label: true } },
       },
     });

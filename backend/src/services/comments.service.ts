@@ -17,7 +17,7 @@ export class CommentsService {
         content: data.content,
       },
       include: {
-        author: { select: { id: true, displayName: true, avatarUrl: true } },
+        author: true,
       },
     });
 
@@ -70,7 +70,7 @@ export class CommentsService {
         take: limit,
         orderBy: { createdAt: 'asc' },
         include: {
-          author: { select: { id: true, displayName: true, avatarUrl: true } },
+          author: true,
         },
       }),
       prisma.comment.count({ where }),
@@ -90,7 +90,7 @@ export class CommentsService {
       where: { id },
       data: { content },
       include: {
-        author: { select: { id: true, displayName: true, avatarUrl: true } },
+        author: true,
       },
     });
 
