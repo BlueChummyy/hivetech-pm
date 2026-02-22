@@ -46,6 +46,11 @@ export function createApp() {
   app.use('/api/v1/notifications', notificationsRoutes);
   app.use('/api/v1/attachments', attachmentsRoutes);
 
+  // 404 handler for undefined routes
+  app.use((_req, res) => {
+    res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Route not found' } });
+  });
+
   // Error handler (must be last)
   app.use(errorHandler);
 
