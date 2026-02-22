@@ -1,7 +1,9 @@
-import { useState } from 'react';
-import { UserCircle, Loader2 } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Loader2, Sun, Moon, Camera, X } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { useUpdateProfile, useChangePassword } from '@/hooks/useUsers';
+import { useUpdateProfile, useChangePassword, useUploadAvatar, useRemoveAvatar } from '@/hooks/useUsers';
+import { useUIStore } from '@/store/ui.store';
+import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/Toast';
@@ -10,10 +12,15 @@ export function ProfileSettingsPage() {
   const { user } = useAuth();
   const updateProfile = useUpdateProfile();
   const changePassword = useChangePassword();
+  const uploadAvatar = useUploadAvatar();
+  const removeAvatar = useRemoveAvatar();
   const { toast } = useToast();
+  const { theme, setTheme } = useUIStore();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [firstName, setFirstName] = useState(user?.firstName || '');
   const [lastName, setLastName] = useState(user?.lastName || '');
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -37,6 +44,48 @@ export function ProfileSettingsPage() {
         },
       },
     );
+  }
+
+  function handleAvatarSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      toast({ type: 'error', title: 'File too large', description: 'Avatar must be under 5MB' });
+      return;
+    }
+
+    // Show preview
+    const reader = new FileReader();
+    reader.onload = () => setAvatarPreview(reader.result as string);
+    reader.readAsDataURL(file);
+
+    // Upload
+    uploadAvatar.mutate(file, {
+      onSuccess: () => {
+        setAvatarPreview(null);
+        toast({ type: 'success', title: 'Avatar updated' });
+      },
+      onError: (err) => {
+        setAvatarPreview(null);
+        toast({ type: 'error', title: 'Failed to upload avatar', description: (err as Error).message });
+      },
+    });
+
+    // Reset file input so the same file can be selected again
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
+  function handleAvatarRemove() {
+    removeAvatar.mutate(undefined, {
+      onSuccess: () => {
+        toast({ type: 'success', title: 'Avatar removed' });
+      },
+      onError: (err) => {
+        toast({ type: 'error', title: 'Failed to remove avatar', description: (err as Error).message });
+      },
+    });
   }
 
   function handlePasswordChange() {
@@ -90,18 +139,55 @@ export function ProfileSettingsPage() {
         <h2 className="text-lg font-semibold text-surface-100">Profile</h2>
 
         <div className="flex items-center gap-4">
-          {user.avatarUrl ? (
-            <img
-              src={user.avatarUrl}
-              alt=""
-              className="h-20 w-20 rounded-full object-cover"
+          <div className="relative">
+            {avatarPreview ? (
+              <img
+                src={avatarPreview}
+                alt="Preview"
+                className="h-20 w-20 rounded-full object-cover"
+              />
+            ) : (
+              <Avatar
+                src={user.avatarUrl}
+                name={`${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email}
+                className="h-20 w-20 text-2xl"
+              />
+            )}
+            {uploadAvatar.isPending && (
+              <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50">
+                <Loader2 className="h-6 w-6 animate-spin text-white" />
+              </div>
+            )}
+          </div>
+          <div className="flex flex-col gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".jpg,.jpeg,.png,.gif,.webp"
+              className="hidden"
+              onChange={handleAvatarSelect}
             />
-          ) : (
-            <UserCircle className="h-20 w-20 text-surface-500" />
-          )}
-          <Button size="sm" variant="secondary" disabled>
-            Upload avatar
-          </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadAvatar.isPending}
+            >
+              <Camera className="mr-1.5 h-4 w-4" />
+              {user.avatarUrl ? 'Change avatar' : 'Upload avatar'}
+            </Button>
+            {user.avatarUrl && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={handleAvatarRemove}
+                disabled={removeAvatar.isPending}
+              >
+                <X className="mr-1.5 h-4 w-4" />
+                Remove
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="max-w-md space-y-4">
@@ -169,6 +255,43 @@ export function ProfileSettingsPage() {
           >
             Change password
           </Button>
+        </div>
+      </div>
+
+      {/* Appearance section */}
+      <div className="rounded-xl border border-surface-700 bg-surface-800 p-6 space-y-6">
+        <h2 className="text-lg font-semibold text-surface-100">Appearance</h2>
+
+        <div className="max-w-md space-y-4">
+          <label className="block text-sm font-medium text-surface-300">
+            Theme
+          </label>
+          <div className="inline-flex rounded-lg border border-surface-700 bg-surface-900 p-1">
+            <button
+              type="button"
+              onClick={() => setTheme('light')}
+              className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                theme === 'light'
+                  ? 'bg-surface-700 text-surface-100'
+                  : 'text-surface-400 hover:text-surface-200'
+              }`}
+            >
+              <Sun className="h-4 w-4" />
+              Light
+            </button>
+            <button
+              type="button"
+              onClick={() => setTheme('dark')}
+              className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                theme === 'dark'
+                  ? 'bg-surface-700 text-surface-100'
+                  : 'text-surface-400 hover:text-surface-200'
+              }`}
+            >
+              <Moon className="h-4 w-4" />
+              Dark
+            </button>
+          </div>
         </div>
       </div>
     </div>

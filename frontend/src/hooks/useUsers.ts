@@ -28,6 +28,28 @@ export function useChangePassword() {
   });
 }
 
+export function useUploadAvatar() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => usersApi.uploadAvatar(file),
+    onSuccess: (user) => {
+      qc.invalidateQueries({ queryKey: ['users', 'me'] });
+      useAuthStore.getState().setUser(user);
+    },
+  });
+}
+
+export function useRemoveAvatar() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => usersApi.removeAvatar(),
+    onSuccess: (user) => {
+      qc.invalidateQueries({ queryKey: ['users', 'me'] });
+      useAuthStore.getState().setUser(user);
+    },
+  });
+}
+
 export function useSearchUsers(search?: string) {
   return useQuery({
     queryKey: ['users', { search }],

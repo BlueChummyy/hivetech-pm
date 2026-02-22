@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Users,
@@ -21,8 +21,9 @@ import {
   ClipboardList,
   ChevronLeft,
   ChevronRight,
+  Mail,
 } from 'lucide-react';
-import { adminApi, type AdminUser } from '@/api/admin';
+import { adminApi, type AdminUser, type SmtpSettingsData } from '@/api/admin';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
@@ -30,7 +31,7 @@ import { useToast } from '@/components/ui/Toast';
 import { useAuthStore } from '@/store/auth.store';
 import { cn } from '@/utils/cn';
 
-type Tab = 'users' | 'workspaces' | 'spaces' | 'deleted' | 'audit' | 'create';
+type Tab = 'users' | 'workspaces' | 'spaces' | 'deleted' | 'audit' | 'smtp';
 
 function timeAgo(dateStr: string): string {
   const now = Date.now();
@@ -104,16 +105,63 @@ export function AdminDashboardPage() {
   });
   const [showPassword, setShowPassword] = useState(false);
 
+  const [showCreateUserModal, setShowCreateUserModal] = useState(false);
+
   const createUserMutation = useMutation({
     mutationFn: () => adminApi.createUser(newUser),
     onSuccess: () => {
       toast({ type: 'success', title: 'User created successfully' });
       setNewUser({ email: '', password: '', firstName: '', lastName: '', workspaceRole: 'MEMBER' });
       qc.invalidateQueries({ queryKey: ['admin', 'users'] });
-      setActiveTab('users');
+      setShowCreateUserModal(false);
     },
     onError: (err) => {
       toast({ type: 'error', title: 'Failed to create user', description: (err as Error).message });
+    },
+  });
+
+  // ── SMTP Settings ────────────────────────────────────────────────────
+  const [smtpForm, setSmtpForm] = useState<SmtpSettingsData>({
+    host: '',
+    port: 587,
+    secure: false,
+    username: '',
+    password: '',
+    fromName: '',
+    fromEmail: '',
+  });
+
+  const { data: smtpData, isLoading: smtpLoading } = useQuery({
+    queryKey: ['admin', 'smtp-settings'],
+    queryFn: () => adminApi.getSmtpSettings(),
+    enabled: activeTab === 'smtp',
+  });
+
+  // Sync form with fetched data
+  useEffect(() => {
+    if (smtpData?.settings) {
+      setSmtpForm(smtpData.settings);
+    }
+  }, [smtpData?.settings]);
+
+  const saveSmtpMutation = useMutation({
+    mutationFn: () => adminApi.updateSmtpSettings(smtpForm),
+    onSuccess: () => {
+      toast({ type: 'success', title: 'SMTP settings saved' });
+      qc.invalidateQueries({ queryKey: ['admin', 'smtp-settings'] });
+    },
+    onError: (err) => {
+      toast({ type: 'error', title: 'Failed to save SMTP settings', description: (err as Error).message });
+    },
+  });
+
+  const testSmtpMutation = useMutation({
+    mutationFn: () => adminApi.testSmtpConnection(),
+    onSuccess: (data) => {
+      toast({ type: 'success', title: data.message });
+    },
+    onError: (err) => {
+      toast({ type: 'error', title: 'SMTP test failed', description: (err as Error).message });
     },
   });
 
@@ -373,7 +421,7 @@ export function AdminDashboardPage() {
     { id: 'spaces', label: 'Spaces', icon: Layers },
     { id: 'deleted', label: 'Deleted Items', icon: Archive },
     { id: 'audit', label: 'Audit Log', icon: ClipboardList },
-    { id: 'create', label: 'Create User', icon: UserPlus },
+    { id: 'smtp', label: 'SMTP Settings', icon: Mail },
   ];
 
   return (
@@ -412,16 +460,31 @@ export function AdminDashboardPage() {
       {/* ── Users Tab ─────────────────────────────────────────────── */}
       {activeTab === 'users' && (
         <div className="space-y-4">
-          {/* Search */}
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-500" />
-            <input
-              type="text"
-              placeholder="Search users by name or email..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-lg border border-surface-700 bg-surface-900 pl-10 pr-3 py-2 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-            />
+          {/* Search + Create User button */}
+          <div className="flex items-center gap-3">
+            <div className="relative max-w-md flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-500" />
+              <input
+                type="text"
+                placeholder="Search users by name or email..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full rounded-lg border border-surface-700 bg-surface-900 pl-10 pr-3 py-2 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              />
+            </div>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => {
+                setNewUser({ email: '', password: '', firstName: '', lastName: '', workspaceRole: 'MEMBER' });
+                setShowPassword(false);
+                setShowCreateUserModal(true);
+              }}
+              className="flex items-center gap-2 whitespace-nowrap"
+            >
+              <UserPlus className="h-4 w-4" />
+              Create User
+            </Button>
           </div>
 
           {/* Users table */}
@@ -726,6 +789,106 @@ export function AdminDashboardPage() {
                       onClick={() => assignWorkspaceMutation.mutate()}
                     >
                       {assignWorkspaceMutation.isPending ? 'Assigning...' : 'Assign'}
+                    </Button>
+                  </div>
+                </CardBody>
+              </Card>
+            </div>
+          )}
+
+          {/* Create user modal */}
+          {showCreateUserModal && (
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-4">
+              <Card className="w-full max-w-lg">
+                <CardBody className="space-y-4">
+                  <h3 className="text-lg font-semibold text-surface-100">Create New User</h3>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-surface-400">First Name</label>
+                      <input
+                        type="text"
+                        value={newUser.firstName}
+                        onChange={(e) => setNewUser({ ...newUser, firstName: e.target.value })}
+                        placeholder="John"
+                        className="w-full rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-surface-400">Last Name</label>
+                      <input
+                        type="text"
+                        value={newUser.lastName}
+                        onChange={(e) => setNewUser({ ...newUser, lastName: e.target.value })}
+                        placeholder="Doe"
+                        className="w-full rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-surface-400">Email</label>
+                    <input
+                      type="email"
+                      value={newUser.email}
+                      onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                      placeholder="john.doe@company.com"
+                      className="w-full rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-surface-400">Password</label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={newUser.password}
+                        onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                        placeholder="Minimum 8 characters"
+                        className="w-full rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 pr-10 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-500 hover:text-surface-300"
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-surface-400">Workspace Role</label>
+                    <select
+                      value={newUser.workspaceRole}
+                      onChange={(e) => setNewUser({ ...newUser, workspaceRole: e.target.value as any })}
+                      className="w-full rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-300 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    >
+                      {ASSIGNABLE_ROLES.map((r) => (
+                        <option key={r.value} value={r.value}>
+                          {r.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button variant="secondary" size="sm" onClick={() => setShowCreateUserModal(false)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      disabled={
+                        !newUser.email ||
+                        !newUser.firstName ||
+                        !newUser.lastName ||
+                        newUser.password.length < 8 ||
+                        createUserMutation.isPending
+                      }
+                      onClick={() => createUserMutation.mutate()}
+                    >
+                      {createUserMutation.isPending ? 'Creating...' : 'Create User'}
                     </Button>
                   </div>
                 </CardBody>
@@ -1423,99 +1586,136 @@ export function AdminDashboardPage() {
         </div>
       )}
 
-      {/* ── Create User Tab ───────────────────────────────────────── */}
-      {activeTab === 'create' && (
-        <Card className="max-w-lg">
-          <CardBody className="space-y-4">
-            <h3 className="text-lg font-semibold text-surface-100">Create New User</h3>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-surface-400">First Name</label>
-                <input
-                  type="text"
-                  value={newUser.firstName}
-                  onChange={(e) => setNewUser({ ...newUser, firstName: e.target.value })}
-                  placeholder="John"
-                  className="w-full rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                />
+      {/* ── SMTP Settings Tab ─────────────────────────────────────── */}
+      {activeTab === 'smtp' && (
+        <div className="space-y-4 max-w-2xl">
+          {/* Status indicator */}
+          <Card>
+            <CardBody>
+              <div className="flex items-center gap-3">
+                <Mail className="h-5 w-5 text-surface-400" />
+                <div>
+                  <p className="text-sm font-medium text-surface-200">Email Configuration Status</p>
+                  {smtpLoading ? (
+                    <p className="text-xs text-surface-500">Checking...</p>
+                  ) : smtpData?.configured ? (
+                    <p className="text-xs text-green-400">SMTP is configured and active</p>
+                  ) : (
+                    <p className="text-xs text-yellow-400">SMTP is not configured -- email notifications are disabled</p>
+                  )}
+                </div>
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-surface-400">Last Name</label>
-                <input
-                  type="text"
-                  value={newUser.lastName}
-                  onChange={(e) => setNewUser({ ...newUser, lastName: e.target.value })}
-                  placeholder="Doe"
-                  className="w-full rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                />
+            </CardBody>
+          </Card>
+
+          {/* SMTP Settings Form */}
+          <Card>
+            <CardBody className="space-y-4">
+              <h3 className="text-lg font-semibold text-surface-100">SMTP Settings</h3>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-surface-400">SMTP Host</label>
+                  <input
+                    type="text"
+                    value={smtpForm.host}
+                    onChange={(e) => setSmtpForm({ ...smtpForm, host: e.target.value })}
+                    placeholder="smtp.example.com"
+                    className="w-full rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-surface-400">SMTP Port</label>
+                  <input
+                    type="number"
+                    value={smtpForm.port}
+                    onChange={(e) => setSmtpForm({ ...smtpForm, port: parseInt(e.target.value) || 0 })}
+                    placeholder="587"
+                    className="w-full rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  />
+                </div>
               </div>
-            </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-surface-400">Email</label>
-              <input
-                type="email"
-                value={newUser.email}
-                onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                placeholder="john.doe@company.com"
-                className="w-full rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-              />
-            </div>
+              <div className="flex items-center gap-3">
+                <label className="relative inline-flex cursor-pointer items-center">
+                  <input
+                    type="checkbox"
+                    checked={smtpForm.secure}
+                    onChange={(e) => setSmtpForm({ ...smtpForm, secure: e.target.checked })}
+                    className="peer sr-only"
+                  />
+                  <div className="h-5 w-9 rounded-full bg-surface-700 after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-surface-400 after:transition-all peer-checked:bg-primary-600 peer-checked:after:translate-x-full peer-checked:after:bg-white" />
+                </label>
+                <span className="text-sm text-surface-300">Use TLS/SSL (Secure)</span>
+              </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-surface-400">Password</label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={newUser.password}
-                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                  placeholder="Minimum 8 characters"
-                  className="w-full rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 pr-10 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-500 hover:text-surface-300"
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-surface-400">Username</label>
+                  <input
+                    type="text"
+                    value={smtpForm.username}
+                    onChange={(e) => setSmtpForm({ ...smtpForm, username: e.target.value })}
+                    placeholder="user@example.com"
+                    className="w-full rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-surface-400">Password</label>
+                  <input
+                    type="password"
+                    value={smtpForm.password}
+                    onChange={(e) => setSmtpForm({ ...smtpForm, password: e.target.value })}
+                    placeholder="App password or SMTP password"
+                    className="w-full rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-surface-400">From Name</label>
+                  <input
+                    type="text"
+                    value={smtpForm.fromName}
+                    onChange={(e) => setSmtpForm({ ...smtpForm, fromName: e.target.value })}
+                    placeholder="Project Management"
+                    className="w-full rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-surface-400">From Email</label>
+                  <input
+                    type="email"
+                    value={smtpForm.fromEmail}
+                    onChange={(e) => setSmtpForm({ ...smtpForm, fromEmail: e.target.value })}
+                    placeholder="noreply@example.com"
+                    className="w-full rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  disabled={!smtpForm.host || !smtpForm.port || saveSmtpMutation.isPending}
+                  onClick={() => saveSmtpMutation.mutate()}
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+                  {saveSmtpMutation.isPending ? 'Saving...' : 'Save Settings'}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={testSmtpMutation.isPending || !smtpData?.configured}
+                  onClick={() => testSmtpMutation.mutate()}
+                >
+                  {testSmtpMutation.isPending ? 'Sending...' : 'Test Connection'}
+                </Button>
               </div>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-surface-400">Workspace Role</label>
-              <select
-                value={newUser.workspaceRole}
-                onChange={(e) => setNewUser({ ...newUser, workspaceRole: e.target.value as any })}
-                className="w-full rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-300 focus:outline-none focus:ring-1 focus:ring-primary-500"
-              >
-                {ASSIGNABLE_ROLES.map((r) => (
-                  <option key={r.value} value={r.value}>
-                    {r.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="pt-2">
-              <Button
-                variant="primary"
-                disabled={
-                  !newUser.email ||
-                  !newUser.firstName ||
-                  !newUser.lastName ||
-                  newUser.password.length < 8 ||
-                  createUserMutation.isPending
-                }
-                onClick={() => createUserMutation.mutate()}
-                className="w-full"
-              >
-                {createUserMutation.isPending ? 'Creating...' : 'Create User'}
-              </Button>
-            </div>
-          </CardBody>
-        </Card>
+            </CardBody>
+          </Card>
+        </div>
       )}
     </div>
   );

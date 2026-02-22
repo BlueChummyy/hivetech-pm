@@ -1,7 +1,10 @@
 import type { Request, Response, NextFunction } from 'express';
+import path from 'node:path';
+import fs from 'node:fs';
 import { UsersService } from '../services/users.service.js';
 import { ApiError } from '../utils/api-error.js';
 import { successResponse, paginatedResponse } from '../utils/api-response.js';
+import { env } from '../config/index.js';
 
 const usersService = new UsersService();
 
@@ -66,6 +69,48 @@ export class UsersController {
       }
       const { firstName, lastName, avatarUrl } = req.body;
       const user = await usersService.update(id, { firstName, lastName, avatarUrl });
+      res.status(200).json(successResponse(user));
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async uploadAvatar(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.file) throw ApiError.badRequest('No file uploaded');
+
+      // Build the URL path for the avatar
+      const avatarUrl = `/api/v1/users/me/avatar/${req.file.filename}`;
+
+      // Delete old avatar file if one exists
+      const currentUser = await usersService.getById(req.user!.id);
+      if (currentUser.avatarUrl && currentUser.avatarUrl.startsWith('/api/v1/users/me/avatar/')) {
+        const oldFilename = currentUser.avatarUrl.split('/').pop();
+        if (oldFilename) {
+          const oldPath = path.join(env.UPLOAD_DIR, 'avatars', oldFilename);
+          fs.unlink(oldPath, () => { /* ignore errors */ });
+        }
+      }
+
+      const user = await usersService.updateProfile(req.user!.id, { avatarUrl });
+      res.status(200).json(successResponse(user));
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async removeAvatar(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const currentUser = await usersService.getById(req.user!.id);
+      if (currentUser.avatarUrl && currentUser.avatarUrl.startsWith('/api/v1/users/me/avatar/')) {
+        const filename = currentUser.avatarUrl.split('/').pop();
+        if (filename) {
+          const filePath = path.join(env.UPLOAD_DIR, 'avatars', filename);
+          fs.unlink(filePath, () => { /* ignore errors */ });
+        }
+      }
+
+      const user = await usersService.clearAvatar(req.user!.id);
       res.status(200).json(successResponse(user));
     } catch (err) {
       next(err);

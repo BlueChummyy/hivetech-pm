@@ -2,11 +2,29 @@ import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import { env } from '../config/index.js';
 import { logger } from '../utils/logger.js';
+import { getSmtpSettings } from './settings.service.js';
 
 let transporter: Transporter | null = null;
 
 function getTransporter(): Transporter | null {
   if (transporter) return transporter;
+
+  // Check file-based settings first, then fall back to env vars
+  const fileSettings = getSmtpSettings();
+
+  if (fileSettings) {
+    transporter = nodemailer.createTransport({
+      host: fileSettings.host,
+      port: fileSettings.port,
+      secure: fileSettings.secure,
+      auth:
+        fileSettings.username && fileSettings.password
+          ? { user: fileSettings.username, pass: fileSettings.password }
+          : undefined,
+    });
+    return transporter;
+  }
+
   if (!env.SMTP_HOST || !env.SMTP_PORT) return null;
 
   transporter = nodemailer.createTransport({
@@ -22,7 +40,13 @@ function getTransporter(): Transporter | null {
   return transporter;
 }
 
+export function resetTransporter(): void {
+  transporter = null;
+}
+
 export function isEmailConfigured(): boolean {
+  const fileSettings = getSmtpSettings();
+  if (fileSettings) return true;
   return !!env.SMTP_HOST && !!env.SMTP_PORT;
 }
 
@@ -30,9 +54,13 @@ async function sendMail(to: string, subject: string, html: string): Promise<bool
   const t = getTransporter();
   if (!t) return false;
 
+  const fileSettings = getSmtpSettings();
+  const fromName = fileSettings?.fromName || env.SMTP_FROM_NAME;
+  const fromEmail = fileSettings?.fromEmail || env.SMTP_FROM_EMAIL || env.SMTP_USER || 'noreply@localhost';
+
   try {
     await t.sendMail({
-      from: `"${env.SMTP_FROM_NAME}" <${env.SMTP_FROM_EMAIL || env.SMTP_USER || 'noreply@localhost'}>`,
+      from: `"${fromName}" <${fromEmail}>`,
       to,
       subject,
       html,
@@ -43,6 +71,8 @@ async function sendMail(to: string, subject: string, html: string): Promise<bool
     return false;
   }
 }
+
+export { sendMail };
 
 // ── Email templates ──────────────────────────────────────────────────
 

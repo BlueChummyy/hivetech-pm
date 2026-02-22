@@ -8,9 +8,6 @@ import {
   ChevronLeft,
   ChevronDown,
   ChevronRight,
-
-  Settings,
-  LogOut,
   Check,
   Shield,
   Plus,
@@ -18,8 +15,6 @@ import {
   Pencil,
   Trash2,
   Circle,
-  Sun,
-  Moon,
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useUIStore } from '@/store/ui.store';
@@ -28,18 +23,14 @@ import { useWorkspaceStore } from '@/store/workspace.store';
 import { useWorkspaces } from '@/hooks/useWorkspaces';
 import { useSpaces, useCreateSpace, useUpdateSpace, useDeleteSpace } from '@/hooks/useSpaces';
 import { useProjects, useCreateProject } from '@/hooks/useProjects';
-import { Avatar } from '@/components/ui/Avatar';
 import { DropdownMenu, DropdownItem, DropdownSeparator } from '@/components/ui/DropdownMenu';
-import { authApi } from '@/api/auth';
-import { ConnectionStatus } from './ConnectionStatus';
 import type { Space, Project } from '@/types/models.types';
 
 export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { sidebarCollapsed, collapseSidebar, theme, setTheme } = useUIStore();
+  const { sidebarCollapsed, collapseSidebar } = useUIStore();
   const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
   const { activeWorkspaceId, setActiveWorkspace } = useWorkspaceStore();
   const { data: workspaces } = useWorkspaces();
 
@@ -75,18 +66,7 @@ export function Sidebar() {
     { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
     { label: 'My Tasks', icon: CheckSquare, path: '/my-tasks' },
     { label: 'Notifications', icon: Bell, path: '/notifications' },
-    ...(isGlobalAdmin
-      ? [{ label: 'Admin', icon: Shield, path: '/admin' }]
-      : []),
   ];
-
-  const handleLogout = async () => {
-    try { await authApi.logout(); } catch { /* ignore */ }
-    logout();
-    useWorkspaceStore.getState().clearActiveWorkspace();
-    useUIStore.getState().closeTaskPanel();
-    navigate('/login', { replace: true });
-  };
 
   return (
     <aside
@@ -97,49 +77,61 @@ export function Sidebar() {
         sidebarCollapsed ? 'w-16' : 'w-64',
       )}
     >
-      {/* Workspace header with switcher */}
-      <div className="flex items-center gap-3 border-b border-surface-700 px-4 py-4">
-        <img src="/logo.png" alt="HiveTech" className="h-8 w-8 shrink-0" />
-        {!sidebarCollapsed && (
-          <DropdownMenu
-            align="left"
-            trigger={
-              <button className="flex min-w-0 flex-1 items-center gap-1 rounded-md px-1 py-0.5 text-left transition-colors hover:bg-surface-800">
-                <span className="block truncate text-sm font-bold text-surface-100">
-                  {activeWorkspace?.name || 'HiveTech'}
-                </span>
-                <ChevronDown className="h-3 w-3 shrink-0 text-surface-400" />
-              </button>
-            }
+      {/* Header with branding + workspace switcher */}
+      <div className="border-b border-surface-700 px-4 py-4">
+        <div className="flex items-center gap-3">
+          <img src="/logo.png" alt="HiveTech" className="h-8 w-8 shrink-0" />
+          {!sidebarCollapsed && (
+            <span className="min-w-0 flex-1 truncate text-sm font-bold text-surface-100">
+              HiveTech Project Management
+            </span>
+          )}
+          <button
+            onClick={() => collapseSidebar(!sidebarCollapsed)}
+            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className="ml-auto rounded-md p-1 text-surface-400 hover:bg-surface-800 hover:text-surface-200"
           >
-            {workspaces?.map((ws) => (
-              <DropdownItem
-                key={ws.id}
-                icon={ws.id === activeWorkspaceId
-                  ? <Check className="h-4 w-4 text-primary-400" />
-                  : <span className="h-4 w-4" />}
-                onClick={() => {
-                  setActiveWorkspace(ws.id);
-                  navigate(`/workspaces/${ws.id}/projects`);
-                }}
-              >
-                {ws.name}
-              </DropdownItem>
-            ))}
-          </DropdownMenu>
+            <ChevronLeft
+              className={cn(
+                'h-4 w-4 transition-transform',
+                sidebarCollapsed && 'rotate-180',
+              )}
+            />
+          </button>
+        </div>
+        {!sidebarCollapsed && (
+          <div className="mt-2">
+            <DropdownMenu
+              align="left"
+              trigger={
+                <button className="flex w-full items-center gap-1 rounded-md px-1 py-1 text-left transition-colors hover:bg-surface-800">
+                  <span className="truncate text-xs text-surface-400">
+                    Workspace:
+                  </span>
+                  <span className="min-w-0 truncate text-xs font-medium text-surface-200">
+                    {activeWorkspace?.name || 'Select workspace'}
+                  </span>
+                  <ChevronDown className="ml-auto h-3 w-3 shrink-0 text-surface-400" />
+                </button>
+              }
+            >
+              {workspaces?.map((ws) => (
+                <DropdownItem
+                  key={ws.id}
+                  icon={ws.id === activeWorkspaceId
+                    ? <Check className="h-4 w-4 text-primary-400" />
+                    : <span className="h-4 w-4" />}
+                  onClick={() => {
+                    setActiveWorkspace(ws.id);
+                    navigate(`/workspaces/${ws.id}/projects`);
+                  }}
+                >
+                  {ws.name}
+                </DropdownItem>
+              ))}
+            </DropdownMenu>
+          </div>
         )}
-        <button
-          onClick={() => collapseSidebar(!sidebarCollapsed)}
-          aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          className="ml-auto rounded-md p-1 text-surface-400 hover:bg-surface-800 hover:text-surface-200"
-        >
-          <ChevronLeft
-            className={cn(
-              'h-4 w-4 transition-transform',
-              sidebarCollapsed && 'rotate-180',
-            )}
-          />
-        </button>
       </div>
 
       {/* Navigation + Spaces */}
@@ -175,58 +167,24 @@ export function Sidebar() {
         )}
       </nav>
 
-      {/* Connection status + User section */}
-      <div className="border-t border-surface-700 px-2 py-3">
-        {!sidebarCollapsed && (
-          <div className="mb-2 flex justify-center">
-            <ConnectionStatus />
-          </div>
-        )}
-      </div>
-      <div className="px-2 pb-3">
-        <DropdownMenu
-          align="left"
-          trigger={
-            <button className={cn(
-              'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-surface-800',
-              sidebarCollapsed && 'justify-center px-0',
-            )}>
-              <Avatar src={user?.avatarUrl} name={user?.name || user?.displayName} size="sm" />
-              {!sidebarCollapsed && (
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-surface-200">
-                    {user?.name || user?.displayName}
-                  </p>
-                  <p className="truncate text-xs text-surface-500">
-                    {user?.email}
-                  </p>
-                </div>
-              )}
-            </button>
-          }
-        >
-          <DropdownItem
-            icon={<Settings className="h-4 w-4" />}
-            onClick={() => navigate('/settings/profile')}
+      {/* Admin link at bottom */}
+      {isGlobalAdmin && (
+        <div className="border-t border-surface-700 px-2 py-3">
+          <Link
+            to="/admin"
+            aria-current={location.pathname.startsWith('/admin') ? 'page' : undefined}
+            className={cn(
+              'flex items-center gap-3 rounded-lg px-3 py-2.5 sm:py-2 text-sm font-medium transition-colors min-h-[44px] sm:min-h-0',
+              location.pathname.startsWith('/admin')
+                ? 'bg-primary-600/20 text-primary-400'
+                : 'text-surface-400 hover:bg-surface-800 hover:text-surface-200',
+            )}
           >
-            Settings
-          </DropdownItem>
-          <DropdownItem
-            icon={theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          >
-            {theme === 'dark' ? 'Light mode' : 'Dark mode'}
-          </DropdownItem>
-          <DropdownSeparator />
-          <DropdownItem
-            icon={<LogOut className="h-4 w-4" />}
-            onClick={handleLogout}
-            destructive
-          >
-            Log out
-          </DropdownItem>
-        </DropdownMenu>
-      </div>
+            <Shield className="h-5 w-5 shrink-0" />
+            {!sidebarCollapsed && <span>Admin</span>}
+          </Link>
+        </div>
+      )}
     </aside>
   );
 }
@@ -444,7 +402,6 @@ function SpaceTreeItem({ space, workspaceId }: { space: Space; workspaceId: stri
               <button
                 className="shrink-0 rounded p-0.5 text-surface-500 opacity-0 transition-opacity hover:text-surface-300 group-hover:opacity-100"
                 aria-label="Space options"
-                onClick={(e) => e.stopPropagation()}
               >
                 <MoreHorizontal className="h-3.5 w-3.5" />
               </button>

@@ -1,4 +1,4 @@
-import { get, post, patch, del } from './client';
+import { get, post, put, patch, del } from './client';
 
 export interface AdminUser {
   id: string;
@@ -59,6 +59,26 @@ export interface AdminProject {
   workspace: { id: string; name: string };
   space: { id: string; name: string } | null;
   _count: { tasks: number; members: number };
+}
+
+export interface SmtpSettingsData {
+  host: string;
+  port: number;
+  secure: boolean;
+  username: string;
+  password: string;
+  fromName: string;
+  fromEmail: string;
+}
+
+export interface SmtpSettingsResponse {
+  host: string;
+  port: number;
+  secure: boolean;
+  username: string;
+  password: string;
+  fromName: string;
+  fromEmail: string;
 }
 
 export const adminApi = {
@@ -148,4 +168,14 @@ export const adminApi = {
   // Audit log
   listAuditLogs: (params?: { page?: number; limit?: number; entityType?: string; action?: string }) =>
     get<{ logs: any[]; pagination: any }>('/admin/audit-log', { params }).then((r) => r.data),
+
+  // SMTP settings
+  getSmtpSettings: () =>
+    get<{ configured: boolean; settings: SmtpSettingsResponse | null }>('/admin/settings/smtp').then((r) => r.data),
+
+  updateSmtpSettings: (data: SmtpSettingsData) =>
+    put<{ message: string }>('/admin/settings/smtp', data).then((r) => r.data),
+
+  testSmtpConnection: () =>
+    post<{ message: string }>('/admin/settings/smtp/test').then((r) => r.data),
 };

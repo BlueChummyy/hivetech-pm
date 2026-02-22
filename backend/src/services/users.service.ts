@@ -115,6 +115,15 @@ export class UsersService {
     return user;
   }
 
+  async clearAvatar(userId: string) {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl: null },
+      select: userSelectWithoutPassword,
+    });
+    return user;
+  }
+
   async softDelete(id: string) {
     const existing = await prisma.user.findFirst({
       where: { id, deletedAt: null },

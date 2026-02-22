@@ -7,6 +7,8 @@ import { ApiError } from '../utils/api-error.js';
 import { successResponse } from '../utils/api-response.js';
 import { hashPassword } from '../utils/password.js';
 import { queryAuditLogs, logAudit } from '../services/audit.service.js';
+import { getSmtpSettings, saveSmtpSettings, getMaskedSmtpSettings } from '../services/settings.service.js';
+import { resetTransporter, isEmailConfigured, sendMail } from '../services/email.service.js';
 import type { Request, Response, NextFunction } from 'express';
 
 const router = Router();
@@ -812,6 +814,97 @@ router.delete(
       await prisma.space.delete({ where: { id: spaceId } });
 
       res.json(successResponse({ message: 'Space permanently deleted' }));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ── GET /api/v1/admin/settings/smtp — Get SMTP settings (password masked)
+router.get(
+  '/settings/smtp',
+  async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const settings = getMaskedSmtpSettings();
+      res.json(successResponse({
+        configured: isEmailConfigured(),
+        settings,
+      }));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ── PUT /api/v1/admin/settings/smtp — Save SMTP settings ──────────────
+const smtpSettingsSchema = z.object({
+  host: z.string().min(1),
+  port: z.coerce.number().int().positive(),
+  secure: z.boolean(),
+  username: z.string(),
+  password: z.string(),
+  fromName: z.string(),
+  fromEmail: z.string().email().or(z.literal('')),
+});
+
+router.put(
+  '/settings/smtp',
+  validate({ body: smtpSettingsSchema }),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = req.body;
+
+      // If password is masked placeholder, keep existing password
+      if (data.password === '********') {
+        const existing = getSmtpSettings();
+        if (existing) {
+          data.password = existing.password;
+        }
+      }
+
+      saveSmtpSettings(data);
+      resetTransporter();
+
+      res.json(successResponse({ message: 'SMTP settings saved successfully' }));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ── POST /api/v1/admin/settings/smtp/test — Send test email ───────────
+router.post(
+  '/settings/smtp/test',
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!isEmailConfigured()) {
+        throw ApiError.badRequest('SMTP is not configured. Save your settings first.');
+      }
+
+      const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
+      if (!user) throw ApiError.notFound('User not found');
+
+      // Reset transporter to pick up latest settings
+      resetTransporter();
+
+      const sent = await sendMail(
+        user.email,
+        'SMTP Test - Project Management',
+        `
+        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
+          <h2 style="color:#6366f1;">SMTP Test Successful</h2>
+          <p>This is a test email from your Project Management application.</p>
+          <p>If you are reading this, your SMTP settings are configured correctly.</p>
+          <p style="color:#888;font-size:12px;">Sent at ${new Date().toISOString()}</p>
+        </div>
+        `,
+      );
+
+      if (sent) {
+        res.json(successResponse({ message: `Test email sent to ${user.email}` }));
+      } else {
+        throw ApiError.internal('Failed to send test email. Check your SMTP settings.');
+      }
     } catch (err) {
       next(err);
     }

@@ -1,4 +1,4 @@
-import { get, patch, post } from './client';
+import { get, patch, post, del } from './client';
 import type { User } from '@/types/models.types';
 
 export interface UpdateProfileData {
@@ -21,6 +21,17 @@ export const usersApi = {
 
   changePassword: (data: ChangePasswordData) =>
     post('/users/me/password', data).then((r) => r.data),
+
+  uploadAvatar: (file: File) => {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    return post<User>('/users/me/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then((r) => r.data);
+  },
+
+  removeAvatar: () =>
+    del<User>('/users/me/avatar').then((r) => r.data),
 
   list: (params?: { search?: string }) => {
     const query = params?.search ? `?search=${encodeURIComponent(params.search)}` : '';
