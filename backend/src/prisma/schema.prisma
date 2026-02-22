@@ -89,6 +89,7 @@ model RefreshToken {
 
   @@index([userId])
   @@index([token])
+  @@index([expiresAt])
   @@map("refresh_tokens")
 }
 
@@ -119,6 +120,7 @@ model WorkspaceMember {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, userId])
+  @@index([userId])
   @@map("workspace_members")
 }
 
@@ -153,6 +155,7 @@ model ProjectMember {
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, userId])
+  @@index([userId])
   @@map("project_members")
 }
 
@@ -193,10 +196,10 @@ model Task {
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
   project    Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  status     ProjectStatus @relation(fields: [statusId], references: [id])
-  assignee   User?         @relation("TaskAssignee", fields: [assigneeId], references: [id])
-  reporter   User          @relation("TaskReporter", fields: [reporterId], references: [id])
-  parent     Task?         @relation("TaskSubtasks", fields: [parentId], references: [id])
+  status     ProjectStatus @relation(fields: [statusId], references: [id], onDelete: Restrict)
+  assignee   User?         @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  reporter   User          @relation("TaskReporter", fields: [reporterId], references: [id], onDelete: Restrict)
+  parent     Task?         @relation("TaskSubtasks", fields: [parentId], references: [id], onDelete: SetNull)
   subtasks   Task[]        @relation("TaskSubtasks")
 
   dependencies   TaskDependency[] @relation("TaskDependencies")
@@ -206,8 +209,10 @@ model Task {
   attachments    Attachment[]
 
   @@unique([projectId, taskNumber])
+  @@index([projectId])
   @@index([statusId])
   @@index([assigneeId])
+  @@index([reporterId])
   @@index([parentId])
   @@index([deletedAt])
   @@map("tasks")
@@ -238,6 +243,7 @@ model Label {
   tasks   TaskLabel[]
 
   @@unique([projectId, name])
+  @@index([projectId])
   @@map("labels")
 }
 
@@ -264,8 +270,10 @@ model Comment {
   updatedAt DateTime  @updatedAt @map("updated_at")
 
   task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  author User @relation(fields: [authorId], references: [id])
+  author User @relation(fields: [authorId], references: [id], onDelete: Restrict)
 
+  @@index([taskId])
+  @@index([authorId])
   @@map("comments")
 }
 
@@ -281,8 +289,9 @@ model Attachment {
   createdAt    DateTime @default(now()) @map("created_at")
 
   task       Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  uploadedBy User @relation(fields: [uploadedById], references: [id])
+  uploadedBy User @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
 
+  @@index([taskId])
   @@map("attachments")
 }
 
@@ -314,9 +323,10 @@ model ActivityLog {
   createdAt   DateTime @default(now()) @map("created_at")
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  user      User      @relation(fields: [userId], references: [id])
+  user      User      @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@index([workspaceId, createdAt])
   @@index([entityType, entityId])
+  @@index([userId])
   @@map("activity_logs")
 }
