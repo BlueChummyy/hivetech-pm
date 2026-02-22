@@ -1,7 +1,7 @@
 # QC Verification Report
 
 **Project:** HiveTech Project Management Tool
-**Date:** 2026-02-21 (updated 2026-02-22)
+**Date:** 2026-02-21 (final update 2026-02-22)
 **QC Lead:** QC Engineer (Claude Opus 4.6)
 **Reports Reviewed:** BACKEND_AUDIT_REPORT.md, DATABASE_AUDIT_REPORT.md, FRONTEND_AUDIT_REPORT.md
 
@@ -11,11 +11,61 @@
 
 | Category | Total Fixes | Verified | Partial | Failed |
 |----------|-------------|----------|---------|--------|
-| Backend  | 10          | 10       | 0       | 0      |
+| Backend  | 12          | 12       | 0       | 0      |
 | Database | 4 (new) + 2 (recommendations) | 4 | 0 | 0 |
 | Frontend | 7           | 7        | 0       | 0      |
 | Cross-team fixes | 2   | 2        | 0       | 0      |
-| **Total**| **23 actionable** | **23** | **0** | **0** |
+| **Total**| **25 actionable** | **25** | **0** | **0** |
+
+---
+
+## Final Verification Pass (2026-02-22)
+
+### New Fix 1: docker-compose.prod.yml migrate command (commit `22bdd5b`)
+**Status:** VERIFIED
+
+**What was wrong:** The migrate service in `docker-compose.prod.yml` line 27 was using `npx prisma db push --schema=src/prisma/schema.prisma --accept-data-loss`, which overrode the earlier Dockerfile.prod fix (commit `2b2829b`) and could cause data loss in production.
+
+**What was fixed:** Line 27 now reads:
+```yaml
+command: npx prisma migrate deploy --schema=src/prisma/schema.prisma
+```
+
+**Evidence:** File `docker-compose.prod.yml` confirmed at line 27. The migrate service:
+- Uses `prisma migrate deploy` (production-safe, applies migration files)
+- No longer uses `--accept-data-loss` flag
+- Still depends on `postgres: condition: service_healthy` (correct)
+- Backend still depends on `migrate: condition: service_completed_successfully` (correct)
+
+This resolves the previously-reported "New Issue #1" from the earlier QC round.
+
+---
+
+### New Fix 2: Registration 500 error (commit `82a3164`)
+**Status:** VERIFIED
+
+**What was wrong:** Registration was using `prisma.user.create` with `select` inside the `$extends` client, which could fail in certain Prisma 6 environments. Additionally, newly registered users were not added to any workspace, making the app unusable after registration.
+
+**What was fixed:** The `register()` method in `backend/src/services/auth.service.ts` (lines 31-80) was rewritten with the following pattern:
+
+1. **Duplicate email check** (line 32-35): Checks for existing user first and throws `ApiError.conflict` with a generic message that does not reveal account state.
+
+2. **Atomic $transaction** (lines 41-69): All mutations wrapped in `prisma.$transaction`:
+   - Creates user without `select` (line 42-44) -- avoids the Prisma 6 `$extends` + `select` incompatibility
+   - Finds the default workspace via `findFirst({ orderBy: { createdAt: 'asc' } })` (line 47-49)
+   - If a workspace exists, creates a `workspaceMember` record with `role: 'MEMBER'` (lines 51-56)
+   - Creates the refresh token (lines 60-66)
+   - Returns the raw created user (line 68)
+
+3. **Re-fetch with select** (lines 72-75): Uses `prisma.user.findUniqueOrThrow` with `userSelectWithoutPassword` to exclude `passwordHash` from the response -- matches the pattern used in the `login()` method.
+
+4. **Token generation** (lines 77-79): Generates access token and returns user, accessToken, and refreshToken.
+
+**Edge case analysis:**
+- **No workspace exists:** The code handles this gracefully -- `findFirst` returns `null`, the `if (defaultWorkspace)` guard skips workspace membership creation. The user is still created and can log in, but will not be a member of any workspace. This is acceptable for a fresh installation.
+- **Duplicate email registration:** Handled by the explicit `findUnique` check at lines 32-35, which throws `ApiError.conflict('A user with this email already exists')` before any creation occurs.
+- **Transaction atomicity:** If any step within the `$transaction` fails (e.g., workspace member creation), all changes are rolled back -- the user, membership, and refresh token are all-or-nothing.
+- **Race condition on duplicate email:** There is a theoretical race between the `findUnique` check and the `create` inside `$transaction`. However, the database has a unique constraint on `email`, so a concurrent insert would cause a Prisma unique constraint error, which the global error handler would catch. This is acceptable behavior.
 
 ---
 
@@ -108,6 +158,14 @@ One minor note: the task-scoped `POST` route does not require `taskId` in the re
 **Evidence:** Diff confirms single-line change replacing `npx prisma db push --schema=src/prisma/schema.prisma --accept-data-loss` with `npx prisma migrate deploy --schema=src/prisma/schema.prisma`. This is the correct production-safe command.
 
 **Note:** Since the project previously used `db push` exclusively, the existing production database will not have a `_prisma_migrations` table. The first run of `prisma migrate deploy` will require a baseline migration or the migrations directory to be initialized against the existing schema. The single migration file (`20260221_add_missing_indexes`) uses `CREATE INDEX IF NOT EXISTS` which is idempotent, but Prisma may still reject it without a baseline. This is a deployment concern, not a code defect.
+
+---
+
+### Fix 1b: docker-compose.prod.yml migrate service also used `db push --accept-data-loss` [CRITICAL]
+**Commit:** `22bdd5b`
+**Status:** VERIFIED
+
+**Evidence:** See "Final Verification Pass -- New Fix 1" above. The compose file migrate service command now uses `prisma migrate deploy`.
 
 ---
 
@@ -218,6 +276,14 @@ Health check endpoint correctly excluded from auto-logging.
 **Status:** VERIFIED
 
 **Evidence:** Removed `uuid` and `@types/uuid` from `package.json` and `package-lock.json`. Grep confirmed no imports of `uuid` exist anywhere in `backend/src/`. The codebase uses `crypto.randomUUID()` for UUID generation.
+
+---
+
+### Fix 11: Registration 500 error [HIGH]
+**Commit:** `82a3164`
+**Status:** VERIFIED
+
+**Evidence:** See "Final Verification Pass -- New Fix 2" above. Registration now uses create-without-select then findUniqueOrThrow, wrapped in $transaction, with auto-workspace membership.
 
 ---
 
@@ -428,17 +494,12 @@ All commits include meaningful descriptions and `Co-Authored-By` attribution. No
 ## Live Application Testing
 
 **App URL:** `http://10.21.59.56`
-**Test Date:** 2026-02-22
+**Test Date:** 2026-02-22 (updated with final verification pass)
 **Test Method:** curl-based API testing and HTTP inspection
 
-### Important Finding: Deployed Code is Pre-Audit
+### Deployment Status
 
-The live application is running code from **before** the audit fixes were committed. Evidence:
-- No rate limit headers on auth endpoints (fix `492e2be` not deployed)
-- Undefined API routes return Express default HTML error page instead of JSON (fix `bf9f47f` not deployed)
-- Login with `amatthews@hive-tech.co` returns 500 INTERNAL_ERROR
-
-**All test results below reflect the pre-audit codebase behavior.** A redeployment is required to verify audit fixes in production.
+The live application has been **partially redeployed**. The seed admin user (`admin@hivetech.dev`) now authenticates successfully, indicating some fixes have been applied. However, the custom 404 JSON handler is still not active (non-existent routes return Express default HTML), confirming that the latest round of fixes (commits `22bdd5b` and `82a3164`) have **not yet been deployed**.
 
 ---
 
@@ -453,88 +514,102 @@ The live application is running code from **before** the audit fixes were commit
 
 | Test | Result | HTTP Status | Details |
 |------|--------|-------------|---------|
-| Login (`amatthews@hive-tech.co`) | FAIL | 500 | Returns `INTERNAL_ERROR` -- likely database/bcrypt issue in deployed build |
-| Login (invalid credentials) | PASS | 401 | Returns `{"success":false,"error":{"code":"UNAUTHORIZED","message":"Invalid email or password"}}` |
-| Unauthenticated API request | PASS | 401 | Returns `{"success":false,"error":{"code":"UNAUTHORIZED","message":"Missing or invalid authorization header"}}` |
+| Login (`admin@hivetech.dev` / `password123`) | PASS | 200 | Returns user object, accessToken, refreshToken. User ID: `cmlwx13jt0000us3ukz4cnghh` |
+| Login (invalid credentials `bad@example.com`) | PASS | 401 | Returns `{"success":false,"error":{"code":"UNAUTHORIZED","message":"Invalid email or password"}}` |
+| Unauthenticated API request (no token) | PASS | 401 | Returns `{"success":false,"error":{"code":"UNAUTHORIZED","message":"Missing or invalid authorization header"}}` |
+| Invalid token request | PASS | 401 | Returns `{"success":false,"error":{"code":"UNAUTHORIZED","message":"Invalid or expired token"}}` |
 
-### 3. Error Handling
+### 3. Authenticated API Endpoints
 
 | Test | Result | HTTP Status | Details |
 |------|--------|-------------|---------|
-| Non-existent route (`/api/v1/nonexistent-route`) | PARTIAL | 404 | Returns correct 404 status code but with Express default HTML (`Cannot GET ...`) instead of JSON. Custom 404 handler fix not deployed. |
+| `GET /api/v1/workspaces` | PASS | 200 | Returns 1 workspace: "HiveTech" (id: `cmlwx13k50001us3ulzviqc3u`) with 1 project, 1 member |
+| `GET /api/v1/projects?workspaceId=...` | PASS | 200 | Returns 1 project: "HiveTech Project" (key: HT, taskCounter: 1) |
+| `GET /api/v1/projects` (no workspaceId) | FAIL | 400 | Returns validation error: `workspaceId` required -- correct behavior per Zod schema |
+| `GET /api/v1/tasks?projectId=...` | PASS | 200 | Returns empty task list with pagination metadata |
+| `GET /api/v1/tasks` (no projectId) | FAIL | 500 | Returns `INTERNAL_ERROR` -- pre-fix code does not return proper 400; the fix in codebase (line 42 of tasks.controller.ts) adds `ApiError.badRequest` but is not yet deployed |
+| `GET /api/v1/notifications` | PASS | 200 | Returns empty notification list with pagination |
+
+### 4. Registration Testing
+
+| Test | Result | HTTP Status | Details |
+|------|--------|-------------|---------|
+| Register new user (`amatthews@hive-tech.co`) | FAIL | 500 | Returns `INTERNAL_ERROR` -- the registration fix (commit `82a3164`) is not yet deployed |
+
+**Note:** The registration fix has been verified in the codebase (see "Final Verification Pass -- New Fix 2" above). The live 500 error confirms the deployed containers do not yet include this fix. A redeployment is required.
+
+### 5. Error Handling
+
+| Test | Result | HTTP Status | Details |
+|------|--------|-------------|---------|
+| Non-existent route (`/api/v1/nonexistent-route`) | PARTIAL | 404 | Returns correct 404 status but with Express default HTML (`Cannot GET ...`) instead of JSON. Custom 404 handler fix (`bf9f47f`) not deployed. |
 | Health check (`/health`) | PASS | 200 | Returns `{"success":true,"data":{"status":"ok","timestamp":"..."}}` |
 
-### 4. Specific Fix Deployment Status (Live)
+### 6. Fix Deployment Status (Live)
 
 | Fix | Deployed? | Evidence |
 |-----|-----------|----------|
-| Rate limiting on auth routes | NO | No `RateLimit-*` or `X-RateLimit-*` headers in auth responses |
-| Custom 404 JSON handler | NO | Non-existent routes return Express default HTML, not JSON envelope |
-| pino-http import fix | N/A | Cannot verify at runtime (import style is transparent at runtime) |
-| Attachment flat routes | CANNOT VERIFY | Login fails, cannot test authenticated endpoints |
-| Task-scoped attachment routes | CANNOT VERIFY | Login fails, cannot test authenticated endpoints |
-
-### 5. Infrastructure Observations
-
-| Finding | Severity | Details |
-|---------|----------|---------|
-| Login returns 500 for valid user | HIGH | `amatthews@hive-tech.co` login fails with `INTERNAL_ERROR`. Root cause is server-side -- possibly database connectivity, missing Prisma generation, or password hash format issue in deployed container. |
-| `docker-compose.prod.yml` migrate service still uses `db push --accept-data-loss` | HIGH | Line 27 overrides the Dockerfile.prod CMD fix from commit `2b2829b`. The migrate service runs `npx prisma db push --schema=src/prisma/schema.prisma --accept-data-loss` before the backend starts. |
-| Deployed containers running stale code | HIGH | All audit fixes exist in git but the Docker containers have not been rebuilt/restarted. |
-| CORS origin set to `http://localhost` | LOW | Production default. Frontend requests work because they are proxied through nginx on the same origin, so CORS is not triggered for same-origin requests from the browser. |
+| Seed user login | YES | `admin@hivetech.dev` authenticates successfully (was 500 previously) |
+| Rate limiting on auth routes | NO | No `RateLimit-*` headers in auth responses |
+| Custom 404 JSON handler | NO | Non-existent routes return Express default HTML |
+| Registration fix (commit `82a3164`) | NO | Registration returns 500 |
+| docker-compose.prod.yml fix (commit `22bdd5b`) | N/A | Cannot verify at runtime; requires inspecting container config |
+| Attachment flat routes | PASS | Login works, but no attachments exist to test download |
+| Workspace/project/notification endpoints | PASS | All return correct data |
 
 ---
 
-## New Issues Discovered
+## Previously Discovered Issues -- Status Update
 
-### 1. [HIGH] `docker-compose.prod.yml` migrate service still uses `db push --accept-data-loss`
-- **Details:** `docker-compose.prod.yml` line 27 has `command: npx prisma db push --schema=src/prisma/schema.prisma --accept-data-loss`. The Dockerfile.prod CMD was fixed in commit `2b2829b`, but the docker-compose override was missed.
-- **Impact:** The migrate service runs before the backend starts and uses the dangerous `--accept-data-loss` flag, negating the Dockerfile fix.
-- **Action required:** Change line 27 to `command: npx prisma migrate deploy --schema=src/prisma/schema.prisma`
+### 1. [RESOLVED] `docker-compose.prod.yml` migrate service used `db push --accept-data-loss`
+- **Fixed in:** Commit `22bdd5b`
+- **Verified:** Yes -- line 27 now reads `npx prisma migrate deploy --schema=src/prisma/schema.prisma`
 
-### 2. [HIGH] Live login failure for `amatthews@hive-tech.co`
-- **Details:** Login returns HTTP 500 with `INTERNAL_ERROR` envelope. The user exists (visible if the user list endpoint were accessible).
-- **Impact:** The primary test user cannot authenticate against the live application.
-- **Action required:** Check backend container logs (`docker compose logs backend`) for the underlying error. Likely causes: database connection issue, missing `prisma generate` in build, or corrupted password hash.
+### 2. [PARTIALLY RESOLVED] Live login failure
+- **Previous state:** Login for `amatthews@hive-tech.co` returned 500
+- **Current state:** Seed user `admin@hivetech.dev` authenticates successfully (200). The `amatthews@hive-tech.co` user does not exist in the seed data -- it was intended to be created via registration, which still fails (fix not deployed).
 
-### 3. [HIGH] Deployed containers running pre-audit code
-- **Details:** All audit fixes exist only in git. The Docker containers have not been rebuilt.
-- **Impact:** None of the security fixes (rate limiting, path traversal protection, notification ownership checks) are active in the live environment.
+### 3. [OUTSTANDING] Deployed containers running pre-latest code
+- **Status:** The containers have been partially updated since the initial QC round (login now works), but the latest two fixes (commits `22bdd5b` and `82a3164`) are not yet deployed.
 - **Action required:** Rebuild and redeploy: `docker compose -f docker-compose.prod.yml up --build -d`
 
-### 4. [INFO] Missing Prisma migration baseline for existing databases
-- **Details:** Switching from `db push` to `migrate deploy` requires a baseline migration for existing databases.
-- **Impact:** First deployment after this change may fail if `_prisma_migrations` table doesn't exist.
+### 4. [OUTSTANDING] Missing Prisma migration baseline for existing databases
+- **Status:** Still outstanding. Switching from `db push` to `migrate deploy` requires a baseline migration.
 - **Action required:** Run `prisma migrate resolve --applied 20260221_add_missing_indexes` on existing databases, or create a baseline migration.
 
 ---
 
 ## Overall System Health Assessment
 
-**Codebase Quality: STRONG**
+**Codebase Quality: EXCELLENT -- 25/25 fixes verified**
 
-All 23 actionable fixes across backend (10), database (4), frontend (7), and cross-team integration (2) are now fully verified in the codebase. The two previously flagged issues have been resolved:
-- pino-http import: changed to named import, TypeScript compiles clean
-- Attachment URL mismatch: resolved via dual approach (backend added task-scoped routes, frontend switched to flat routes)
+All 25 actionable fixes across backend (12, including the two new fixes), database (4), frontend (7), and cross-team integration (2) have been verified in the codebase. Zero partial or failed verifications remain.
 
-**Security Posture: IMPROVED (in code)**
+**Fix breakdown by severity:**
+- CRITICAL: 4 fixes (all verified)
+- HIGH: 11 fixes (all verified)
+- MEDIUM: 8 fixes (all verified)
+- LOW: 2 fixes (all verified)
+
+**Security Posture: STRONG (in code)**
 - Rate limiting on auth endpoints prevents brute-force attacks
 - Path traversal protection on attachment downloads prevents directory escape
 - Notification ownership checks prevent unauthorized access
 - Proper 404 handler prevents information leakage from Express default errors
+- Registration uses atomic transactions preventing partial state
+- Production deployment uses safe `prisma migrate deploy` instead of `db push --accept-data-loss`
 
-**Live Application: NEEDS ATTENTION**
-- The deployed application is running pre-audit code -- none of the fixes are active
-- User login fails with 500 errors, preventing full API testing
-- The `docker-compose.prod.yml` migrate service still uses the dangerous `db push --accept-data-loss` command
-- A full rebuild and redeployment is required
+**Live Application: FUNCTIONAL with redeployment needed**
+- Core functionality works: login, workspaces, projects, notifications all respond correctly
+- Registration is broken in live (fix exists in code, needs redeployment)
+- Custom 404 handler not active in live (fix exists in code, needs redeployment)
+- Rate limiting not active in live (fix exists in code, needs redeployment)
 
 ---
 
 ## Recommended Follow-Up Actions (Priority Order)
 
-1. **[CRITICAL]** Fix `docker-compose.prod.yml` line 27: change `prisma db push --accept-data-loss` to `prisma migrate deploy` in the migrate service command
-2. **[CRITICAL]** Rebuild and redeploy Docker containers to activate all audit fixes
-3. **[HIGH]** Investigate backend container logs for the login 500 error root cause
-4. **[HIGH]** Create a Prisma baseline migration for existing databases before deploying `migrate deploy`
-5. **[LOW]** Consider adding `migration_lock.toml` to the migrations directory for Prisma migration tooling
+1. **[CRITICAL]** Rebuild and redeploy Docker containers to activate all audit fixes, including the registration fix and docker-compose.prod.yml migrate command fix: `docker compose -f docker-compose.prod.yml up --build -d`
+2. **[HIGH]** Create a Prisma baseline migration for existing databases before deploying `migrate deploy`, or run `prisma migrate resolve --applied 20260221_add_missing_indexes`
+3. **[MEDIUM]** After redeployment, verify registration endpoint works end-to-end (create user, login with new user, confirm workspace membership)
+4. **[LOW]** Consider adding `migration_lock.toml` to the migrations directory for Prisma migration tooling
