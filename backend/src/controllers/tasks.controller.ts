@@ -33,7 +33,9 @@ export class TasksController {
   async list(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { projectId, statusId, assigneeId, priority, parentId, search, page, limit } = req.query as any;
-      await requireProjectMember(projectId, req.user!.id);
+      if (projectId) {
+        await requireProjectMember(projectId, req.user!.id);
+      }
 
       const result = await tasksService.list({
         projectId,
