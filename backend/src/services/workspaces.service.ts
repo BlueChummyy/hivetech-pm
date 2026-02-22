@@ -94,9 +94,9 @@ export class WorkspacesService {
   async delete(id: string, userId: string) {
     await requireWorkspaceMember(id, userId, ['OWNER']);
 
-    emitToWorkspace(id, 'workspace:deleted', { id });
-
     await prisma.workspace.delete({ where: { id } });
+
+    emitToWorkspace(id, 'workspace:deleted', { id });
   }
 
   async addMember(workspaceId: string, data: { email: string; role: string }, userId: string) {
