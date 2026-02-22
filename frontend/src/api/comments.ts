@@ -11,14 +11,14 @@ export interface UpdateCommentData {
 
 export const commentsApi = {
   list: (taskId: string) =>
-    get<Comment[]>(`/tasks/${taskId}/comments`).then((r) => r.data),
+    get<Comment[]>('/comments', { params: { taskId } }).then((r) => r.data),
 
   create: (taskId: string, data: CreateCommentData) =>
-    post<Comment>(`/tasks/${taskId}/comments`, data).then((r) => r.data),
+    post<Comment>('/comments', { ...data, taskId }).then((r) => r.data),
 
-  update: (taskId: string, commentId: string, data: UpdateCommentData) =>
-    patch<Comment>(`/tasks/${taskId}/comments/${commentId}`, data).then((r) => r.data),
+  update: (_taskId: string, commentId: string, data: UpdateCommentData) =>
+    patch<Comment>(`/comments/${commentId}`, data).then((r) => r.data),
 
-  remove: (taskId: string, commentId: string) =>
-    del(`/tasks/${taskId}/comments/${commentId}`),
+  remove: (_taskId: string, commentId: string) =>
+    del(`/comments/${commentId}`),
 };

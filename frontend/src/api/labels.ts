@@ -13,20 +13,20 @@ export interface UpdateLabelData {
 
 export const labelsApi = {
   list: (projectId: string) =>
-    get<Label[]>(`/projects/${projectId}/labels`).then((r) => r.data),
+    get<Label[]>('/labels', { params: { projectId } }).then((r) => r.data),
 
   create: (projectId: string, data: CreateLabelData) =>
-    post<Label>(`/projects/${projectId}/labels`, data).then((r) => r.data),
+    post<Label>('/labels', { ...data, projectId }).then((r) => r.data),
 
-  update: (projectId: string, labelId: string, data: UpdateLabelData) =>
-    patch<Label>(`/projects/${projectId}/labels/${labelId}`, data).then((r) => r.data),
+  update: (_projectId: string, labelId: string, data: UpdateLabelData) =>
+    patch<Label>(`/labels/${labelId}`, data).then((r) => r.data),
 
-  remove: (projectId: string, labelId: string) =>
-    del(`/projects/${projectId}/labels/${labelId}`),
+  remove: (_projectId: string, labelId: string) =>
+    del(`/labels/${labelId}`),
 
   attach: (taskId: string, labelId: string) =>
-    post<TaskLabel>(`/tasks/${taskId}/labels`, { labelId }).then((r) => r.data),
+    post<TaskLabel>(`/labels/${labelId}/tasks/${taskId}`).then((r) => r.data),
 
   detach: (taskId: string, labelId: string) =>
-    del(`/tasks/${taskId}/labels/${labelId}`),
+    del(`/labels/${labelId}/tasks/${taskId}`),
 };
