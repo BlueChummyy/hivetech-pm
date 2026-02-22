@@ -30,7 +30,7 @@ export function LoginPage() {
     try {
       const { data } = await authApi.login({ email, password });
       login(
-        { id: data.user.id, email: data.user.email, name: data.user.name, avatarUrl: data.user.avatarUrl, createdAt: '', updatedAt: '' },
+        { id: data.user.id, email: data.user.email, name: data.user.name || data.user.displayName || '', avatarUrl: data.user.avatarUrl, createdAt: '', updatedAt: '' },
         data.accessToken,
         data.refreshToken,
       );

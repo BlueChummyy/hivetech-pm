@@ -12,7 +12,7 @@ export function ProfileSettingsPage() {
   const changePassword = useChangePassword();
   const { toast } = useToast();
 
-  const [name, setName] = useState(user?.name || '');
+  const [name, setName] = useState(user?.name || user?.displayName || '');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -116,7 +116,7 @@ export function ProfileSettingsPage() {
           <Button
             onClick={handleProfileSave}
             loading={updateProfile.isPending}
-            disabled={!name.trim() || name === user.name}
+            disabled={!name.trim() || name === (user.name || user.displayName)}
           >
             Save profile
           </Button>

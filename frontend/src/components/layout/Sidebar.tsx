@@ -157,11 +157,11 @@ export function Sidebar() {
               'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-surface-800',
               sidebarCollapsed && 'justify-center px-0',
             )}>
-              <Avatar src={user?.avatarUrl} name={user?.name} size="sm" />
+              <Avatar src={user?.avatarUrl} name={user?.name || user?.displayName} size="sm" />
               {!sidebarCollapsed && (
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-surface-200">
-                    {user?.name}
+                    {user?.name || user?.displayName}
                   </p>
                   <p className="truncate text-xs text-surface-500">
                     {user?.email}

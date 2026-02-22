@@ -41,6 +41,7 @@ export interface AuthResponse {
     id: string;
     email: string;
     name: string;
+    displayName?: string;
     avatarUrl: string | null;
   };
 }

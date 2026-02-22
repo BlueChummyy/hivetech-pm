@@ -476,7 +476,7 @@ export function TaskDetailPanel() {
                             </p>
                             <p className="text-xs text-surface-500">
                               {(att.size / 1024).toFixed(1)} KB
-                              {att.uploadedBy && ` - ${att.uploadedBy.name}`}
+                              {att.uploadedBy && ` - ${att.uploadedBy.name || att.uploadedBy.displayName}`}
                             </p>
                           </div>
                           <a
@@ -526,7 +526,7 @@ export function TaskDetailPanel() {
                   <div className="space-y-2">
                     <p className="text-xs text-surface-500">
                       Created {formatDistanceToNow(new Date(task.createdAt), { addSuffix: true })}
-                      {task.reporter && ` by ${task.reporter.name}`}
+                      {task.reporter && ` by ${task.reporter.name || task.reporter.displayName}`}
                     </p>
                     {task.updatedAt !== task.createdAt && (
                       <p className="text-xs text-surface-500">

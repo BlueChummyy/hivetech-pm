@@ -62,7 +62,7 @@ export function CommentSection({ taskId }: CommentSectionProps) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-baseline gap-2">
                   <span className="text-sm font-medium text-surface-200">
-                    {comment.author?.name || 'Unknown'}
+                    {comment.author?.name || comment.author?.displayName || 'Unknown'}
                   </span>
                   <span className="text-xs text-surface-500">
                     {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}

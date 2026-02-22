@@ -43,7 +43,7 @@ export function RegisterPage() {
     try {
       const { data } = await authApi.register({ email, password, name });
       login(
-        { id: data.user.id, email: data.user.email, name: data.user.name, avatarUrl: data.user.avatarUrl, createdAt: '', updatedAt: '' },
+        { id: data.user.id, email: data.user.email, name: data.user.name || data.user.displayName || '', avatarUrl: data.user.avatarUrl, createdAt: '', updatedAt: '' },
         data.accessToken,
         data.refreshToken,
       );

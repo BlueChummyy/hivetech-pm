@@ -61,8 +61,8 @@ export function TaskTable({ tasks, statuses }: TaskTableProps) {
         case 'priority':
           return dir * ((PRIORITY_ORDER[a.priority] ?? 4) - (PRIORITY_ORDER[b.priority] ?? 4));
         case 'assignee': {
-          const na = a.assignee?.name ?? '';
-          const nb = b.assignee?.name ?? '';
+          const na = a.assignee?.name || a.assignee?.displayName || '';
+          const nb = b.assignee?.name || b.assignee?.displayName || '';
           return dir * na.localeCompare(nb);
         }
         case 'dueDate': {

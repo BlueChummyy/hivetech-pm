@@ -50,12 +50,12 @@ export function Header() {
         <DropdownMenu
           trigger={
             <button aria-label="User menu" aria-haspopup="menu" className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:ring-2 hover:ring-surface-600">
-              <Avatar src={user?.avatarUrl} name={user?.name} size="sm" />
+              <Avatar src={user?.avatarUrl} name={user?.name || user?.displayName} size="sm" />
             </button>
           }
         >
           <div className="px-3 py-2">
-            <p className="text-sm font-medium text-surface-200">{user?.name}</p>
+            <p className="text-sm font-medium text-surface-200">{user?.name || user?.displayName}</p>
             <p className="text-xs text-surface-500">{user?.email}</p>
           </div>
           <DropdownSeparator />

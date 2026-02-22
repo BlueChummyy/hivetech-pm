@@ -115,7 +115,7 @@ export function WorkspaceMembers({ workspaceId, members }: WorkspaceMembersProps
                   ) : (
                     <UserCircle className="h-6 w-6 text-surface-500" />
                   )}
-                  <span>{user.name}</span>
+                  <span>{user.name || user.displayName}</span>
                   <span className="text-xs text-surface-500">{user.email}</span>
                 </button>
               ))}
@@ -143,7 +143,7 @@ export function WorkspaceMembers({ workspaceId, members }: WorkspaceMembersProps
               )}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-surface-200 truncate">
-                  {member.user?.name || 'Unknown'}
+                  {member.user?.name || member.user?.displayName || 'Unknown'}
                 </p>
                 <p className="text-xs text-surface-500 truncate">
                   {member.user?.email}

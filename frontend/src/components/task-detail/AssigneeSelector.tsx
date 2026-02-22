@@ -32,9 +32,10 @@ export function AssigneeSelector({
     return () => document.removeEventListener('mousedown', handleClick);
   }, [open]);
 
-  const filtered = members.filter((m) =>
-    m.user?.name?.toLowerCase().includes(search.toLowerCase()),
-  );
+  const filtered = members.filter((m) => {
+    const userName = m.user?.name || m.user?.displayName || '';
+    return userName.toLowerCase().includes(search.toLowerCase());
+  });
 
   return (
     <div ref={ref} className="relative">
@@ -54,7 +55,7 @@ export function AssigneeSelector({
           <UserCircle className="h-5 w-5 shrink-0 text-surface-500" />
         )}
         <span className="truncate">
-          {currentAssignee?.name || 'Unassigned'}
+          {currentAssignee?.name || currentAssignee?.displayName || 'Unassigned'}
         </span>
       </button>
 
@@ -115,7 +116,7 @@ export function AssigneeSelector({
                 ) : (
                   <UserCircle className="h-5 w-5 shrink-0 text-surface-500" />
                 )}
-                <span className="truncate">{member.user?.name || 'Unknown'}</span>
+                <span className="truncate">{member.user?.name || member.user?.displayName || 'Unknown'}</span>
               </button>
             ))}
             {filtered.length === 0 && (

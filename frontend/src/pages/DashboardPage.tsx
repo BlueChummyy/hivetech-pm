@@ -109,7 +109,7 @@ export function DashboardPage() {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold text-surface-100">
-            Welcome back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}
+            Welcome back{(user?.name || user?.displayName) ? `, ${(user.name || user.displayName || '').split(' ')[0]}` : ''}
           </h1>
           <p className="mt-1 text-sm text-surface-400">
             Here&apos;s an overview of your work.
