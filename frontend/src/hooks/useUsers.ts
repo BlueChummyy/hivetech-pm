@@ -31,7 +31,7 @@ export function useChangePassword() {
 export function useUploadAvatar() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (file: File) => usersApi.uploadAvatar(file),
+    mutationFn: (file: File | Blob) => usersApi.uploadAvatar(file),
     onSuccess: (user) => {
       qc.invalidateQueries({ queryKey: ['users', 'me'] });
       useAuthStore.getState().setUser(user);

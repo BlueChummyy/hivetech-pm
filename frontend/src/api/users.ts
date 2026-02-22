@@ -22,12 +22,10 @@ export const usersApi = {
   changePassword: (data: ChangePasswordData) =>
     post('/users/me/password', data).then((r) => r.data),
 
-  uploadAvatar: (file: File) => {
+  uploadAvatar: (file: File | Blob) => {
     const formData = new FormData();
-    formData.append('avatar', file);
-    return post<User>('/users/me/avatar', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    }).then((r) => r.data);
+    formData.append('avatar', file, file instanceof File ? file.name : 'avatar.png');
+    return post<User>('/users/me/avatar', formData).then((r) => r.data);
   },
 
   removeAvatar: () =>

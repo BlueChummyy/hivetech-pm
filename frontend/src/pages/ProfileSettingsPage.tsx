@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { Loader2, Sun, Moon, Camera, X } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Loader2, Sun, Moon, Camera, X, Check } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUpdateProfile, useChangePassword, useUploadAvatar, useRemoveAvatar } from '@/hooks/useUsers';
 import { useUIStore } from '@/store/ui.store';
@@ -26,6 +26,17 @@ export function ProfileSettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState(false);
+
+  // Crop modal state
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [showCropModal, setShowCropModal] = useState(false);
+  const cropContainerRef = useRef<HTMLDivElement>(null);
+  const cropImageRef = useRef<HTMLImageElement>(null);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [cropBox, setCropBox] = useState({ x: 0, y: 0, size: 0 });
+  const [dragging, setDragging] = useState(false);
+  const dragStart = useRef({ mx: 0, my: 0, bx: 0, by: 0 });
+  const [displayDims, setDisplayDims] = useState({ width: 0, height: 0 });
 
   const hasNameChanged =
     firstName.trim() !== (user?.firstName || '') ||
@@ -56,25 +67,124 @@ export function ProfileSettingsPage() {
       return;
     }
 
-    // Show preview
     const reader = new FileReader();
-    reader.onload = () => setAvatarPreview(reader.result as string);
+    reader.onload = () => {
+      setCropImageSrc(reader.result as string);
+      setImageLoaded(false);
+      setShowCropModal(true);
+    };
     reader.readAsDataURL(file);
-
-    // Upload
-    uploadAvatar.mutate(file, {
-      onSuccess: () => {
-        setAvatarPreview(null);
-        toast({ type: 'success', title: 'Avatar updated' });
-      },
-      onError: (err) => {
-        setAvatarPreview(null);
-        toast({ type: 'error', title: 'Failed to upload avatar', description: (err as Error).message });
-      },
-    });
 
     // Reset file input so the same file can be selected again
     if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
+  const handleCropImageLoad = useCallback(() => {
+    const img = cropImageRef.current;
+    const container = cropContainerRef.current;
+    if (!img || !container) return;
+
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+    const imgAspect = img.naturalWidth / img.naturalHeight;
+
+    let dw: number, dh: number;
+    if (imgAspect > containerWidth / containerHeight) {
+      dw = containerWidth;
+      dh = containerWidth / imgAspect;
+    } else {
+      dh = containerHeight;
+      dw = containerHeight * imgAspect;
+    }
+
+    setDisplayDims({ width: dw, height: dh });
+    const initialSize = Math.min(dw, dh) * 0.75;
+    setCropBox({
+      x: (dw - initialSize) / 2,
+      y: (dh - initialSize) / 2,
+      size: initialSize,
+    });
+    setImageLoaded(true);
+  }, []);
+
+  const handleCropMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setDragging(true);
+    dragStart.current = {
+      mx: e.clientX,
+      my: e.clientY,
+      bx: cropBox.x,
+      by: cropBox.y,
+    };
+  }, [cropBox.x, cropBox.y]);
+
+  useEffect(() => {
+    if (!dragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const dx = e.clientX - dragStart.current.mx;
+      const dy = e.clientY - dragStart.current.my;
+      const maxX = displayDims.width - cropBox.size;
+      const maxY = displayDims.height - cropBox.size;
+      setCropBox((prev) => ({
+        ...prev,
+        x: Math.max(0, Math.min(maxX, dragStart.current.bx + dx)),
+        y: Math.max(0, Math.min(maxY, dragStart.current.by + dy)),
+      }));
+    };
+
+    const handleMouseUp = () => setDragging(false);
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [dragging, displayDims.width, displayDims.height, cropBox.size]);
+
+  function handleCropConfirm() {
+    const img = cropImageRef.current;
+    if (!img || !cropImageSrc) return;
+
+    const scaleX = img.naturalWidth / displayDims.width;
+    const scaleY = img.naturalHeight / displayDims.height;
+
+    const sx = cropBox.x * scaleX;
+    const sy = cropBox.y * scaleY;
+    const sSize = cropBox.size * Math.min(scaleX, scaleY);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.drawImage(img, sx, sy, sSize, sSize, 0, 0, 256, 256);
+
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+
+      setAvatarPreview(canvas.toDataURL('image/png'));
+      setShowCropModal(false);
+      setCropImageSrc(null);
+
+      uploadAvatar.mutate(blob, {
+        onSuccess: () => {
+          setAvatarPreview(null);
+          toast({ type: 'success', title: 'Avatar updated' });
+        },
+        onError: (err) => {
+          setAvatarPreview(null);
+          toast({ type: 'error', title: 'Failed to upload avatar', description: (err as Error).message });
+        },
+      });
+    }, 'image/png');
+  }
+
+  function handleCropCancel() {
+    setShowCropModal(false);
+    setCropImageSrc(null);
   }
 
   function handleAvatarRemove() {
@@ -294,6 +404,95 @@ export function ProfileSettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* Crop Modal */}
+      {showCropModal && cropImageSrc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="w-full max-w-lg rounded-xl border border-surface-700 bg-surface-800 p-6 shadow-xl">
+            <h3 className="mb-4 text-lg font-semibold text-surface-100">Crop Avatar</h3>
+            <p className="mb-3 text-sm text-surface-400">
+              Drag the square to position your crop area.
+            </p>
+
+            <div
+              ref={cropContainerRef}
+              className="relative mx-auto flex items-center justify-center overflow-hidden rounded-lg bg-surface-900"
+              style={{ width: '100%', height: 360 }}
+            >
+              <img
+                ref={cropImageRef}
+                src={cropImageSrc}
+                alt="Crop source"
+                onLoad={handleCropImageLoad}
+                className="pointer-events-none select-none"
+                style={{
+                  width: displayDims.width || 'auto',
+                  height: displayDims.height || 'auto',
+                  maxWidth: '100%',
+                  maxHeight: 360,
+                  objectFit: 'contain',
+                }}
+              />
+
+              {imageLoaded && (
+                <>
+                  {/* Dimming overlay outside crop */}
+                  <div
+                    className="absolute pointer-events-none"
+                    style={{
+                      left: (cropContainerRef.current ? (cropContainerRef.current.clientWidth - displayDims.width) / 2 : 0),
+                      top: (cropContainerRef.current ? (cropContainerRef.current.clientHeight - displayDims.height) / 2 : 0),
+                      width: displayDims.width,
+                      height: displayDims.height,
+                      background: 'rgba(0,0,0,0.5)',
+                      clipPath: `polygon(
+                        0% 0%, 0% 100%,
+                        ${(cropBox.x / displayDims.width) * 100}% 100%,
+                        ${(cropBox.x / displayDims.width) * 100}% ${(cropBox.y / displayDims.height) * 100}%,
+                        ${((cropBox.x + cropBox.size) / displayDims.width) * 100}% ${(cropBox.y / displayDims.height) * 100}%,
+                        ${((cropBox.x + cropBox.size) / displayDims.width) * 100}% ${((cropBox.y + cropBox.size) / displayDims.height) * 100}%,
+                        ${(cropBox.x / displayDims.width) * 100}% ${((cropBox.y + cropBox.size) / displayDims.height) * 100}%,
+                        ${(cropBox.x / displayDims.width) * 100}% 100%,
+                        100% 100%, 100% 0%
+                      )`,
+                    }}
+                  />
+                  {/* Crop selection box */}
+                  <div
+                    onMouseDown={handleCropMouseDown}
+                    className="absolute border-2 border-white rounded-sm"
+                    style={{
+                      left: (cropContainerRef.current ? (cropContainerRef.current.clientWidth - displayDims.width) / 2 : 0) + cropBox.x,
+                      top: (cropContainerRef.current ? (cropContainerRef.current.clientHeight - displayDims.height) / 2 : 0) + cropBox.y,
+                      width: cropBox.size,
+                      height: cropBox.size,
+                      cursor: dragging ? 'grabbing' : 'grab',
+                      boxShadow: '0 0 0 1px rgba(0,0,0,0.3)',
+                    }}
+                  >
+                    {/* Corner indicators */}
+                    <div className="absolute -left-1 -top-1 h-2.5 w-2.5 rounded-full bg-white" />
+                    <div className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-white" />
+                    <div className="absolute -bottom-1 -left-1 h-2.5 w-2.5 rounded-full bg-white" />
+                    <div className="absolute -bottom-1 -right-1 h-2.5 w-2.5 rounded-full bg-white" />
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="mt-4 flex justify-end gap-3">
+              <Button variant="secondary" onClick={handleCropCancel}>
+                <X className="mr-1.5 h-4 w-4" />
+                Cancel
+              </Button>
+              <Button onClick={handleCropConfirm} disabled={!imageLoaded}>
+                <Check className="mr-1.5 h-4 w-4" />
+                Apply crop
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

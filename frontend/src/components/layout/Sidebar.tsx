@@ -80,8 +80,11 @@ export function Sidebar() {
       )}
     >
       {/* Header with branding + workspace switcher */}
-      <div className="border-b border-surface-700 px-4 py-4">
-        <div className="flex items-center gap-3">
+      <div className="border-b border-surface-700 px-2 py-4">
+        <div className={cn(
+          'flex items-center',
+          sidebarCollapsed ? 'flex-col gap-1' : 'gap-3 px-2',
+        )}>
           <img src="/logo.png" alt="HiveTech" className="h-8 w-8 shrink-0" />
           {!sidebarCollapsed && (
             <span className="min-w-0 flex-1 text-sm font-bold leading-tight text-surface-100">
@@ -91,7 +94,10 @@ export function Sidebar() {
           <button
             onClick={() => collapseSidebar(!sidebarCollapsed)}
             aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className="ml-auto rounded-md p-1 text-surface-400 hover:bg-surface-800 hover:text-surface-200"
+            className={cn(
+              'rounded-md p-1 text-surface-400 hover:bg-surface-800 hover:text-surface-200',
+              !sidebarCollapsed && 'ml-auto',
+            )}
           >
             <ChevronLeft
               className={cn(

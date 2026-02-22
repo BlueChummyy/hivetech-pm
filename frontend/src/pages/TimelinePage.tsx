@@ -51,30 +51,31 @@ function getColumnWidth(scale: TimeScale): number {
 
 function getDateRange(tasks: Task[], scale: TimeScale) {
   const now = new Date();
-  let minDate = addMonths(now, -1);
-  let maxDate = addMonths(now, 3);
+  let minDate = addMonths(now, -2);
+  let maxDate = new Date(now.getFullYear(), 11, 31); // End of current year
 
-  // Only extend range for task dates within a reasonable window (±6 months)
-  const lowerBound = addMonths(now, -6);
-  const upperBound = addMonths(now, 6);
+  // Only extend range for task dates within a reasonable window (±12 months)
+  const lowerBound = addMonths(now, -12);
+  const upperBound = addMonths(now, 12);
 
   tasks.forEach((task) => {
     if (task.startDate) {
-      const s = new Date(task.startDate);
-      if (s >= lowerBound && s <= upperBound) {
-        if (s < minDate) minDate = s;
-        if (s > maxDate) maxDate = s;
+      const start = new Date(task.startDate);
+      if (start >= lowerBound && start <= upperBound) {
+        if (start < minDate) minDate = start;
+        if (start > maxDate) maxDate = start;
       }
     }
     if (task.dueDate) {
-      const d = new Date(task.dueDate);
-      if (d >= lowerBound && d <= upperBound) {
-        if (d < minDate) minDate = d;
-        if (d > maxDate) maxDate = d;
+      const due = new Date(task.dueDate);
+      if (due >= lowerBound && due <= upperBound) {
+        if (due < minDate) minDate = due;
+        if (due > maxDate) maxDate = due;
       }
     }
   });
 
+  // Add padding
   minDate = addDays(minDate, -7);
   maxDate = addDays(maxDate, 14);
 

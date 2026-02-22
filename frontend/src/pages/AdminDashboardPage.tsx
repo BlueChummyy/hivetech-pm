@@ -21,6 +21,9 @@ import {
   ClipboardList,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
+  Plus,
   Mail,
 } from 'lucide-react';
 import { adminApi, type AdminUser, type SmtpSettingsData } from '@/api/admin';
@@ -29,9 +32,12 @@ import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
 import { useToast } from '@/components/ui/Toast';
 import { useAuthStore } from '@/store/auth.store';
+import { useCreateWorkspace } from '@/hooks/useWorkspaces';
+import { useCreateSpace } from '@/hooks/useSpaces';
+import { useCreateProject } from '@/hooks/useProjects';
 import { cn } from '@/utils/cn';
 
-type Tab = 'users' | 'workspaces' | 'spaces' | 'deleted' | 'audit' | 'smtp';
+type Tab = 'users' | 'workspaces' | 'deleted' | 'audit' | 'smtp';
 
 function timeAgo(dateStr: string): string {
   const now = Date.now();
@@ -238,6 +244,30 @@ export function AdminDashboardPage() {
     },
   });
 
+  // ── Consolidated workspaces tab state ─────────────────────────────────
+  const [expandedWs, setExpandedWs] = useState<Set<string>>(new Set());
+  const [showCreateWsForm, setShowCreateWsForm] = useState(false);
+  const [newWsName, setNewWsName] = useState('');
+  const [createSpaceForWs, setCreateSpaceForWs] = useState<string | null>(null);
+  const [newSpaceName, setNewSpaceName] = useState('');
+  const [newSpaceColor, setNewSpaceColor] = useState('#4ade80');
+  const [createProjectForWs, setCreateProjectForWs] = useState<string | null>(null);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectKey, setNewProjectKey] = useState('');
+
+  const createWorkspaceMutation = useCreateWorkspace();
+  const createSpaceMutation = useCreateSpace();
+  const createProjectMutation = useCreateProject();
+
+  const toggleWsExpanded = (wsId: string) => {
+    setExpandedWs((prev) => {
+      const next = new Set(prev);
+      if (next.has(wsId)) next.delete(wsId);
+      else next.add(wsId);
+      return next;
+    });
+  };
+
   // ── Assign workspace ────────────────────────────────────────────────
   const [assignTarget, setAssignTarget] = useState<AdminUser | null>(null);
   const [assignWsId, setAssignWsId] = useState('');
@@ -418,7 +448,6 @@ export function AdminDashboardPage() {
   const tabs: { id: Tab; label: string; icon: typeof Users }[] = [
     { id: 'users', label: 'Manage Users', icon: Users },
     { id: 'workspaces', label: 'Workspaces', icon: Building2 },
-    { id: 'spaces', label: 'Spaces', icon: Layers },
     { id: 'deleted', label: 'Deleted Items', icon: Archive },
     { id: 'audit', label: 'Audit Log', icon: ClipboardList },
     { id: 'smtp', label: 'SMTP Settings', icon: Mail },
@@ -898,91 +927,445 @@ export function AdminDashboardPage() {
         </div>
       )}
 
-      {/* ── Workspaces Tab ────────────────────────────────────────── */}
+      {/* ── Workspaces Tab (consolidated with Spaces & Projects) ── */}
       {activeTab === 'workspaces' && (
         <div className="space-y-4">
-          <Card>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-surface-700">
-                    <th className="px-4 py-3 text-left text-xs font-medium text-surface-400">Workspace</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-surface-400">Owner</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-surface-400">Members</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-surface-400">Projects</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-surface-400">Created</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-surface-400">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {workspacesLoading ? (
-                    Array.from({ length: 3 }).map((_, i) => (
-                      <tr key={i} className="border-b border-surface-700/50">
-                        <td className="px-4 py-3" colSpan={6}>
-                          <div className="h-5 w-full animate-pulse rounded bg-surface-700" />
-                        </td>
-                      </tr>
-                    ))
-                  ) : workspacesData && workspacesData.length > 0 ? (
-                    workspacesData.map((ws) => {
-                      const owner = ws.members[0]?.user;
-                      return (
-                        <tr key={ws.id} className="border-b border-surface-700/50 hover:bg-surface-800/30">
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-3">
-                              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-600/20 text-primary-400">
-                                <Building2 className="h-4 w-4" />
-                              </div>
-                              <div>
-                                <p className="font-medium text-surface-200">{ws.name}</p>
-                                <p className="text-xs text-surface-500">{ws.slug}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-surface-400">
-                            {owner
-                              ? `${owner.firstName} ${owner.lastName}`
-                              : <span className="text-surface-500">—</span>}
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className="inline-flex items-center gap-1 text-surface-300">
-                              <Users className="h-3.5 w-3.5 text-surface-500" />
-                              {ws._count.members}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className="inline-flex items-center gap-1 text-surface-300">
-                              <FolderKanban className="h-3.5 w-3.5 text-surface-500" />
-                              {ws._count.projects}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-surface-400 text-xs">
-                            {new Date(ws.createdAt).toLocaleDateString()}
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <button
-                              onClick={() => setDeleteWsTarget({ id: ws.id, name: ws.name })}
-                              title="Delete Workspace"
-                              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-red-400 hover:bg-red-500/10 transition-colors"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                              Delete
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  ) : (
-                    <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-surface-500">
-                        No workspaces found
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+          {/* Create Workspace button */}
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-surface-400">
+              Manage workspaces, spaces, and projects in one view.
+            </p>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => { setShowCreateWsForm(true); setNewWsName(''); }}
+              className="flex items-center gap-2 whitespace-nowrap"
+            >
+              <Plus className="h-4 w-4" />
+              Create Workspace
+            </Button>
+          </div>
+
+          {/* Create Workspace inline form */}
+          {showCreateWsForm && (
+            <Card>
+              <CardBody>
+                <div className="flex items-center gap-3">
+                  <Building2 className="h-5 w-5 text-primary-400 shrink-0" />
+                  <input
+                    type="text"
+                    value={newWsName}
+                    onChange={(e) => setNewWsName(e.target.value)}
+                    placeholder="Workspace name..."
+                    autoFocus
+                    className="flex-1 rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newWsName.trim()) {
+                        createWorkspaceMutation.mutate({ name: newWsName.trim() }, {
+                          onSuccess: () => {
+                            toast({ type: 'success', title: 'Workspace created' });
+                            setShowCreateWsForm(false);
+                            setNewWsName('');
+                            qc.invalidateQueries({ queryKey: ['admin', 'workspaces'] });
+                          },
+                          onError: (err) => {
+                            toast({ type: 'error', title: 'Failed to create workspace', description: (err as Error).message });
+                          },
+                        });
+                      } else if (e.key === 'Escape') {
+                        setShowCreateWsForm(false);
+                      }
+                    }}
+                  />
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={!newWsName.trim() || createWorkspaceMutation.isPending}
+                    onClick={() => {
+                      createWorkspaceMutation.mutate({ name: newWsName.trim() }, {
+                        onSuccess: () => {
+                          toast({ type: 'success', title: 'Workspace created' });
+                          setShowCreateWsForm(false);
+                          setNewWsName('');
+                          qc.invalidateQueries({ queryKey: ['admin', 'workspaces'] });
+                        },
+                        onError: (err) => {
+                          toast({ type: 'error', title: 'Failed to create workspace', description: (err as Error).message });
+                        },
+                      });
+                    }}
+                  >
+                    {createWorkspaceMutation.isPending ? 'Creating...' : 'Create'}
+                  </Button>
+                  <button
+                    onClick={() => setShowCreateWsForm(false)}
+                    className="text-surface-400 hover:text-surface-200 transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </CardBody>
+            </Card>
+          )}
+
+          {/* Loading state */}
+          {(workspacesLoading || spacesLoading || projectsLoading) ? (
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Card key={i}>
+                  <CardBody>
+                    <div className="h-6 w-full animate-pulse rounded bg-surface-700" />
+                  </CardBody>
+                </Card>
+              ))}
             </div>
-          </Card>
+          ) : workspacesData && workspacesData.length > 0 ? (
+            <div className="space-y-3">
+              {workspacesData.map((ws) => {
+                const owner = ws.members[0]?.user;
+                const isExpanded = expandedWs.has(ws.id);
+                // Spaces belonging to this workspace
+                const wsSpaces = (spacesData ?? []).filter((s) => s.workspaceId === ws.id);
+                // Projects belonging to this workspace but not assigned to any space
+                const unassignedProjects = (projectsData ?? []).filter(
+                  (p) => p.workspaceId === ws.id && !p.spaceId,
+                );
+
+                return (
+                  <Card key={ws.id}>
+                    {/* Workspace header (accordion toggle) */}
+                    <button
+                      onClick={() => toggleWsExpanded(ws.id)}
+                      className="w-full px-4 py-3 flex items-center gap-3 hover:bg-surface-800/30 transition-colors rounded-t-lg"
+                    >
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-600/20 text-primary-400 shrink-0">
+                        <Building2 className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 text-left min-w-0">
+                        <p className="font-medium text-surface-200">{ws.name}</p>
+                        <p className="text-xs text-surface-500">{ws.slug}</p>
+                      </div>
+                      <div className="flex items-center gap-4 shrink-0">
+                        <span className="hidden sm:inline-flex items-center gap-1 text-xs text-surface-400">
+                          {owner ? `${owner.firstName} ${owner.lastName}` : '—'}
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-xs text-surface-400">
+                          <Users className="h-3.5 w-3.5" />
+                          {ws._count.members}
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-xs text-surface-400">
+                          <FolderKanban className="h-3.5 w-3.5" />
+                          {ws._count.projects}
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-xs text-surface-400">
+                          <Layers className="h-3.5 w-3.5" />
+                          {wsSpaces.length}
+                        </span>
+                        <span className="hidden sm:inline text-xs text-surface-500">
+                          {new Date(ws.createdAt).toLocaleDateString()}
+                        </span>
+                        {isExpanded ? (
+                          <ChevronUp className="h-4 w-4 text-surface-400" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4 text-surface-400" />
+                        )}
+                      </div>
+                    </button>
+
+                    {/* Expanded content */}
+                    {isExpanded && (
+                      <CardBody className="border-t border-surface-700 space-y-4">
+                        {/* Workspace actions */}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCreateSpaceForWs(ws.id);
+                              setNewSpaceName('');
+                              setNewSpaceColor('#4ade80');
+                            }}
+                            className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium text-primary-400 bg-primary-500/10 hover:bg-primary-500/20 transition-colors"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            Create Space
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCreateProjectForWs(ws.id);
+                              setNewProjectName('');
+                              setNewProjectKey('');
+                            }}
+                            className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium text-green-400 bg-green-500/10 hover:bg-green-500/20 transition-colors"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            Create Project
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteWsTarget({ id: ws.id, name: ws.name });
+                            }}
+                            className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium text-red-400 bg-red-500/10 hover:bg-red-500/20 transition-colors ml-auto"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Delete Workspace
+                          </button>
+                        </div>
+
+                        {/* Inline create space form */}
+                        {createSpaceForWs === ws.id && (
+                          <div className="flex items-center gap-3 rounded-lg border border-surface-700 bg-surface-900/50 p-3">
+                            <input
+                              type="color"
+                              value={newSpaceColor}
+                              onChange={(e) => setNewSpaceColor(e.target.value)}
+                              className="h-7 w-7 rounded border-0 bg-transparent cursor-pointer shrink-0"
+                              title="Space color"
+                            />
+                            <input
+                              type="text"
+                              value={newSpaceName}
+                              onChange={(e) => setNewSpaceName(e.target.value)}
+                              placeholder="Space name..."
+                              autoFocus
+                              className="flex-1 rounded-lg border border-surface-700 bg-surface-800 px-3 py-1.5 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && newSpaceName.trim()) {
+                                  createSpaceMutation.mutate(
+                                    { workspaceId: ws.id, data: { name: newSpaceName.trim(), color: newSpaceColor } },
+                                    {
+                                      onSuccess: () => {
+                                        toast({ type: 'success', title: 'Space created' });
+                                        setCreateSpaceForWs(null);
+                                        qc.invalidateQueries({ queryKey: ['admin', 'spaces'] });
+                                      },
+                                      onError: (err) => {
+                                        toast({ type: 'error', title: 'Failed to create space', description: (err as Error).message });
+                                      },
+                                    },
+                                  );
+                                } else if (e.key === 'Escape') {
+                                  setCreateSpaceForWs(null);
+                                }
+                              }}
+                            />
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              disabled={!newSpaceName.trim() || createSpaceMutation.isPending}
+                              onClick={() => {
+                                createSpaceMutation.mutate(
+                                  { workspaceId: ws.id, data: { name: newSpaceName.trim(), color: newSpaceColor } },
+                                  {
+                                    onSuccess: () => {
+                                      toast({ type: 'success', title: 'Space created' });
+                                      setCreateSpaceForWs(null);
+                                      qc.invalidateQueries({ queryKey: ['admin', 'spaces'] });
+                                    },
+                                    onError: (err) => {
+                                      toast({ type: 'error', title: 'Failed to create space', description: (err as Error).message });
+                                    },
+                                  },
+                                );
+                              }}
+                            >
+                              {createSpaceMutation.isPending ? 'Creating...' : 'Create'}
+                            </Button>
+                            <button onClick={() => setCreateSpaceForWs(null)} className="text-surface-400 hover:text-surface-200">
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Inline create project form */}
+                        {createProjectForWs === ws.id && (
+                          <div className="flex items-center gap-3 rounded-lg border border-surface-700 bg-surface-900/50 p-3">
+                            <FolderKanban className="h-4 w-4 text-green-400 shrink-0" />
+                            <input
+                              type="text"
+                              value={newProjectName}
+                              onChange={(e) => setNewProjectName(e.target.value)}
+                              placeholder="Project name..."
+                              autoFocus
+                              className="flex-1 rounded-lg border border-surface-700 bg-surface-800 px-3 py-1.5 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                              onKeyDown={(e) => {
+                                if (e.key === 'Escape') setCreateProjectForWs(null);
+                              }}
+                            />
+                            <input
+                              type="text"
+                              value={newProjectKey}
+                              onChange={(e) => setNewProjectKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                              placeholder="KEY"
+                              maxLength={6}
+                              className="w-20 rounded-lg border border-surface-700 bg-surface-800 px-3 py-1.5 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500 uppercase"
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && newProjectName.trim() && newProjectKey.trim()) {
+                                  createProjectMutation.mutate(
+                                    { workspaceId: ws.id, name: newProjectName.trim(), key: newProjectKey.trim() },
+                                    {
+                                      onSuccess: () => {
+                                        toast({ type: 'success', title: 'Project created' });
+                                        setCreateProjectForWs(null);
+                                        qc.invalidateQueries({ queryKey: ['admin', 'projects'] });
+                                        qc.invalidateQueries({ queryKey: ['admin', 'workspaces'] });
+                                      },
+                                      onError: (err) => {
+                                        toast({ type: 'error', title: 'Failed to create project', description: (err as Error).message });
+                                      },
+                                    },
+                                  );
+                                } else if (e.key === 'Escape') {
+                                  setCreateProjectForWs(null);
+                                }
+                              }}
+                            />
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              disabled={!newProjectName.trim() || !newProjectKey.trim() || createProjectMutation.isPending}
+                              onClick={() => {
+                                createProjectMutation.mutate(
+                                  { workspaceId: ws.id, name: newProjectName.trim(), key: newProjectKey.trim() },
+                                  {
+                                    onSuccess: () => {
+                                      toast({ type: 'success', title: 'Project created' });
+                                      setCreateProjectForWs(null);
+                                      qc.invalidateQueries({ queryKey: ['admin', 'projects'] });
+                                      qc.invalidateQueries({ queryKey: ['admin', 'workspaces'] });
+                                    },
+                                    onError: (err) => {
+                                      toast({ type: 'error', title: 'Failed to create project', description: (err as Error).message });
+                                    },
+                                  },
+                                );
+                              }}
+                            >
+                              {createProjectMutation.isPending ? 'Creating...' : 'Create'}
+                            </Button>
+                            <button onClick={() => setCreateProjectForWs(null)} className="text-surface-400 hover:text-surface-200">
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Spaces within this workspace */}
+                        {wsSpaces.length > 0 && (
+                          <div className="space-y-3">
+                            <h4 className="text-xs font-semibold text-surface-400 uppercase tracking-wider">Spaces</h4>
+                            {wsSpaces.map((space) => (
+                              <div key={space.id} className="rounded-lg border border-surface-700 bg-surface-800/30 p-3">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <Circle
+                                    className="h-3.5 w-3.5 shrink-0"
+                                    fill={space.color || '#4ade80'}
+                                    stroke={space.color || '#4ade80'}
+                                  />
+                                  <span className="font-medium text-sm text-surface-100">{space.name}</span>
+                                  <span className="rounded-full bg-surface-700 px-2 py-0.5 text-[10px] text-surface-400">
+                                    {space._count.projects} project{space._count.projects !== 1 ? 's' : ''}
+                                  </span>
+                                </div>
+                                {space.projects.length > 0 ? (
+                                  <div className="space-y-1.5 ml-6">
+                                    {space.projects.map((project) => (
+                                      <div
+                                        key={project.id}
+                                        className="flex items-center justify-between rounded-lg border border-surface-700/60 bg-surface-900/40 px-3 py-1.5"
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <FolderKanban className="h-3 w-3 text-surface-500" />
+                                          <span className="text-xs text-surface-200">{project.name}</span>
+                                          <span className="rounded bg-surface-700 px-1.5 py-0.5 text-[10px] text-surface-500">
+                                            {project.key}
+                                          </span>
+                                        </div>
+                                        <button
+                                          onClick={() =>
+                                            assignProjectSpaceMutation.mutate({ projectId: project.id, spaceId: null })
+                                          }
+                                          title="Remove from space"
+                                          className="text-red-400/50 hover:text-red-400 transition-colors"
+                                        >
+                                          <X className="h-3 w-3" />
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="text-xs italic text-surface-500 ml-6">No projects in this space</p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Unassigned projects in this workspace */}
+                        {unassignedProjects.length > 0 && (
+                          <div className="space-y-2">
+                            <h4 className="text-xs font-semibold text-surface-400 uppercase tracking-wider">
+                              Unassigned Projects
+                            </h4>
+                            {unassignedProjects.map((project) => (
+                              <div
+                                key={project.id}
+                                className="flex items-center justify-between rounded-lg border border-surface-700/60 bg-surface-800/20 px-3 py-2"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <FolderKanban className="h-3.5 w-3.5 text-surface-500" />
+                                  <span className="text-sm text-surface-200">{project.name}</span>
+                                  <span className="rounded bg-surface-700 px-1.5 py-0.5 text-[10px] text-surface-500">
+                                    {project.key}
+                                  </span>
+                                </div>
+                                {wsSpaces.length > 0 && (
+                                  <select
+                                    defaultValue=""
+                                    onChange={(e) => {
+                                      if (e.target.value) {
+                                        assignProjectSpaceMutation.mutate({
+                                          projectId: project.id,
+                                          spaceId: e.target.value,
+                                        });
+                                      }
+                                    }}
+                                    className="rounded-md border border-surface-700 bg-surface-800 px-2 py-1 text-xs text-surface-300 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                  >
+                                    <option value="">Move to space...</option>
+                                    {wsSpaces.map((s) => (
+                                      <option key={s.id} value={s.id}>
+                                        {s.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Empty state */}
+                        {wsSpaces.length === 0 && unassignedProjects.length === 0 && (
+                          <p className="text-sm text-surface-500 text-center py-2">
+                            No spaces or projects yet. Use the buttons above to create some.
+                          </p>
+                        )}
+                      </CardBody>
+                    )}
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            <Card>
+              <CardBody>
+                <p className="text-center text-surface-500 py-4">
+                  No workspaces found. Create one to get started.
+                </p>
+              </CardBody>
+            </Card>
+          )}
 
           {/* Delete workspace confirmation modal */}
           {deleteWsTarget && (
@@ -1011,171 +1394,6 @@ export function AdminDashboardPage() {
                 </CardBody>
               </Card>
             </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Spaces Tab ─────────────────────────────────────────────── */}
-      {activeTab === 'spaces' && (
-        <div className="space-y-6">
-          {spacesLoading || projectsLoading ? (
-            <Card>
-              <CardBody>
-                <div className="space-y-3">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="h-5 w-full animate-pulse rounded bg-surface-700" />
-                  ))}
-                </div>
-              </CardBody>
-            </Card>
-          ) : (
-            <>
-              {/* Group spaces by workspace */}
-              {(() => {
-                const grouped = new Map<string, { wsName: string; spaces: NonNullable<typeof spacesData> }>();
-                for (const space of spacesData ?? []) {
-                  const wsId = space.workspace.id;
-                  if (!grouped.has(wsId)) {
-                    grouped.set(wsId, { wsName: space.workspace.name, spaces: [] });
-                  }
-                  grouped.get(wsId)!.spaces.push(space);
-                }
-
-                // Unassigned projects (no spaceId)
-                const unassigned = (projectsData ?? []).filter((p) => !p.spaceId);
-
-                return (
-                  <>
-                    {Array.from(grouped.entries()).map(([wsId, { wsName, spaces }]) => (
-                      <div key={wsId}>
-                        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-surface-200">
-                          <Building2 className="h-4 w-4 text-surface-400" />
-                          {wsName}
-                        </h3>
-                        <div className="space-y-3">
-                          {spaces.map((space) => (
-                            <Card key={space.id}>
-                              <CardBody>
-                                <div className="flex items-center gap-3 mb-3">
-                                  <Circle
-                                    className="h-4 w-4 shrink-0"
-                                    fill={space.color || '#4ade80'}
-                                    stroke={space.color || '#4ade80'}
-                                  />
-                                  <h4 className="font-medium text-surface-100">{space.name}</h4>
-                                  <span className="rounded-full bg-surface-700 px-2 py-0.5 text-xs text-surface-400">
-                                    {space._count.projects} project{space._count.projects !== 1 ? 's' : ''}
-                                  </span>
-                                </div>
-                                {space.projects.length > 0 ? (
-                                  <div className="space-y-1.5">
-                                    {space.projects.map((project) => (
-                                      <div
-                                        key={project.id}
-                                        className="flex items-center justify-between rounded-lg border border-surface-700 px-3 py-2"
-                                      >
-                                        <div className="flex items-center gap-2">
-                                          <FolderKanban className="h-3.5 w-3.5 text-surface-500" />
-                                          <span className="text-sm text-surface-200">{project.name}</span>
-                                          <span className="rounded bg-surface-700 px-1.5 py-0.5 text-[10px] text-surface-500">
-                                            {project.key}
-                                          </span>
-                                        </div>
-                                        <button
-                                          onClick={() =>
-                                            assignProjectSpaceMutation.mutate({ projectId: project.id, spaceId: null })
-                                          }
-                                          title="Remove from space"
-                                          className="text-xs text-red-400/60 hover:text-red-400 transition-colors"
-                                        >
-                                          <X className="h-3.5 w-3.5" />
-                                        </button>
-                                      </div>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <p className="text-xs italic text-surface-500">No projects in this space</p>
-                                )}
-                              </CardBody>
-                            </Card>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-
-                    {/* Unassigned projects */}
-                    {unassigned.length > 0 && (
-                      <div>
-                        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-surface-200">
-                          <FolderKanban className="h-4 w-4 text-surface-400" />
-                          Unassigned Projects
-                        </h3>
-                        <Card>
-                          <CardBody>
-                            <div className="space-y-2">
-                              {unassigned.map((project) => {
-                                // Get available spaces for this project's workspace
-                                const availableSpaces = (spacesData ?? []).filter(
-                                  (s) => s.workspaceId === project.workspaceId,
-                                );
-                                return (
-                                  <div
-                                    key={project.id}
-                                    className="flex items-center justify-between rounded-lg border border-surface-700 px-3 py-2"
-                                  >
-                                    <div className="flex items-center gap-2">
-                                      <FolderKanban className="h-3.5 w-3.5 text-surface-500" />
-                                      <span className="text-sm text-surface-200">{project.name}</span>
-                                      <span className="rounded bg-surface-700 px-1.5 py-0.5 text-[10px] text-surface-500">
-                                        {project.key}
-                                      </span>
-                                      <span className="text-[10px] text-surface-500">
-                                        ({project.workspace.name})
-                                      </span>
-                                    </div>
-                                    {availableSpaces.length > 0 && (
-                                      <select
-                                        defaultValue=""
-                                        onChange={(e) => {
-                                          if (e.target.value) {
-                                            assignProjectSpaceMutation.mutate({
-                                              projectId: project.id,
-                                              spaceId: e.target.value,
-                                            });
-                                          }
-                                        }}
-                                        className="rounded-md border border-surface-700 bg-surface-800 px-2 py-1 text-xs text-surface-300 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                                      >
-                                        <option value="">Move to space...</option>
-                                        {availableSpaces.map((s) => (
-                                          <option key={s.id} value={s.id}>
-                                            {s.name}
-                                          </option>
-                                        ))}
-                                      </select>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </CardBody>
-                        </Card>
-                      </div>
-                    )}
-
-                    {(spacesData ?? []).length === 0 && unassigned.length === 0 && (
-                      <Card>
-                        <CardBody>
-                          <p className="text-center text-surface-500 py-4">
-                            No spaces or unassigned projects found.
-                          </p>
-                        </CardBody>
-                      </Card>
-                    )}
-                  </>
-                );
-              })()}
-            </>
           )}
         </div>
       )}

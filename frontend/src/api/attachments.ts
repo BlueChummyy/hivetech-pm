@@ -9,9 +9,7 @@ export const attachmentsApi = {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('taskId', taskId);
-    return post<Attachment>(`/attachments`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    }).then((r) => r.data);
+    return post<Attachment>(`/attachments`, formData).then((r) => r.data);
   },
 
   download: (attachmentId: string) =>
