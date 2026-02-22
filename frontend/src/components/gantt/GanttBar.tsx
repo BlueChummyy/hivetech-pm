@@ -1,7 +1,6 @@
 import type { Task } from '@/types/models.types';
 import { Priority } from '@/types/models.types';
 import { useUIStore } from '@/store/ui.store';
-import { cn } from '@/utils/cn';
 
 const PRIORITY_COLORS: Record<Priority, string> = {
   [Priority.URGENT]: '#EF4444',

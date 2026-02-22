@@ -1,6 +1,5 @@
 import { get, post, patch, del } from './client';
 import type { Workspace, WorkspaceMember } from '@/types/models.types';
-import type { PaginatedResponse } from '@/types/api.types';
 
 export interface CreateWorkspaceData {
   name: string;

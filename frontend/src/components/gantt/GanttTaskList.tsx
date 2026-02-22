@@ -1,7 +1,6 @@
 import { ChevronRight, UserCircle } from 'lucide-react';
 import type { Task } from '@/types/models.types';
 import { useUIStore } from '@/store/ui.store';
-import { cn } from '@/utils/cn';
 
 interface GanttTaskListProps {
   tasks: Task[];
