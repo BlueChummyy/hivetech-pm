@@ -229,6 +229,7 @@ model TaskDependency {
   dependsOnTask Task @relation("TaskDependedOnBy", fields: [dependsOnTaskId], references: [id], onDelete: Cascade)
 
   @@unique([taskId, dependsOnTaskId])
+  @@index([dependsOnTaskId])
   @@map("task_dependencies")
 }
 
@@ -309,6 +310,7 @@ model Notification {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, isRead])
+  @@index([userId, createdAt])
   @@map("notifications")
 }
 
