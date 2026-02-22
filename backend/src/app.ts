@@ -22,6 +22,9 @@ import { attachmentsRoutes, taskAttachmentsRoutes } from './routes/attachments.r
 export function createApp() {
   const app = express();
 
+  // Trust first proxy (nginx) so express-rate-limit gets real client IPs
+  app.set('trust proxy', 1);
+
   // Global middleware
   app.use(helmet());
   app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
