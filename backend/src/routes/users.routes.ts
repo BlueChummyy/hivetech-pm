@@ -61,7 +61,24 @@ const avatarUpload = multer({
   },
 });
 
-// All user routes require authentication
+// Public route: serve avatar files (no auth needed for img tags)
+router.get('/me/avatar/:filename', (req, res, next) => {
+  const filename = path.basename(req.params.filename);
+  const filePath = path.join(avatarDir, filename);
+  const resolvedPath = path.resolve(filePath);
+  const resolvedDir = path.resolve(avatarDir);
+  if (!resolvedPath.startsWith(resolvedDir + path.sep) && resolvedPath !== resolvedDir) {
+    res.status(403).json({ success: false, error: { message: 'Access denied' } });
+    return;
+  }
+  res.sendFile(resolvedPath, (err) => {
+    if (err) {
+      res.status(404).json({ success: false, error: { message: 'Avatar not found' } });
+    }
+  });
+});
+
+// All remaining user routes require authentication
 router.use(authenticate);
 
 // /me routes — must be defined before /:id to avoid conflicts
@@ -79,23 +96,6 @@ router.post('/me/avatar', avatarUpload.single('avatar'), controller.uploadAvatar
 
 // DELETE /api/v1/users/me/avatar — Remove avatar
 router.delete('/me/avatar', controller.removeAvatar);
-
-// GET /api/v1/users/me/avatar/:filename — Serve avatar file
-router.get('/me/avatar/:filename', (req, res, next) => {
-  const filename = path.basename(req.params.filename);
-  const filePath = path.join(avatarDir, filename);
-  const resolvedPath = path.resolve(filePath);
-  const resolvedDir = path.resolve(avatarDir);
-  if (!resolvedPath.startsWith(resolvedDir + path.sep) && resolvedPath !== resolvedDir) {
-    res.status(403).json({ success: false, error: { message: 'Access denied' } });
-    return;
-  }
-  res.sendFile(resolvedPath, (err) => {
-    if (err) {
-      res.status(404).json({ success: false, error: { message: 'Avatar not found' } });
-    }
-  });
-});
 
 // GET /api/v1/users — List users (with search/filter)
 router.get('/', validate({ query: listQuerySchema }), controller.list);
