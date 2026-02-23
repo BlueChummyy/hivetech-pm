@@ -15,6 +15,10 @@ apiClient.interceptors.request.use(
     if (accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`;
     }
+    // Let axios set the correct multipart Content-Type with boundary for FormData
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
     return config;
   },
   (error) => Promise.reject(error),
