@@ -13,19 +13,23 @@ function getTransporter(): Transporter | null {
   const fileSettings = getSmtpSettings();
 
   if (fileSettings) {
+    // Port 465 = implicit TLS (secure: true)
+    // Port 587 = STARTTLS (secure: false, nodemailer upgrades automatically)
+    // Port 25  = plaintext (secure: false, no TLS required)
+    const useImplicitTLS = fileSettings.secure && fileSettings.port === 465;
+
     transporter = nodemailer.createTransport({
       host: fileSettings.host,
       port: fileSettings.port,
-      secure: fileSettings.secure,
+      secure: useImplicitTLS,
       auth:
         fileSettings.username && fileSettings.password
           ? { user: fileSettings.username, pass: fileSettings.password }
           : undefined,
-      // For non-TLS connections (port 25), don't require STARTTLS and accept self-signed certs
-      ...(!fileSettings.secure && {
-        tls: { rejectUnauthorized: false },
-        requireTLS: false,
-      }),
+      tls: { rejectUnauthorized: false },
+      // If user wants TLS on a non-465 port, STARTTLS will be used automatically
+      // If user disabled TLS (port 25), don't require STARTTLS
+      ...(!fileSettings.secure && { requireTLS: false }),
     });
     return transporter;
   }

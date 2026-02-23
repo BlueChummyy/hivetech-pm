@@ -1867,7 +1867,7 @@ export function AdminDashboardPage() {
                   />
                   <div className="h-5 w-9 rounded-full bg-surface-700 after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:bg-surface-400 after:transition-all peer-checked:bg-primary-600 peer-checked:after:translate-x-full peer-checked:after:bg-white" />
                 </label>
-                <span className="text-sm text-surface-300">Use TLS/SSL (Secure)</span>
+                <span className="text-sm text-surface-300">Use TLS/SSL (port 465 or 587)</span>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
