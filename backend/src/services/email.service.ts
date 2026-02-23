@@ -90,6 +90,23 @@ async function sendMail(to: string, subject: string, html: string): Promise<bool
   }
 }
 
+/** Like sendMail but throws on failure so the caller gets the actual error message. */
+export async function sendMailOrThrow(to: string, subject: string, html: string): Promise<void> {
+  const t = getTransporter();
+  if (!t) throw new Error('SMTP transporter not configured');
+
+  const fileSettings = getSmtpSettings();
+  const fromName = fileSettings?.fromName || env.SMTP_FROM_NAME;
+  const fromEmail = fileSettings?.fromEmail || env.SMTP_FROM_EMAIL || env.SMTP_USER || 'noreply@localhost';
+
+  await t.sendMail({
+    from: `"${fromName}" <${fromEmail}>`,
+    to,
+    subject,
+    html,
+  });
+}
+
 export { sendMail };
 
 // ── Email templates ──────────────────────────────────────────────────

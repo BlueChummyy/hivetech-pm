@@ -8,7 +8,7 @@ import { successResponse } from '../utils/api-response.js';
 import { hashPassword } from '../utils/password.js';
 import { queryAuditLogs, logAudit } from '../services/audit.service.js';
 import { getSmtpSettings, saveSmtpSettings, getMaskedSmtpSettings } from '../services/settings.service.js';
-import { resetTransporter, isEmailConfigured, sendMail, verifyConnection } from '../services/email.service.js';
+import { resetTransporter, isEmailConfigured, sendMailOrThrow, verifyConnection } from '../services/email.service.js';
 import type { Request, Response, NextFunction } from 'express';
 
 const router = Router();
@@ -887,29 +887,23 @@ router.post(
       // Reset transporter to pick up latest settings
       resetTransporter();
 
-      // Verify connection first to get meaningful error messages
-      const verification = await verifyConnection();
-      if (!verification.ok) {
-        throw ApiError.badRequest(`SMTP connection failed: ${verification.error}`);
-      }
-
-      const sent = await sendMail(
-        user.email,
-        'SMTP Test - Project Management',
-        `
-        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
-          <h2 style="color:#6366f1;">SMTP Test Successful</h2>
-          <p>This is a test email from your Project Management application.</p>
-          <p>If you are reading this, your SMTP settings are configured correctly.</p>
-          <p style="color:#888;font-size:12px;">Sent at ${new Date().toISOString()}</p>
-        </div>
-        `,
-      );
-
-      if (sent) {
+      try {
+        await sendMailOrThrow(
+          user.email,
+          'SMTP Test - Project Management',
+          `
+          <div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
+            <h2 style="color:#6366f1;">SMTP Test Successful</h2>
+            <p>This is a test email from your Project Management application.</p>
+            <p>If you are reading this, your SMTP settings are configured correctly.</p>
+            <p style="color:#888;font-size:12px;">Sent at ${new Date().toISOString()}</p>
+          </div>
+          `,
+        );
         res.json(successResponse({ message: `Test email sent to ${user.email}` }));
-      } else {
-        throw ApiError.internal('Connection verified but failed to send test email. Check your from address settings.');
+      } catch (sendErr) {
+        const msg = sendErr instanceof Error ? sendErr.message : String(sendErr);
+        throw ApiError.badRequest(`SMTP test failed: ${msg}`);
       }
     } catch (err) {
       next(err);
