@@ -18,6 +18,7 @@ import { useStatuses } from '@/hooks/useStatuses';
 import { useProjectMembers } from '@/hooks/useMembers';
 import { useLabels, useAttachLabel, useDetachLabel } from '@/hooks/useLabels';
 import { useAttachments, useUploadAttachment, useDeleteAttachment } from '@/hooks/useAttachments';
+import { attachmentsApi } from '@/api/attachments';
 import { useTaskDependencies } from '@/hooks/useDependencies';
 import { StatusSelector } from './StatusSelector';
 import { PrioritySelector } from './PrioritySelector';
@@ -189,6 +190,20 @@ export function TaskDetailPanel() {
       { onError: (err) => toast({ type: 'error', title: 'Failed to upload file', description: (err as Error).message }) },
     );
     e.target.value = '';
+  }
+
+  async function handleDownload(attachmentId: string, filename: string) {
+    try {
+      const res = await attachmentsApi.download(attachmentId);
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast({ type: 'error', title: 'Failed to download file', description: (err as Error).message });
+    }
   }
 
   const doneStatus = statuses?.find(
@@ -547,14 +562,13 @@ export function TaskDetailPanel() {
                               {att.uploadedBy && ` - ${att.uploadedBy.name || att.uploadedBy.displayName}`}
                             </p>
                           </div>
-                          <a
-                            href={`/api/v1/attachments/${att.id}/download`}
-                            download
+                          <button
+                            onClick={() => handleDownload(att.id, att.originalName || att.filename)}
                             aria-label={`Download ${att.originalName || att.filename}`}
                             className="rounded-md p-1 text-surface-400 hover:text-surface-200"
                           >
                             <Download className="h-4 w-4" />
-                          </a>
+                          </button>
                           {permissions.canEditTasks && (
                             <button
                               onClick={() =>

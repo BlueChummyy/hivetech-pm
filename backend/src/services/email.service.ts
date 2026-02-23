@@ -21,6 +21,11 @@ function getTransporter(): Transporter | null {
         fileSettings.username && fileSettings.password
           ? { user: fileSettings.username, pass: fileSettings.password }
           : undefined,
+      // For non-TLS connections (port 25), don't require STARTTLS and accept self-signed certs
+      ...(!fileSettings.secure && {
+        tls: { rejectUnauthorized: false },
+        requireTLS: false,
+      }),
     });
     return transporter;
   }
@@ -48,6 +53,19 @@ export function isEmailConfigured(): boolean {
   const fileSettings = getSmtpSettings();
   if (fileSettings) return true;
   return !!env.SMTP_HOST && !!env.SMTP_PORT;
+}
+
+export async function verifyConnection(): Promise<{ ok: boolean; error?: string }> {
+  const t = getTransporter();
+  if (!t) return { ok: false, error: 'SMTP transporter not configured' };
+  try {
+    await t.verify();
+    return { ok: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error({ err }, 'SMTP verification failed');
+    return { ok: false, error: message };
+  }
 }
 
 async function sendMail(to: string, subject: string, html: string): Promise<boolean> {

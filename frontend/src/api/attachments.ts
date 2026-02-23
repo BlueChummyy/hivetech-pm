@@ -3,7 +3,7 @@ import type { Attachment } from '@/types/models.types';
 
 export const attachmentsApi = {
   list: (taskId: string) =>
-    get<Attachment[]>(`/attachments`, { params: { taskId } }).then((r) => r.data),
+    get<{ attachments: Attachment[]; pagination: unknown }>(`/attachments`, { params: { taskId } }).then((r) => r.data.attachments),
 
   upload: (taskId: string, file: File) => {
     const formData = new FormData();
