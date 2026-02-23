@@ -166,8 +166,11 @@ export function AdminDashboardPage() {
     onSuccess: (data) => {
       toast({ type: 'success', title: data.message });
     },
-    onError: (err) => {
-      toast({ type: 'error', title: 'SMTP test failed', description: (err as Error).message });
+    onError: (err: unknown) => {
+      // Extract server error message from axios response
+      const axiosErr = err as { response?: { data?: { error?: { message?: string } } }; message?: string };
+      const serverMsg = axiosErr.response?.data?.error?.message || axiosErr.message || 'Unknown error';
+      toast({ type: 'error', title: 'SMTP test failed', description: serverMsg });
     },
   });
 
