@@ -4,6 +4,7 @@ import { Calendar, MessageSquare, Paperclip, ListChecks } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/utils/cn';
 import { useUIStore } from '@/store/ui.store';
+import { Avatar } from '@/components/ui/Avatar';
 import type { Task, Priority } from '@/types/models.types';
 
 const PRIORITY_COLORS: Record<Priority, string> = {
@@ -152,41 +153,29 @@ export function KanbanCard({ task, overlay }: KanbanCardProps) {
             {task.assignees.slice(0, 3).map((a) => {
               const user = a.user;
               if (!user) return null;
-              return user.avatarUrl ? (
-                <img
+              return (
+                <Avatar
                   key={a.id}
                   src={user.avatarUrl}
-                  alt={user.name || user.displayName}
-                  className="h-5 w-5 rounded-full ring-1 ring-[#1E1E26]"
+                  name={user.name || user.displayName}
+                  size="sm"
+                  className="ring-1 ring-[#1E1E26]"
                 />
-              ) : (
-                <div
-                  key={a.id}
-                  className="flex h-5 w-5 items-center justify-center rounded-full bg-primary-600 text-[10px] font-medium text-white ring-1 ring-[#1E1E26]"
-                >
-                  {(user.name || user.displayName || '?').charAt(0).toUpperCase()}
-                </div>
               );
             })}
             {task.assignees.length > 3 && (
-              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-surface-600 text-[10px] font-medium text-white ring-1 ring-[#1E1E26]">
+              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-surface-600 text-[10px] font-medium text-white ring-1 ring-[#1E1E26]">
                 +{task.assignees.length - 3}
               </div>
             )}
           </div>
         ) : task.assignee ? (
           <div className="ml-auto" title={task.assignee.name || task.assignee.displayName}>
-            {task.assignee.avatarUrl ? (
-              <img
-                src={task.assignee.avatarUrl}
-                alt={task.assignee.name || task.assignee.displayName}
-                className="h-5 w-5 rounded-full"
-              />
-            ) : (
-              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary-600 text-[10px] font-medium text-white">
-                {(task.assignee.name || task.assignee.displayName || '?').charAt(0).toUpperCase()}
-              </div>
-            )}
+            <Avatar
+              src={task.assignee.avatarUrl}
+              name={task.assignee.name || task.assignee.displayName}
+              size="sm"
+            />
           </div>
         ) : null}
       </div>

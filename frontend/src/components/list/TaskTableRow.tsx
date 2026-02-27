@@ -9,6 +9,7 @@ import { cn } from '@/utils/cn';
 import { useUIStore } from '@/store/ui.store';
 import { useUpdateTask } from '@/hooks/useTasks';
 import { useProjectMembers } from '@/hooks/useMembers';
+import { Avatar } from '@/components/ui/Avatar';
 import type { Task, ProjectStatus, Priority, ProjectMember } from '@/types/models.types';
 
 const PRIORITY_COLORS: Record<Priority, string> = {
@@ -305,20 +306,14 @@ function AssigneeBadge({ task }: { task: Task }) {
             <div className="flex -space-x-1.5">
               {displayUsers.slice(0, 3).map((user) => {
                 if (!user) return null;
-                return user.avatarUrl ? (
-                  <img
+                return (
+                  <Avatar
                     key={user.id}
                     src={user.avatarUrl}
-                    alt={user.name || user.displayName}
-                    className="h-5 w-5 rounded-full ring-1 ring-[#14141A]"
+                    name={user.name || user.displayName}
+                    size="sm"
+                    className="ring-1 ring-[#14141A]"
                   />
-                ) : (
-                  <div
-                    key={user.id}
-                    className="flex h-5 w-5 items-center justify-center rounded-full bg-primary-600 text-[10px] font-medium text-white ring-1 ring-[#14141A]"
-                  >
-                    {(user.name || user.displayName || '?').charAt(0).toUpperCase()}
-                  </div>
                 );
               })}
             </div>
@@ -326,17 +321,11 @@ function AssigneeBadge({ task }: { task: Task }) {
           </div>
         ) : displayUsers.length === 1 && displayUsers[0] ? (
           <>
-            {displayUsers[0].avatarUrl ? (
-              <img
-                src={displayUsers[0].avatarUrl}
-                alt={displayUsers[0].name || displayUsers[0].displayName}
-                className="h-5 w-5 rounded-full"
-              />
-            ) : (
-              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary-600 text-[10px] font-medium text-white">
-                {(displayUsers[0].name || displayUsers[0].displayName || '?').charAt(0).toUpperCase()}
-              </div>
-            )}
+            <Avatar
+              src={displayUsers[0].avatarUrl}
+              name={displayUsers[0].name || displayUsers[0].displayName}
+              size="sm"
+            />
             <span className="text-gray-300">{displayUsers[0].name || displayUsers[0].displayName}</span>
           </>
         ) : (
@@ -401,13 +390,7 @@ function AssigneeBadge({ task }: { task: Task }) {
                   isSelected && 'text-white bg-white/[0.03]',
                 )}
               >
-                {user.avatarUrl ? (
-                  <img src={user.avatarUrl} alt={displayName} className="h-6 w-6 rounded-full" />
-                ) : (
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary-600 text-[10px] font-medium text-white">
-                    {displayName.charAt(0).toUpperCase()}
-                  </div>
-                )}
+                <Avatar src={user.avatarUrl} name={displayName} size="sm" />
                 <span className="truncate">{displayName}</span>
                 {isSelected && (
                   <svg className="ml-auto h-4 w-4 text-primary-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
