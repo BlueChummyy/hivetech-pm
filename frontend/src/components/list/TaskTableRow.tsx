@@ -372,11 +372,20 @@ function AssigneeBadge({ task }: { task: Task }) {
                 onMouseDown={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
-                  window.alert('ASSIGNEE CLICK: ' + displayName + ' (id=' + user.id + ')');
                   const newIds = isSelected
                     ? selectedIds.filter((id) => id !== user.id)
                     : [...selectedIds, user.id];
-                  updateTask.mutate({ id: task.id, data: { assigneeIds: newIds } });
+                  try {
+                    updateTask.mutate(
+                      { id: task.id, data: { assigneeIds: newIds } },
+                      {
+                        onSuccess: () => window.alert('SUCCESS - assigned!'),
+                        onError: (err: any) => window.alert('MUTATION ERROR: ' + (err?.response?.data?.message || err?.message || String(err))),
+                      },
+                    );
+                  } catch (err: any) {
+                    window.alert('SYNC ERROR: ' + (err?.message || String(err)));
+                  }
                 }}
                 className={cn(
                   'flex w-full items-center gap-3 px-3 py-2 text-sm text-gray-300 hover:bg-white/[0.06]',
