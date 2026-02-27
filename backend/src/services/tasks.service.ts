@@ -298,6 +298,7 @@ export class TasksService {
     });
 
     // Sync TaskAssignee junction table if assigneeIds provided
+    let finalTask = task;
     if (data.assigneeIds !== undefined) {
       const currentAssigneeIds = (existing.assignees || []).map((a: any) => a.userId);
       const newAssigneeIds = data.assigneeIds;
@@ -332,8 +333,8 @@ export class TasksService {
         }
       }
 
-      // Re-fetch assignees after sync
-      const updatedTask = await prisma.task.findUnique({
+      // Re-fetch with updated assignees after sync
+      finalTask = await prisma.task.findUnique({
         where: { id },
         include: {
           status: true,
@@ -342,9 +343,9 @@ export class TasksService {
           labels: { include: { label: true } },
           assignees: { include: { user: true } },
         },
-      });
+      }) as any;
 
-      emitToProject(task.projectId, 'task:updated', updatedTask);
+      emitToProject(task.projectId, 'task:updated', finalTask);
     } else {
       emitToProject(task.projectId, 'task:updated', task);
     }
@@ -428,7 +429,7 @@ export class TasksService {
       }
     }
 
-    return task;
+    return finalTask;
   }
 
   async softDelete(id: string, deletedByUserId?: string) {

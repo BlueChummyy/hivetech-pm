@@ -32,7 +32,7 @@ export function StatusSelector({ statuses, currentStatusId, onChange, disabledCa
         onClick={() => setOpen(!open)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="flex items-center gap-2 rounded-md border border-surface-700 bg-surface-800 px-3 py-1.5 text-sm text-surface-200 hover:border-surface-600 transition-colors w-full"
+        className="flex items-center gap-2 rounded-md border border-surface-700 bg-surface-800 px-3 py-1.5 text-sm text-surface-100 hover:border-surface-600 transition-colors w-full"
       >
         <span
           className="h-2.5 w-2.5 rounded-full shrink-0"
@@ -62,10 +62,10 @@ export function StatusSelector({ statuses, currentStatusId, onChange, disabledCa
                   className={cn(
                     'flex w-full items-center gap-2 px-3 py-1.5 text-sm transition-colors',
                     isDisabled
-                      ? 'text-surface-600 cursor-not-allowed'
+                      ? 'text-surface-500 cursor-not-allowed'
                       : status.id === currentStatusId
-                        ? 'text-surface-100 bg-surface-700/50 hover:bg-surface-700'
-                        : 'text-surface-300 hover:bg-surface-700',
+                        ? 'text-white bg-surface-700/50 hover:bg-surface-700'
+                        : 'text-surface-200 hover:bg-surface-700',
                   )}
                 >
                   <span

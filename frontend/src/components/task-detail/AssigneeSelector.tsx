@@ -106,7 +106,7 @@ export function AssigneeSelector({
         onClick={() => setOpen(!open)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="flex items-center gap-2 rounded-md border border-surface-700 bg-surface-800 px-3 py-1.5 text-sm text-surface-200 hover:border-surface-600 transition-colors w-full min-h-[34px]"
+        className="flex items-center gap-2 rounded-md border border-surface-700 bg-surface-800 px-3 py-1.5 text-sm text-surface-100 hover:border-surface-600 transition-colors w-full min-h-[34px]"
       >
         {selectedUsers.length === 0 ? (
           <>
@@ -187,8 +187,8 @@ export function AssigneeSelector({
                   className={cn(
                     'flex w-full items-center gap-2 px-3 py-1.5 text-sm transition-colors hover:bg-surface-700',
                     isSelected
-                      ? 'text-surface-100 bg-surface-700/50'
-                      : 'text-surface-300',
+                      ? 'text-white bg-surface-700/50'
+                      : 'text-surface-200',
                   )}
                 >
                   <span
