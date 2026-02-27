@@ -1,6 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
-import { UserCircle, X } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { Search, Check, X } from 'lucide-react';
 import type { User, ProjectMember, TaskAssignee } from '@/types/models.types';
+import { useAuthStore } from '@/store/auth.store';
 import { cn } from '@/utils/cn';
 import { Avatar } from '@/components/ui/Avatar';
 
@@ -23,9 +25,12 @@ export function AssigneeSelector({
 }: AssigneeSelectorProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
+  const currentUser = useAuthStore((s) => s.user);
 
-  // Determine selected user IDs from multi-assignee or single assignee
+  // Derive selected IDs
   const selectedIds: string[] =
     currentAssignees && currentAssignees.length > 0
       ? currentAssignees.map((a) => a.userId)
@@ -36,21 +41,45 @@ export function AssigneeSelector({
   // Resolve selected users for display
   const selectedUsers: User[] = selectedIds
     .map((uid) => {
-      // First check from assignees data
       const fromAssignees = currentAssignees?.find((a) => a.userId === uid)?.user;
       if (fromAssignees) return fromAssignees;
-      // Fall back to single currentAssignee
       if (currentAssignee && currentAssignee.id === uid) return currentAssignee;
-      // Fall back to members
       const fromMembers = members.find((m) => m.userId === uid)?.user;
       return fromMembers || null;
     })
     .filter(Boolean) as User[];
 
+  // Position the dropdown relative to trigger
+  const updatePos = useCallback(() => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    setPos({
+      top: rect.bottom + 4,
+      left: rect.left,
+      width: Math.max(rect.width, 260),
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    updatePos();
+    window.addEventListener('scroll', updatePos, true);
+    window.addEventListener('resize', updatePos);
+    return () => {
+      window.removeEventListener('scroll', updatePos, true);
+      window.removeEventListener('resize', updatePos);
+    };
+  }, [open, updatePos]);
+
+  // Click outside to close
   useEffect(() => {
     if (!open) return;
     function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        triggerRef.current && !triggerRef.current.contains(target) &&
+        dropdownRef.current && !dropdownRef.current.contains(target)
+      ) {
         setOpen(false);
         setSearch('');
       }
@@ -59,38 +88,39 @@ export function AssigneeSelector({
     return () => document.removeEventListener('mousedown', handleClick);
   }, [open]);
 
-  const filtered = members.filter((m) => {
-    const userName = m.user?.name || m.user?.displayName || '';
-    return userName.toLowerCase().includes(search.toLowerCase());
+  // Sort members: "Me" first, then alphabetical
+  const sortedMembers = [...members].sort((a, b) => {
+    if (currentUser) {
+      if (a.userId === currentUser.id) return -1;
+      if (b.userId === currentUser.id) return 1;
+    }
+    const nameA = a.user?.name || a.user?.displayName || '';
+    const nameB = b.user?.name || b.user?.displayName || '';
+    return nameA.localeCompare(nameB);
   });
 
-  function toggleUser(userId: string) {
-    const isSelected = selectedIds.includes(userId);
-    let newIds: string[];
-    if (isSelected) {
-      newIds = selectedIds.filter((id) => id !== userId);
-    } else {
-      newIds = [...selectedIds, userId];
-    }
+  const filtered = sortedMembers.filter((m) => {
+    const name = m.user?.name || m.user?.displayName || '';
+    return name.toLowerCase().includes(search.toLowerCase());
+  });
 
+  function handleSelect(userId: string) {
     if (onChangeMultiple) {
+      const isSelected = selectedIds.includes(userId);
+      const newIds = isSelected
+        ? selectedIds.filter((id) => id !== userId)
+        : [...selectedIds, userId];
       onChangeMultiple(newIds);
     } else {
-      // Fall back to single-assignee mode
-      onChange(newIds.length > 0 ? newIds[0] : null);
+      // Single-select: assign and close
+      const isSelected = selectedIds.includes(userId);
+      onChange(isSelected ? null : userId);
+      setOpen(false);
+      setSearch('');
     }
   }
 
-  function removeUser(userId: string) {
-    const newIds = selectedIds.filter((id) => id !== userId);
-    if (onChangeMultiple) {
-      onChangeMultiple(newIds);
-    } else {
-      onChange(newIds.length > 0 ? newIds[0] : null);
-    }
-  }
-
-  function clearAll() {
+  function handleClear() {
     if (onChangeMultiple) {
       onChangeMultiple([]);
     } else {
@@ -101,8 +131,10 @@ export function AssigneeSelector({
   }
 
   return (
-    <div ref={ref} className="relative">
+    <>
       <button
+        ref={triggerRef}
+        type="button"
         onClick={() => setOpen(!open)}
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -130,90 +162,94 @@ export function AssigneeSelector({
         )}
       </button>
 
-      {open && (
-        <div role="listbox" className="absolute left-0 top-full z-50 mt-1 w-full min-w-[220px] rounded-lg border border-surface-700 bg-surface-800 shadow-xl">
+      {open && createPortal(
+        <div
+          ref={dropdownRef}
+          role="listbox"
+          style={{
+            position: 'fixed',
+            top: pos.top,
+            left: pos.left,
+            width: pos.width,
+            zIndex: 99999,
+          }}
+          className="rounded-lg border border-surface-700 bg-surface-800 shadow-2xl"
+        >
+          {/* Search */}
           <div className="p-2">
-            <input
-              type="text"
-              placeholder="Search members..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-md border border-surface-700 bg-surface-900 px-2.5 py-1.5 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-              autoFocus
-            />
+            <div className="flex items-center gap-2 rounded-md border border-surface-700 bg-surface-900 px-2.5 py-1.5">
+              <Search className="h-4 w-4 text-surface-500 shrink-0" />
+              <input
+                type="text"
+                placeholder="Search members..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="flex-1 bg-transparent text-sm text-white placeholder-surface-500 focus:outline-none"
+                autoFocus
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  className="text-surface-500 hover:text-surface-300"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Selected users chips */}
-          {selectedUsers.length > 0 && (
-            <div className="flex flex-wrap gap-1 px-2 pb-2">
-              {selectedUsers.map((u) => (
-                <span
-                  key={u.id}
-                  className="inline-flex items-center gap-1 rounded-full bg-primary-500/20 px-2 py-0.5 text-xs text-primary-300"
-                >
-                  {u.name || u.displayName}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeUser(u.id);
-                    }}
-                    className="hover:text-primary-100"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-
-          <div className="max-h-48 overflow-y-auto py-1">
-            {selectedUsers.length > 0 && (
+          {/* Member list */}
+          <div className="max-h-64 overflow-y-auto py-1">
+            {/* Unassign option when someone is assigned */}
+            {selectedIds.length > 0 && (
               <button
-                onClick={clearAll}
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-surface-400 transition-colors hover:bg-surface-700"
+                type="button"
+                onClick={handleClear}
+                className="flex w-full items-center gap-3 px-3 py-2 text-sm text-surface-400 transition-colors hover:bg-surface-700"
               >
-                <UserCircle className="h-5 w-5 shrink-0" />
-                <span>Clear all</span>
+                <Avatar src={null} name={undefined} size="sm" />
+                <span>Unassign</span>
               </button>
             )}
+
             {filtered.map((member) => {
               const isSelected = selectedIds.includes(member.userId);
+              const user = member.user;
+              const isMe = currentUser && member.userId === currentUser.id;
               return (
                 <button
                   key={member.id}
+                  type="button"
                   role="option"
                   aria-selected={isSelected}
-                  onClick={() => toggleUser(member.userId)}
+                  onClick={() => handleSelect(member.userId)}
                   className={cn(
-                    'flex w-full items-center gap-2 px-3 py-1.5 text-sm transition-colors hover:bg-surface-700',
-                    isSelected
-                      ? 'text-white bg-surface-700/50'
-                      : 'text-surface-200',
+                    'flex w-full items-center gap-3 px-3 py-2 text-sm transition-colors hover:bg-surface-700',
+                    isSelected && 'bg-surface-700/40',
                   )}
                 >
-                  <span
-                    className={cn(
-                      'flex h-4 w-4 items-center justify-center rounded border shrink-0',
-                      isSelected ? 'border-primary-500 bg-primary-500' : 'border-surface-600',
-                    )}
-                  >
-                    {isSelected && (
-                      <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
+                  <Avatar
+                    src={user?.avatarUrl}
+                    name={user?.name || user?.displayName}
+                    size="sm"
+                  />
+                  <span className="truncate text-white">
+                    {isMe ? 'Me' : (user?.name || user?.displayName || 'Unknown')}
                   </span>
-                  <Avatar src={member.user?.avatarUrl} name={member.user?.name || member.user?.displayName} size="sm" />
-                  <span className="truncate">{member.user?.name || member.user?.displayName || 'Unknown'}</span>
+                  {isSelected && (
+                    <Check className="ml-auto h-4 w-4 text-primary-400 shrink-0" />
+                  )}
                 </button>
               );
             })}
             {filtered.length === 0 && (
-              <p className="px-3 py-2 text-sm text-surface-500">No members found</p>
+              <p className="px-3 py-3 text-sm text-surface-500 text-center">No members found</p>
             )}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
-    </div>
+    </>
   );
 }
