@@ -437,165 +437,191 @@ export function TaskDetailPanel() {
                   </h2>
                 )}
 
-                {/* Metadata grid */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-surface-500">Status</label>
-                    {statuses && permissions.canChangeStatus ? (
-                      <StatusSelector
-                        statuses={statuses}
-                        currentStatusId={task.statusId}
-                        onChange={handleStatusChange}
-                        disabledCategories={permissions.canCompleteTasks ? [] : ['DONE']}
-                      />
-                    ) : (
-                      <div className="rounded-md border border-surface-700 bg-surface-800 px-3 py-1.5 text-sm text-surface-300">
-                        {statuses?.find((s) => s.id === task.statusId)?.name || 'Unknown'}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-surface-500">Priority</label>
-                    {permissions.canEditTasks ? (
-                      <PrioritySelector
-                        currentPriority={task.priority}
-                        onChange={handlePriorityChange}
-                      />
-                    ) : (
-                      <div className="rounded-md border border-surface-700 bg-surface-800 px-3 py-1.5 text-sm text-surface-300">
-                        {task.priority}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-surface-500">Assignee</label>
-                    {members && permissions.canAssignTasks ? (
-                      <AssigneeSelector
-                        members={members}
-                        currentAssigneeId={task.assigneeId}
-                        currentAssignee={task.assignee}
-                        currentAssignees={task.assignees}
-                        onChange={handleAssigneeChange}
-                        onChangeMultiple={handleAssigneesChange}
-                      />
-                    ) : (
-                      <div className="flex items-center gap-2 rounded-md border border-surface-700 bg-surface-800 px-3 py-1.5 text-sm text-surface-300">
-                        {task.assignees && task.assignees.length > 0
-                          ? task.assignees.map((a) => a.user?.name || a.user?.displayName).join(', ')
-                          : task.assignee?.name || task.assignee?.displayName || 'Unassigned'}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-surface-500">Start date</label>
-                    <div className="flex items-center gap-2 rounded-md border border-surface-700 bg-surface-800 px-3 py-1.5">
-                      <Calendar className="h-4 w-4 text-surface-500" />
-                      {permissions.canAssignDates ? (
-                        <input
-                          type="date"
-                          value={task.startDate ? task.startDate.split('T')[0] : ''}
-                          onChange={(e) => handleStartDateChange(e.target.value)}
-                          className="flex-1 bg-transparent text-sm text-surface-200 focus:outline-none [color-scheme:dark]"
+                {/* Metadata rows – ClickUp-style */}
+                <div className="rounded-lg border border-surface-700 divide-y divide-surface-700">
+                  {/* Status */}
+                  <div className="flex items-center gap-3 px-4 py-2.5">
+                    <div className="flex items-center gap-2 w-28 shrink-0">
+                      <span className="h-2 w-2 rounded-full bg-surface-500" />
+                      <span className="text-xs font-medium text-surface-400">Status</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      {statuses && permissions.canChangeStatus ? (
+                        <StatusSelector
+                          statuses={statuses}
+                          currentStatusId={task.statusId}
+                          onChange={handleStatusChange}
+                          disabledCategories={permissions.canCompleteTasks ? [] : ['DONE']}
                         />
                       ) : (
                         <span className="text-sm text-surface-300">
-                          {task.startDate ? task.startDate.split('T')[0] : 'No start date'}
+                          {statuses?.find((s) => s.id === task.statusId)?.name || 'Unknown'}
                         </span>
                       )}
                     </div>
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-surface-500">Due date</label>
-                    <div className="flex items-center gap-2 rounded-md border border-surface-700 bg-surface-800 px-3 py-1.5">
-                      <Calendar className="h-4 w-4 text-surface-500" />
-                      {permissions.canAssignDates ? (
-                        <input
-                          type="date"
-                          value={task.dueDate ? task.dueDate.split('T')[0] : ''}
-                          onChange={(e) => handleDueDateChange(e.target.value)}
-                          className="flex-1 bg-transparent text-sm text-surface-200 focus:outline-none [color-scheme:dark]"
+                  {/* Assignees */}
+                  <div className="flex items-center gap-3 px-4 py-2.5">
+                    <div className="flex items-center gap-2 w-28 shrink-0">
+                      <svg className="h-3.5 w-3.5 text-surface-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                      </svg>
+                      <span className="text-xs font-medium text-surface-400">Assignees</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      {members && permissions.canAssignTasks ? (
+                        <AssigneeSelector
+                          members={members}
+                          currentAssigneeId={task.assigneeId}
+                          currentAssignee={task.assignee}
+                          currentAssignees={task.assignees}
+                          onChange={handleAssigneeChange}
+                          onChangeMultiple={handleAssigneesChange}
                         />
                       ) : (
                         <span className="text-sm text-surface-300">
-                          {task.dueDate ? task.dueDate.split('T')[0] : 'No due date'}
+                          {task.assignees && task.assignees.length > 0
+                            ? task.assignees.map((a) => a.user?.name || a.user?.displayName).join(', ')
+                            : task.assignee?.name || task.assignee?.displayName || 'Unassigned'}
                         </span>
                       )}
                     </div>
                   </div>
-                </div>
 
-                {/* Labels */}
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-surface-500 flex items-center gap-1">
-                    <Tag className="h-3.5 w-3.5" />
-                    Labels
-                  </label>
-                  <div ref={labelRef} className="relative">
-                    <div className="flex flex-wrap gap-1.5">
-                      {task.labels?.map((tl) => (
-                        <span
-                          key={tl.id}
-                          className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium text-white"
-                          style={{ backgroundColor: tl.label?.color || '#6B7280' }}
-                        >
-                          {tl.label?.name}
-                          {permissions.canEditTasks && (
-                            <button
-                              onClick={() => handleLabelToggle(tl.labelId)}
-                              aria-label={`Remove ${tl.label?.name} label`}
-                              className="ml-0.5 hover:text-surface-200"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          )}
-                        </span>
-                      ))}
-                      {permissions.canEditTasks && (
-                        <button
-                          onClick={() => setLabelDropdownOpen(!labelDropdownOpen)}
-                          className="inline-flex items-center gap-1 rounded-full border border-dashed border-surface-600 px-2.5 py-0.5 text-xs text-surface-500 hover:text-surface-300 hover:border-surface-500 transition-colors"
-                        >
-                          + Add label
-                        </button>
-                      )}
+                  {/* Dates */}
+                  <div className="flex items-center gap-3 px-4 py-2.5">
+                    <div className="flex items-center gap-2 w-28 shrink-0">
+                      <Calendar className="h-3.5 w-3.5 text-surface-500" />
+                      <span className="text-xs font-medium text-surface-400">Dates</span>
                     </div>
-                    {labelDropdownOpen && labels && (
-                      <div className="absolute left-0 top-full z-50 mt-1 w-48 rounded-lg border border-surface-700 bg-surface-800 py-1 shadow-xl">
-                        {labels.map((label) => {
-                          const isAttached = task.labels?.some(
-                            (tl) => tl.labelId === label.id,
-                          );
-                          return (
-                            <button
-                              key={label.id}
-                              onClick={() => handleLabelToggle(label.id)}
-                              className={cn(
-                                'flex w-full items-center gap-2 px-3 py-1.5 text-sm transition-colors hover:bg-surface-700',
-                                isAttached ? 'text-surface-100' : 'text-surface-400',
-                              )}
-                            >
-                              <span
-                                className="h-3 w-3 rounded-full shrink-0"
-                                style={{ backgroundColor: label.color }}
-                              />
-                              <span className="truncate">{label.name}</span>
-                              {isAttached && (
-                                <span className="ml-auto text-primary-400 text-xs">
-                                  &#10003;
-                                </span>
-                              )}
-                            </button>
-                          );
-                        })}
-                        {labels.length === 0 && (
-                          <p className="px-3 py-2 text-sm text-surface-500">No labels</p>
+                    <div className="flex flex-1 items-center gap-2 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                        {permissions.canAssignDates ? (
+                          <input
+                            type="date"
+                            value={task.startDate ? task.startDate.split('T')[0] : ''}
+                            onChange={(e) => handleStartDateChange(e.target.value)}
+                            title="Start date"
+                            className="w-full rounded-md border border-surface-700 bg-surface-800 px-2 py-1 text-xs text-surface-200 focus:outline-none focus:ring-1 focus:ring-primary-500 [color-scheme:dark]"
+                          />
+                        ) : (
+                          <span className="text-xs text-surface-400">
+                            {task.startDate ? task.startDate.split('T')[0] : 'Start'}
+                          </span>
                         )}
                       </div>
-                    )}
+                      <span className="text-surface-600 text-xs shrink-0">&rarr;</span>
+                      <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                        {permissions.canAssignDates ? (
+                          <input
+                            type="date"
+                            value={task.dueDate ? task.dueDate.split('T')[0] : ''}
+                            onChange={(e) => handleDueDateChange(e.target.value)}
+                            title="Due date"
+                            className="w-full rounded-md border border-surface-700 bg-surface-800 px-2 py-1 text-xs text-surface-200 focus:outline-none focus:ring-1 focus:ring-primary-500 [color-scheme:dark]"
+                          />
+                        ) : (
+                          <span className="text-xs text-surface-400">
+                            {task.dueDate ? task.dueDate.split('T')[0] : 'Due'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Priority */}
+                  <div className="flex items-center gap-3 px-4 py-2.5">
+                    <div className="flex items-center gap-2 w-28 shrink-0">
+                      <svg className="h-3.5 w-3.5 text-surface-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                      </svg>
+                      <span className="text-xs font-medium text-surface-400">Priority</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      {permissions.canEditTasks ? (
+                        <PrioritySelector
+                          currentPriority={task.priority}
+                          onChange={handlePriorityChange}
+                        />
+                      ) : (
+                        <span className="text-sm text-surface-300">{task.priority}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Labels/Tags */}
+                  <div className="flex items-start gap-3 px-4 py-2.5">
+                    <div className="flex items-center gap-2 w-28 shrink-0 pt-0.5">
+                      <Tag className="h-3.5 w-3.5 text-surface-500" />
+                      <span className="text-xs font-medium text-surface-400">Tags</span>
+                    </div>
+                    <div ref={labelRef} className="relative flex-1 min-w-0">
+                      <div className="flex flex-wrap gap-1.5">
+                        {task.labels?.map((tl) => (
+                          <span
+                            key={tl.id}
+                            className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium text-white"
+                            style={{ backgroundColor: tl.label?.color || '#6B7280' }}
+                          >
+                            {tl.label?.name}
+                            {permissions.canEditTasks && (
+                              <button
+                                onClick={() => handleLabelToggle(tl.labelId)}
+                                aria-label={`Remove ${tl.label?.name} label`}
+                                className="ml-0.5 hover:text-surface-200"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            )}
+                          </span>
+                        ))}
+                        {permissions.canEditTasks && (
+                          <button
+                            onClick={() => setLabelDropdownOpen(!labelDropdownOpen)}
+                            className="inline-flex items-center gap-1 rounded-full border border-dashed border-surface-600 px-2 py-0.5 text-[11px] text-surface-500 hover:text-surface-300 hover:border-surface-500 transition-colors"
+                          >
+                            + Add
+                          </button>
+                        )}
+                        {(!task.labels || task.labels.length === 0) && !permissions.canEditTasks && (
+                          <span className="text-xs text-surface-500">Empty</span>
+                        )}
+                      </div>
+                      {labelDropdownOpen && labels && (
+                        <div className="absolute left-0 top-full z-50 mt-1 w-48 rounded-lg border border-surface-700 bg-surface-800 py-1 shadow-xl">
+                          {labels.map((label) => {
+                            const isAttached = task.labels?.some(
+                              (tl) => tl.labelId === label.id,
+                            );
+                            return (
+                              <button
+                                key={label.id}
+                                onClick={() => handleLabelToggle(label.id)}
+                                className={cn(
+                                  'flex w-full items-center gap-2 px-3 py-1.5 text-sm transition-colors hover:bg-surface-700',
+                                  isAttached ? 'text-surface-100' : 'text-surface-400',
+                                )}
+                              >
+                                <span
+                                  className="h-3 w-3 rounded-full shrink-0"
+                                  style={{ backgroundColor: label.color }}
+                                />
+                                <span className="truncate">{label.name}</span>
+                                {isAttached && (
+                                  <span className="ml-auto text-primary-400 text-xs">
+                                    &#10003;
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                          {labels.length === 0 && (
+                            <p className="px-3 py-2 text-sm text-surface-500">No labels</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
