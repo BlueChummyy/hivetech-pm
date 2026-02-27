@@ -206,22 +206,55 @@ function PriorityBadge({ task }: { task: Task }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  AssigneeBadge (portal, with search)                               */
+/*  AssigneeBadge – NO portal, inline fixed dropdown                  */
 /* ------------------------------------------------------------------ */
 function AssigneeBadge({ task }: { task: Task }) {
   const { projectId } = useParams<{ projectId: string }>();
-  const { open, pos, triggerRef, dropdownRef, toggle, close } = usePortalDropdown();
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const updateTask = useUpdateTask();
   const { data: members } = useProjectMembers(projectId ?? '');
   const [search, setSearch] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
 
+  const handleToggle = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setOpen((prev) => {
+      if (!prev && triggerRef.current) {
+        const rect = triggerRef.current.getBoundingClientRect();
+        setPos({ top: rect.bottom + 4, left: rect.left });
+      }
+      return !prev;
+    });
+  }, []);
+
+  // Focus search input when dropdown opens
   useEffect(() => {
     if (open) {
       requestAnimationFrame(() => searchRef.current?.focus());
     } else {
       setSearch('');
     }
+  }, [open]);
+
+  // Click outside to close – native handler on document
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        dropdownRef.current && !dropdownRef.current.contains(target) &&
+        triggerRef.current && !triggerRef.current.contains(target)
+      ) {
+        setOpen(false);
+        setSearch('');
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
   const filteredMembers = (members ?? []).filter((m: ProjectMember) => {
@@ -245,7 +278,7 @@ function AssigneeBadge({ task }: { task: Task }) {
     <>
       <button
         ref={triggerRef}
-        onClick={toggle}
+        onMouseDown={handleToggle}
         aria-haspopup="listbox"
         aria-expanded={open}
         className="flex items-center gap-2 rounded px-2 py-0.5 text-sm transition-colors hover:bg-white/[0.06]"
@@ -293,82 +326,83 @@ function AssigneeBadge({ task }: { task: Task }) {
           <span className="text-gray-400">Unassigned</span>
         )}
       </button>
-      {open &&
-        pos &&
-        createPortal(
-          <div
-            ref={dropdownRef}
-            onClick={(e) => e.stopPropagation()}
-            className="fixed z-[9999] w-[260px] rounded-lg border border-white/[0.08] bg-[#1E1E26] py-1 shadow-xl"
-            style={{ top: pos.top, left: pos.left }}
-          >
-            <div className="px-2 pb-1 pt-1.5">
-              <input
-                ref={searchRef}
-                type="text"
-                placeholder="Search members..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onClick={(e) => e.stopPropagation()}
-                className="w-full rounded bg-white/[0.06] px-2 py-1 text-sm text-white placeholder-gray-500 outline-none focus:ring-1 focus:ring-primary-500"
-              />
-            </div>
-            {selectedIds.length > 0 && (
+      {open && (
+        <div
+          ref={dropdownRef}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          className="w-[260px] rounded-lg border border-white/[0.08] bg-[#1E1E26] py-1 shadow-xl"
+          style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 99999 }}
+        >
+          <div className="px-2 pb-1 pt-1.5">
+            <input
+              ref={searchRef}
+              type="text"
+              placeholder="Search members..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full rounded bg-white/[0.06] px-2 py-1 text-sm text-white placeholder-gray-500 outline-none focus:ring-1 focus:ring-primary-500"
+            />
+          </div>
+          {selectedIds.length > 0 && (
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                setOpen(false);
+                updateTask.mutate({ id: task.id, data: { assigneeIds: [] } });
+              }}
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-400 hover:bg-white/[0.04]"
+            >
+              Clear all
+            </button>
+          )}
+          {filteredMembers.map((m: ProjectMember) => {
+            const user = m.user;
+            if (!user) return null;
+            const displayName = user.name || user.displayName || user.email;
+            const isSelected = selectedIds.includes(user.id);
+            return (
               <button
+                key={m.id}
                 type="button"
-                onClick={(e) => {
+                onMouseDown={(e) => {
                   e.stopPropagation();
-                  close();
-                  updateTask.mutate({ id: task.id, data: { assigneeIds: [] } });
+                  e.preventDefault();
+                  const newIds = isSelected
+                    ? selectedIds.filter((id) => id !== user.id)
+                    : [...selectedIds, user.id];
+                  updateTask.mutate({ id: task.id, data: { assigneeIds: newIds } });
                 }}
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-400 hover:bg-white/[0.04]"
+                className={cn(
+                  'flex w-full items-center gap-3 px-3 py-2 text-sm text-gray-300 hover:bg-white/[0.06]',
+                  isSelected && 'text-white bg-white/[0.03]',
+                )}
               >
-                Clear all
+                {user.avatarUrl ? (
+                  <img src={user.avatarUrl} alt={displayName} className="h-6 w-6 rounded-full" />
+                ) : (
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary-600 text-[10px] font-medium text-white">
+                    {displayName.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <span className="truncate">{displayName}</span>
+                {isSelected && (
+                  <svg className="ml-auto h-4 w-4 text-primary-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
               </button>
-            )}
-            {filteredMembers.map((m: ProjectMember) => {
-              const user = m.user;
-              if (!user) return null;
-              const displayName = user.name || user.displayName || user.email;
-              const isSelected = selectedIds.includes(user.id);
-              return (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const newIds = isSelected
-                      ? selectedIds.filter((id) => id !== user.id)
-                      : [...selectedIds, user.id];
-                    updateTask.mutate({ id: task.id, data: { assigneeIds: newIds } });
-                  }}
-                  className={cn(
-                    'flex w-full items-center gap-3 px-3 py-2 text-sm text-gray-300 hover:bg-white/[0.06]',
-                    isSelected && 'text-white bg-white/[0.03]',
-                  )}
-                >
-                  {user.avatarUrl ? (
-                    <img src={user.avatarUrl} alt={displayName} className="h-6 w-6 rounded-full" />
-                  ) : (
-                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary-600 text-[10px] font-medium text-white">
-                      {displayName.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  <span className="truncate">{displayName}</span>
-                  {isSelected && (
-                    <svg className="ml-auto h-4 w-4 text-primary-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  )}
-                </button>
-              );
-            })}
-            {filteredMembers.length === 0 && search && (
-              <div className="px-3 py-2 text-sm text-gray-500">No members found</div>
-            )}
-          </div>,
-          document.body,
-        )}
+            );
+          })}
+          {filteredMembers.length === 0 && search && (
+            <div className="px-3 py-2 text-sm text-gray-500">No members found</div>
+          )}
+        </div>
+      )}
     </>
   );
 }
