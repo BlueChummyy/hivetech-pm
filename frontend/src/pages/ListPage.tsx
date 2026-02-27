@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { PageError } from '@/components/ui/PageError';
 import { useTasks, useCreateTask } from '@/hooks/useTasks';
 import { useStatuses } from '@/hooks/useStatuses';
+import { useProjectMembers } from '@/hooks/useMembers';
 import { useProjectPermissions } from '@/hooks/useProjectRole';
 import { useToast } from '@/components/ui/Toast';
 import type { Task } from '@/types/models.types';
@@ -41,6 +42,7 @@ export function ListPage() {
     refetch: refetchStatuses,
   } = useStatuses(projectId ?? '');
 
+  const { data: members } = useProjectMembers(projectId ?? '');
   const createTask = useCreateTask();
   const permissions = useProjectPermissions(projectId);
   const { toast } = useToast();
@@ -156,6 +158,7 @@ export function ListPage() {
             filters={filters}
             onFiltersChange={setFilters}
             statuses={statuses ?? []}
+            members={members}
           />
         </div>
         {permissions.canCreateTasks && (

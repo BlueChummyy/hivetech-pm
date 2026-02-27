@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { cn } from '@/utils/cn';
 
 type AvatarSize = 'sm' | 'md' | 'lg';
@@ -42,11 +43,14 @@ function getColorFromName(name?: string): string {
 }
 
 export function Avatar({ src, name, size = 'md', className }: AvatarProps) {
-  if (src) {
+  const [imgError, setImgError] = useState(false);
+
+  if (src && !imgError) {
     return (
       <img
         src={src}
         alt={name || 'Avatar'}
+        onError={() => setImgError(true)}
         className={cn(
           'shrink-0 rounded-full object-cover',
           sizeClasses[size],

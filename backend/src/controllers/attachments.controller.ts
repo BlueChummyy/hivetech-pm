@@ -1,3 +1,4 @@
+import path from 'node:path';
 import type { Request, Response, NextFunction } from 'express';
 import { AttachmentsService } from '../services/attachments.service.js';
 import { requireProjectMember } from '../utils/authorization.js';
@@ -81,7 +82,16 @@ export class AttachmentsController {
       if (!task) throw ApiError.notFound('Task not found');
       await requireProjectMember(task.projectId, req.user!.id);
 
-      res.download(attachment.storagePath, attachment.originalName);
+      if (req.query.inline === 'true') {
+        res.setHeader('Content-Type', attachment.mimeType || 'application/octet-stream');
+        res.setHeader('Content-Disposition', `inline; filename="${attachment.originalName}"`);
+        res.sendFile(path.resolve(attachment.storagePath), (err) => {
+          if (err) next(err);
+        });
+        return;
+      } else {
+        res.download(attachment.storagePath, attachment.originalName);
+      }
     } catch (err) {
       next(err);
     }

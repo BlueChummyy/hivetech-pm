@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, type ReactNode } from 'react';
 import { Search, X, ChevronDown } from 'lucide-react';
 import { cn } from '@/utils/cn';
-import type { ProjectStatus, Priority } from '@/types/models.types';
+import type { ProjectStatus, Priority, ProjectMember } from '@/types/models.types';
 
 export interface TaskFilterState {
   search: string;
@@ -14,6 +14,7 @@ interface FilterBarProps {
   filters: TaskFilterState;
   onFiltersChange: (filters: TaskFilterState) => void;
   statuses: ProjectStatus[];
+  members?: ProjectMember[];
 }
 
 interface DropdownProps {
@@ -69,7 +70,7 @@ const PRIORITIES: { value: Priority; label: string; color: string }[] = [
   { value: 'NONE' as Priority, label: 'None', color: '#6B7280' },
 ];
 
-export function FilterBar({ filters, onFiltersChange, statuses }: FilterBarProps) {
+export function FilterBar({ filters, onFiltersChange, statuses, members }: FilterBarProps) {
   const activeCount =
     filters.statusIds.length + filters.priorities.length + filters.assigneeIds.length;
 
@@ -85,6 +86,13 @@ export function FilterBar({ filters, onFiltersChange, statuses }: FilterBarProps
       ? filters.priorities.filter((p) => p !== priority)
       : [...filters.priorities, priority];
     onFiltersChange({ ...filters, priorities: pris });
+  };
+
+  const toggleAssignee = (userId: string) => {
+    const ids = filters.assigneeIds.includes(userId)
+      ? filters.assigneeIds.filter((id) => id !== userId)
+      : [...filters.assigneeIds, userId];
+    onFiltersChange({ ...filters, assigneeIds: ids });
   };
 
   const clearAll = () => {
@@ -180,6 +188,46 @@ export function FilterBar({ filters, onFiltersChange, statuses }: FilterBarProps
         ))}
       </FilterDropdown>
 
+      {/* Assignee filter */}
+      {members && members.length > 0 && (
+        <FilterDropdown label="Assignee">
+          {members.map((m) => {
+            const user = m.user;
+            if (!user) return null;
+            const displayName = user.name || user.displayName || user.email;
+            return (
+              <button
+                key={user.id}
+                onClick={() => toggleAssignee(user.id)}
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-300 hover:bg-white/[0.04]"
+              >
+                <span
+                  className={cn(
+                    'flex h-4 w-4 items-center justify-center rounded border',
+                    filters.assigneeIds.includes(user.id)
+                      ? 'border-primary-500 bg-primary-500'
+                      : 'border-white/[0.15]',
+                  )}
+                >
+                  {filters.assigneeIds.includes(user.id) && (
+                    <svg
+                      className="h-3 w-3 text-white"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={3}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </span>
+                {displayName}
+              </button>
+            );
+          })}
+        </FilterDropdown>
+      )}
+
       {/* Active filter chips */}
       {activeCount > 0 && (
         <>
@@ -219,6 +267,21 @@ export function FilterBar({ filters, onFiltersChange, statuses }: FilterBarProps
                 </button>
               </span>
             ) : null;
+          })}
+          {filters.assigneeIds.map((uid) => {
+            const m = members?.find((mem) => mem.user?.id === uid);
+            const displayName = m?.user?.name || m?.user?.displayName || m?.user?.email || uid;
+            return (
+              <span
+                key={uid}
+                className="flex items-center gap-1 rounded-full bg-white/[0.06] px-2 py-0.5 text-xs text-gray-300"
+              >
+                {displayName}
+                <button onClick={() => toggleAssignee(uid)} aria-label={`Remove ${displayName} filter`} className="ml-0.5 text-gray-500 hover:text-gray-300">
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            );
           })}
           <button
             onClick={clearAll}

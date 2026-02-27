@@ -7,6 +7,7 @@ import {
   Paperclip,
   Upload,
   Download,
+  Eye,
   Trash2,
   Loader2,
   Activity,
@@ -56,6 +57,8 @@ export function TaskDetailPanel() {
   const [titleValue, setTitleValue] = useState('');
   const [descValue, setDescValue] = useState('');
   const [labelDropdownOpen, setLabelDropdownOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewName, setPreviewName] = useState('');
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const labelRef = useRef<HTMLDivElement>(null);
@@ -192,6 +195,28 @@ export function TaskDetailPanel() {
     e.target.value = '';
   }
 
+  function isPreviewable(mimeType: string) {
+    return mimeType.startsWith('image/') || mimeType === 'application/pdf';
+  }
+
+  async function handlePreview(attachmentId: string, filename: string) {
+    try {
+      const url = await attachmentsApi.preview(attachmentId);
+      setPreviewUrl(url);
+      setPreviewName(filename);
+    } catch (err) {
+      toast({ type: 'error', title: 'Failed to load preview', description: (err as Error).message });
+    }
+  }
+
+  function closePreview() {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewUrl(null);
+    setPreviewName('');
+  }
+
   async function handleDownload(attachmentId: string, filename: string) {
     try {
       const res = await attachmentsApi.download(attachmentId);
@@ -262,7 +287,7 @@ export function TaskDetailPanel() {
 
             {/* Scrollable content */}
             <div className="flex-1 overflow-y-auto">
-              <div className="space-y-6 p-4">
+              <div className="space-y-4 p-4">
                 {/* Title */}
                 {editingTitle && permissions.canEditTasks ? (
                   <textarea
@@ -474,7 +499,7 @@ export function TaskDetailPanel() {
                 </div>
 
                 {/* Subtasks */}
-                <div className="border-t border-surface-700 pt-4">
+                <div className="border-t border-surface-700 pt-3">
                   <SubtaskList
                     parentTask={task}
                     subtasks={task.subtasks || []}
@@ -484,7 +509,7 @@ export function TaskDetailPanel() {
 
                 {/* Dependencies */}
                 {dependencies && dependencies.length > 0 && (
-                  <div className="border-t border-surface-700 pt-4 space-y-2">
+                  <div className="border-t border-surface-700 pt-3 space-y-2">
                     <h4 className="text-sm font-medium text-surface-300 flex items-center gap-1.5">
                       <Link2 className="h-3.5 w-3.5" />
                       Dependencies
@@ -515,12 +540,12 @@ export function TaskDetailPanel() {
                 )}
 
                 {/* Comments */}
-                <div className="border-t border-surface-700 pt-4">
+                <div className="border-t border-surface-700 pt-3">
                   <CommentSection taskId={task.id} canComment={permissions.canComment} isProjectAdmin={permissions.canManageProject} />
                 </div>
 
                 {/* Attachments */}
-                <div className="border-t border-surface-700 pt-4 space-y-3">
+                <div className="border-t border-surface-700 pt-3 space-y-3">
                   <div className="flex items-center justify-between">
                     <h4 className="text-sm font-medium text-surface-300 flex items-center gap-1.5">
                       <Paperclip className="h-3.5 w-3.5" />
@@ -562,10 +587,21 @@ export function TaskDetailPanel() {
                               {att.uploadedBy && ` - ${att.uploadedBy.name || att.uploadedBy.displayName}`}
                             </p>
                           </div>
+                          {isPreviewable(att.mimeType) && (
+                            <button
+                              onClick={() => handlePreview(att.id, att.originalName || att.filename)}
+                              aria-label={`View ${att.originalName || att.filename}`}
+                              className="rounded-md p-1 text-surface-400 hover:text-primary-400"
+                              title="View"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+                          )}
                           <button
                             onClick={() => handleDownload(att.id, att.originalName || att.filename)}
                             aria-label={`Download ${att.originalName || att.filename}`}
                             className="rounded-md p-1 text-surface-400 hover:text-surface-200"
+                            title="Download"
                           >
                             <Download className="h-4 w-4" />
                           </button>
@@ -589,6 +625,7 @@ export function TaskDetailPanel() {
                               }
                               aria-label={`Delete ${att.originalName || att.filename}`}
                               className="rounded-md p-1 text-surface-400 hover:text-red-400"
+                              title="Delete"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -602,7 +639,7 @@ export function TaskDetailPanel() {
                 </div>
 
                 {/* Activity placeholder */}
-                <div className="border-t border-surface-700 pt-4 space-y-2">
+                <div className="border-t border-surface-700 pt-3 space-y-2">
                   <h4 className="text-sm font-medium text-surface-300 flex items-center gap-1.5">
                     <Activity className="h-3.5 w-3.5" />
                     Activity
@@ -629,6 +666,38 @@ export function TaskDetailPanel() {
           </div>
         )}
       </div>
+
+      {/* Attachment preview lightbox */}
+      {previewUrl && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80"
+          onClick={closePreview}
+        >
+          <button
+            onClick={closePreview}
+            className="absolute top-4 right-4 rounded-full bg-surface-800/80 p-2 text-white hover:bg-surface-700 transition-colors"
+            aria-label="Close preview"
+          >
+            <X className="h-6 w-6" />
+          </button>
+          <p className="absolute top-4 left-4 text-sm text-white/70 truncate max-w-[60%]">{previewName}</p>
+          {previewName.match(/\.pdf$/i) ? (
+            <iframe
+              src={previewUrl}
+              title={previewName}
+              className="h-[85vh] w-[85vw] rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <img
+              src={previewUrl}
+              alt={previewName}
+              className="max-h-[85vh] max-w-[85vw] rounded-lg object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+          )}
+        </div>
+      )}
     </>
   );
 }

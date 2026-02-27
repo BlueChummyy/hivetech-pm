@@ -17,6 +17,14 @@ export const attachmentsApi = {
       responseType: 'blob',
     }),
 
+  /** Fetch as blob for inline preview (returns object URL) */
+  preview: async (attachmentId: string): Promise<string> => {
+    const res = await get<Blob>(`/attachments/${attachmentId}/download?inline=true`, {
+      responseType: 'blob',
+    });
+    return URL.createObjectURL(res.data);
+  },
+
   remove: (attachmentId: string) =>
     del(`/attachments/${attachmentId}`),
 };

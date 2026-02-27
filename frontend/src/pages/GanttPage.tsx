@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTasks } from '@/hooks/useTasks';
 import { useStatuses } from '@/hooks/useStatuses';
+import { useProjectMembers } from '@/hooks/useMembers';
 import { PageError } from '@/components/ui/PageError';
 import { GanttChart } from '@/components/gantt/GanttChart';
 import { FilterBar, type TaskFilterState } from '@/components/list/FilterBar';
@@ -17,6 +18,7 @@ export function GanttPage() {
     refetch,
   } = useTasks({ projectId: projectId ?? '' });
   const { data: statuses } = useStatuses(projectId ?? '');
+  const { data: members } = useProjectMembers(projectId ?? '');
 
   const [filters, setFilters] = useState<TaskFilterState>({
     search: '',
@@ -70,6 +72,7 @@ export function GanttPage() {
         filters={filters}
         onFiltersChange={setFilters}
         statuses={statuses ?? []}
+        members={members}
       />
       <GanttChart tasks={filteredTasks} isLoading={isLoading} />
     </div>

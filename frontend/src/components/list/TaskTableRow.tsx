@@ -4,7 +4,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { format } from 'date-fns';
 import { useParams } from 'react-router-dom';
-import { GripVertical, ChevronRight, ChevronDown } from 'lucide-react';
+import { GripVertical, ChevronRight, ChevronDown, MessageSquare, Paperclip } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useUIStore } from '@/store/ui.store';
 import { useUpdateTask } from '@/hooks/useTasks';
@@ -576,6 +576,18 @@ export function TaskTableRow({ task, statuses, dragEnabled, overlay, depth = 0, 
               {subtaskCount != null && subtaskCount > 0 && (
                 <span className="shrink-0 rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-gray-400">
                   {subtaskCount} subtask{subtaskCount !== 1 ? 's' : ''}
+                </span>
+              )}
+              {(task._count?.comments ?? 0) > 0 && (
+                <span className="flex shrink-0 items-center gap-0.5 text-gray-400" title={`${task._count!.comments} comment${task._count!.comments !== 1 ? 's' : ''}`}>
+                  <MessageSquare className="h-3 w-3" />
+                  <span className="text-[10px]">{task._count!.comments}</span>
+                </span>
+              )}
+              {(task._count?.attachments ?? 0) > 0 && (
+                <span className="flex shrink-0 items-center gap-0.5 text-gray-400" title={`${task._count!.attachments} attachment${task._count!.attachments !== 1 ? 's' : ''}`}>
+                  <Paperclip className="h-3 w-3" />
+                  <span className="text-[10px]">{task._count!.attachments}</span>
                 </span>
               )}
             </div>

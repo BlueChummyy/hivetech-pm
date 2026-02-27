@@ -46,7 +46,7 @@ export function CommentSection({ taskId, canComment = true, isProjectAdmin = fal
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <h4 className="text-sm font-medium text-surface-300">Comments</h4>
 
       {isLoading ? (
