@@ -372,6 +372,7 @@ function AssigneeBadge({ task }: { task: Task }) {
                 onMouseDown={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
+                  window.alert('ASSIGNEE CLICK: ' + displayName + ' (id=' + user.id + ')');
                   const newIds = isSelected
                     ? selectedIds.filter((id) => id !== user.id)
                     : [...selectedIds, user.id];
