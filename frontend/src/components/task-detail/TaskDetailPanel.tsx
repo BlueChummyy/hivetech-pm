@@ -266,23 +266,25 @@ export function TaskDetailPanel() {
 
   return (
     <>
-      {/* Mobile backdrop */}
+      {/* Backdrop */}
       {taskPanelOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/60"
           onClick={closeTaskPanel}
         />
       )}
 
-      {/* Panel */}
+      {/* Centered modal */}
+      {taskPanelOpen && (
       <div
-        role="complementary"
+        role="dialog"
         aria-label="Task details"
-        aria-hidden={!taskPanelOpen}
-        className={cn(
-          'fixed right-0 top-0 z-50 h-full w-full bg-surface-800 border-l border-surface-700 shadow-2xl transition-transform duration-200 ease-in-out sm:w-[480px]',
-          taskPanelOpen ? 'translate-x-0' : 'translate-x-full',
-        )}
+        className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:p-8"
+        onClick={(e) => { if (e.target === e.currentTarget) closeTaskPanel(); }}
+      >
+      <div
+        className="w-full max-w-3xl bg-surface-800 rounded-xl border border-surface-700 shadow-2xl my-auto"
+        onClick={(e) => e.stopPropagation()}
       >
         {isLoading ? (
           <div className="flex h-full items-center justify-center">
@@ -811,7 +813,9 @@ export function TaskDetailPanel() {
             </div>
           </div>
         )}
+        </div>
       </div>
+      )}
 
       {/* Attachment preview lightbox */}
       {previewUrl && (
