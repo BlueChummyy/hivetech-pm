@@ -8,6 +8,7 @@ import { PageError } from '@/components/ui/PageError';
 import { useTasks, useCreateTask } from '@/hooks/useTasks';
 import { useStatuses } from '@/hooks/useStatuses';
 import { useProjectMembers } from '@/hooks/useMembers';
+import { useLabels } from '@/hooks/useLabels';
 import { useProjectPermissions } from '@/hooks/useProjectRole';
 import { useToast } from '@/components/ui/Toast';
 import type { Task } from '@/types/models.types';
@@ -43,6 +44,7 @@ export function ListPage() {
   } = useStatuses(projectId ?? '');
 
   const { data: members } = useProjectMembers(projectId ?? '');
+  const { data: labels } = useLabels(projectId ?? '');
   const createTask = useCreateTask();
   const permissions = useProjectPermissions(projectId);
   const { toast } = useToast();
@@ -54,13 +56,16 @@ export function ListPage() {
     statusIds: [],
     priorities: [],
     assigneeIds: [],
+    labelIds: [],
+    groupBy: { field: 'status', direction: 'asc', enabled: false },
   });
 
   const hasActiveFilters =
     filters.search !== '' ||
     filters.statusIds.length > 0 ||
     filters.priorities.length > 0 ||
-    filters.assigneeIds.length > 0;
+    filters.assigneeIds.length > 0 ||
+    filters.labelIds.length > 0;
 
   const filteredTasks = useMemo(() => {
     if (!tasks) return [];
@@ -86,6 +91,12 @@ export function ListPage() {
     if (filters.assigneeIds.length > 0) {
       result = result.filter(
         (t) => t.assigneeId && filters.assigneeIds.includes(t.assigneeId),
+      );
+    }
+
+    if (filters.labelIds.length > 0) {
+      result = result.filter((t) =>
+        t.labels?.some((tl) => filters.labelIds.includes(tl.labelId)),
       );
     }
 
@@ -159,6 +170,7 @@ export function ListPage() {
             onFiltersChange={setFilters}
             statuses={statuses ?? []}
             members={members}
+            labels={labels}
           />
         </div>
         {permissions.canCreateTasks && (
@@ -192,7 +204,14 @@ export function ListPage() {
             action={{
               label: 'Clear filters',
               onClick: () =>
-                setFilters({ search: '', statusIds: [], priorities: [], assigneeIds: [] }),
+                setFilters({
+                  search: '',
+                  statusIds: [],
+                  priorities: [],
+                  assigneeIds: [],
+                  labelIds: [],
+                  groupBy: filters.groupBy,
+                }),
             }}
           />
         ) : (
@@ -203,7 +222,11 @@ export function ListPage() {
           />
         )
       ) : (
-        <TaskTable tasks={filteredTasks} statuses={statuses ?? []} />
+        <TaskTable
+          tasks={filteredTasks}
+          statuses={statuses ?? []}
+          groupBy={filters.groupBy}
+        />
       )}
     </div>
   );

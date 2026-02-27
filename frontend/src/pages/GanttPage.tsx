@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useTasks } from '@/hooks/useTasks';
 import { useStatuses } from '@/hooks/useStatuses';
 import { useProjectMembers } from '@/hooks/useMembers';
+import { useLabels } from '@/hooks/useLabels';
 import { PageError } from '@/components/ui/PageError';
 import { GanttChart } from '@/components/gantt/GanttChart';
 import { FilterBar, type TaskFilterState } from '@/components/list/FilterBar';
@@ -19,12 +20,15 @@ export function GanttPage() {
   } = useTasks({ projectId: projectId ?? '' });
   const { data: statuses } = useStatuses(projectId ?? '');
   const { data: members } = useProjectMembers(projectId ?? '');
+  const { data: labels } = useLabels(projectId ?? '');
 
   const [filters, setFilters] = useState<TaskFilterState>({
     search: '',
     statusIds: [],
     priorities: [],
     assigneeIds: [],
+    labelIds: [],
+    groupBy: { field: 'status', direction: 'asc', enabled: false },
   });
 
   const filteredTasks = useMemo(() => {
@@ -54,6 +58,12 @@ export function GanttPage() {
       );
     }
 
+    if (filters.labelIds.length > 0) {
+      result = result.filter((t) =>
+        t.labels?.some((tl) => filters.labelIds.includes(tl.labelId)),
+      );
+    }
+
     return result;
   }, [tasks, filters]);
 
@@ -73,6 +83,7 @@ export function GanttPage() {
         onFiltersChange={setFilters}
         statuses={statuses ?? []}
         members={members}
+        labels={labels}
       />
       <GanttChart tasks={filteredTasks} isLoading={isLoading} />
     </div>
