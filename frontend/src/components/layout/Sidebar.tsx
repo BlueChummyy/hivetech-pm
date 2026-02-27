@@ -23,8 +23,10 @@ import { useWorkspaceStore } from '@/store/workspace.store';
 import { useWorkspaces } from '@/hooks/useWorkspaces';
 import { useSpaces, useCreateSpace, useUpdateSpace, useDeleteSpace } from '@/hooks/useSpaces';
 import { useProjects, useCreateProject } from '@/hooks/useProjects';
+import { useMoveTaskToProject } from '@/hooks/useTasks';
 import { DropdownMenu, DropdownItem, DropdownSeparator } from '@/components/ui/DropdownMenu';
 import { CreateWorkspaceModal } from '@/components/CreateWorkspaceModal';
+import { useToast } from '@/components/ui/Toast';
 import type { Space, Project } from '@/types/models.types';
 
 export function Sidebar() {
@@ -497,15 +499,54 @@ function ProjectTreeItem({ project }: { project: Project }) {
   const location = useLocation();
   const isActive = location.pathname.startsWith(`/projects/${project.id}`);
   const taskCount = project._count?.tasks ?? 0;
+  const [isDragOver, setIsDragOver] = useState(false);
+  const moveTask = useMoveTaskToProject();
+  const { toast } = useToast();
+
+  const handleDragOver = (e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes('application/task-id')) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      setIsDragOver(true);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const taskId = e.dataTransfer.getData('application/task-id');
+    if (!taskId) return;
+
+    moveTask.mutate(
+      { id: taskId, targetProjectId: project.id },
+      {
+        onSuccess: () => {
+          toast({ type: 'success', title: `Task moved to ${project.name}` });
+        },
+        onError: (err) => {
+          toast({ type: 'error', title: 'Failed to move task', description: (err as Error).message });
+        },
+      },
+    );
+  };
 
   return (
     <Link
       to={`/projects/${project.id}/board`}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
       className={cn(
         'group flex items-center gap-2 rounded-lg px-3 py-1 text-xs transition-colors',
-        isActive
-          ? 'bg-primary-600/15 text-primary-400'
-          : 'text-surface-400 hover:bg-surface-800 hover:text-surface-200',
+        isDragOver
+          ? 'bg-primary-600/25 ring-1 ring-primary-500 text-primary-300'
+          : isActive
+            ? 'bg-primary-600/15 text-primary-400'
+            : 'text-surface-400 hover:bg-surface-800 hover:text-surface-200',
       )}
     >
       <FolderKanban className="h-3.5 w-3.5 shrink-0" />

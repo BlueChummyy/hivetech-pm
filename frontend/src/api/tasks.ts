@@ -68,6 +68,9 @@ export const tasksApi = {
   updatePosition: (id: string, data: UpdatePositionData) =>
     patch<Task>(`/tasks/${id}/position`, data).then((r) => r.data),
 
+  moveToProject: (id: string, targetProjectId: string) =>
+    post<Task>(`/tasks/${id}/move`, { targetProjectId }).then((r) => r.data),
+
   // Dependencies
   listDependencies: (id: string) =>
     get<TaskDependency[]>(`/tasks/${id}/dependencies`).then((r) => r.data),

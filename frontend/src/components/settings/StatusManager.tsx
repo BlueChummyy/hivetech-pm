@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   DndContext,
   DragOverlay,
@@ -478,12 +479,19 @@ function ColorPicker({
   onChange: (color: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const pickerRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     function handleClick(e: MouseEvent) {
-      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node) &&
+        triggerRef.current &&
+        !triggerRef.current.contains(e.target as Node)
+      ) {
         setOpen(false);
       }
     }
@@ -491,31 +499,47 @@ function ColorPicker({
     return () => document.removeEventListener('mousedown', handleClick);
   }, [open]);
 
+  const handleToggle = () => {
+    if (!open && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 4, left: rect.left });
+    }
+    setOpen(!open);
+  };
+
   return (
-    <div className="relative" ref={pickerRef}>
+    <>
       <button
-        onClick={() => setOpen(!open)}
+        ref={triggerRef}
+        onClick={handleToggle}
         className="h-5 w-5 rounded-full border border-surface-600 shrink-0 hover:scale-110 transition-transform"
         style={{ backgroundColor: color }}
       />
-      {open && (
-        <div className="absolute left-0 top-full z-10 mt-1 flex flex-wrap gap-1 rounded-lg border border-surface-700 bg-surface-800 p-2 shadow-xl">
-          {PRESET_COLORS.map((c) => (
-            <button
-              key={c}
-              onClick={() => {
-                onChange(c);
-                setOpen(false);
-              }}
-              className="h-5 w-5 rounded-full border-2 transition-transform hover:scale-110"
-              style={{
-                backgroundColor: c,
-                borderColor: color === c ? 'white' : 'transparent',
-              }}
-            />
-          ))}
-        </div>
-      )}
-    </div>
+      {open &&
+        pos &&
+        createPortal(
+          <div
+            ref={dropdownRef}
+            className="fixed z-[9999] flex flex-wrap gap-1 rounded-lg border border-surface-700 bg-surface-800 p-2 shadow-xl"
+            style={{ top: pos.top, left: pos.left }}
+          >
+            {PRESET_COLORS.map((c) => (
+              <button
+                key={c}
+                onClick={() => {
+                  onChange(c);
+                  setOpen(false);
+                }}
+                className="h-5 w-5 rounded-full border-2 transition-transform hover:scale-110"
+                style={{
+                  backgroundColor: c,
+                  borderColor: color === c ? 'white' : 'transparent',
+                }}
+              />
+            ))}
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }

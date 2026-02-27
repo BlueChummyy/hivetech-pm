@@ -61,6 +61,11 @@ export function KanbanCard({ task, overlay }: KanbanCardProps) {
       role="article"
       aria-label={task.title}
       tabIndex={0}
+      draggable={!overlay}
+      onDragStart={(e) => {
+        e.dataTransfer.setData('application/task-id', task.id);
+        e.dataTransfer.effectAllowed = 'move';
+      }}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();

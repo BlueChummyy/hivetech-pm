@@ -65,3 +65,15 @@ export function useUpdateTaskPosition() {
     },
   });
 }
+
+export function useMoveTaskToProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, targetProjectId }: { id: string; targetProjectId: string }) =>
+      tasksApi.moveToProject(id, targetProjectId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+      qc.invalidateQueries({ queryKey: ['projects'] });
+    },
+  });
+}

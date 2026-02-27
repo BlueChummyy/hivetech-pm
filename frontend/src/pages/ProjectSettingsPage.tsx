@@ -100,7 +100,7 @@ export function ProjectSettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 sm:space-y-8 px-2 sm:px-4">
+    <div className="mx-auto max-w-4xl space-y-6 sm:space-y-8 px-2 sm:px-4 pt-4 sm:pt-6 overflow-y-auto">
       <h1 className="text-xl sm:text-2xl font-bold text-surface-100">Project Settings</h1>
 
       {/* Tabs */}

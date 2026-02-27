@@ -1,12 +1,14 @@
+import { useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTasks } from '@/hooks/useTasks';
-import { useProject } from '@/hooks/useProjects';
+import { useStatuses } from '@/hooks/useStatuses';
 import { PageError } from '@/components/ui/PageError';
 import { GanttChart } from '@/components/gantt/GanttChart';
+import { FilterBar, type TaskFilterState } from '@/components/list/FilterBar';
+import type { Task } from '@/types/models.types';
 
 export function GanttPage() {
   const { projectId } = useParams<{ projectId: string }>();
-  const { data: project } = useProject(projectId || '');
   const {
     data: tasks,
     isLoading,
@@ -14,6 +16,44 @@ export function GanttPage() {
     error,
     refetch,
   } = useTasks({ projectId: projectId ?? '' });
+  const { data: statuses } = useStatuses(projectId ?? '');
+
+  const [filters, setFilters] = useState<TaskFilterState>({
+    search: '',
+    statusIds: [],
+    priorities: [],
+    assigneeIds: [],
+  });
+
+  const filteredTasks = useMemo(() => {
+    if (!tasks) return [];
+    let result: Task[] = tasks;
+
+    if (filters.search) {
+      const query = filters.search.toLowerCase();
+      result = result.filter(
+        (t) =>
+          t.title.toLowerCase().includes(query) ||
+          String(t.taskNumber).includes(query),
+      );
+    }
+
+    if (filters.statusIds.length > 0) {
+      result = result.filter((t) => filters.statusIds.includes(t.statusId));
+    }
+
+    if (filters.priorities.length > 0) {
+      result = result.filter((t) => filters.priorities.includes(t.priority));
+    }
+
+    if (filters.assigneeIds.length > 0) {
+      result = result.filter(
+        (t) => t.assigneeId && filters.assigneeIds.includes(t.assigneeId),
+      );
+    }
+
+    return result;
+  }, [tasks, filters]);
 
   if (isError) {
     return (
@@ -25,19 +65,13 @@ export function GanttPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-surface-100">
-            {project?.name || 'Project'} - Timeline
-          </h1>
-          <p className="text-sm text-surface-500">
-            Gantt chart view of project tasks
-          </p>
-        </div>
-      </div>
-
-      <GanttChart tasks={tasks || []} isLoading={isLoading} />
+    <div className="flex h-full flex-col gap-3 sm:gap-4 p-2 sm:p-4">
+      <FilterBar
+        filters={filters}
+        onFiltersChange={setFilters}
+        statuses={statuses ?? []}
+      />
+      <GanttChart tasks={filteredTasks} isLoading={isLoading} />
     </div>
   );
 }

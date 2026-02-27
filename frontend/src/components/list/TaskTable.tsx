@@ -105,6 +105,8 @@ const columns: { key: SortField; label: string; sortable: boolean }[] = [
   { key: 'dueDate', label: 'Due Date', sortable: true },
 ];
 
+const MAX_NESTING_DEPTH = 5;
+
 function calculatePosition(tasks: Task[], overIndex: number): number {
   if (tasks.length === 0) return 1000;
   if (overIndex === 0) return tasks[0].position / 2;
@@ -198,18 +200,22 @@ export function TaskTable({ tasks, statuses }: TaskTableProps) {
     return { parentTasks: parents, childrenMap: children };
   }, [sortedTasks]);
 
-  // Build flat render list respecting expand state
+  // Build flat render list respecting expand state (recursive)
   const renderList = useMemo(() => {
     const list: { task: Task; depth: number }[] = [];
 
-    for (const parent of parentTasks) {
-      list.push({ task: parent, depth: 0 });
-      const kids = childrenMap[parent.id];
-      if (kids && expandedTasks[parent.id]) {
+    function addTaskAndChildren(task: Task, depth: number) {
+      list.push({ task, depth });
+      const kids = childrenMap[task.id];
+      if (kids && expandedTasks[task.id] && depth < MAX_NESTING_DEPTH) {
         for (const child of kids) {
-          list.push({ task: child, depth: 1 });
+          addTaskAndChildren(child, depth + 1);
         }
       }
+    }
+
+    for (const parent of parentTasks) {
+      addTaskAndChildren(parent, 0);
     }
 
     return list;

@@ -110,6 +110,17 @@ router.delete(
   controller.removeDependency,
 );
 
+// POST /api/v1/tasks/:id/move — Move task to another project
+router.post(
+  '/:id/move',
+  validate({
+    body: z.object({
+      targetProjectId: z.string(),
+    }),
+  }),
+  controller.moveToProject,
+);
+
 // PATCH /api/v1/tasks/:id/position — Update task position (reorder)
 router.patch(
   '/:id/position',

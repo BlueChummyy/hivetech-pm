@@ -369,6 +369,110 @@ export class TasksService {
     return prisma.taskDependency.delete({ where: { id: dependencyId } });
   }
 
+  async moveToProject(id: string, targetProjectId: string, movedByUserId: string) {
+    const task = await prisma.task.findFirst({
+      where: { id, deletedAt: null },
+      include: { subtasks: { where: { deletedAt: null }, select: { id: true } } },
+    });
+    if (!task) throw ApiError.notFound('Task not found');
+    if (task.projectId === targetProjectId) throw ApiError.badRequest('Task is already in this project');
+
+    const targetProject = await prisma.project.findUnique({ where: { id: targetProjectId } });
+    if (!targetProject) throw ApiError.notFound('Target project not found');
+
+    // Get default status from target project (lowest position)
+    const defaultStatus = await prisma.projectStatus.findFirst({
+      where: { projectId: targetProjectId },
+      orderBy: { position: 'asc' },
+    });
+    if (!defaultStatus) throw ApiError.badRequest('Target project has no statuses configured');
+
+    const subtaskIds = task.subtasks.map((s: { id: string }) => s.id);
+
+    const result = await prisma.$transaction(async (tx: any) => {
+      // Assign new task number in target project
+      const updatedProject = await tx.project.update({
+        where: { id: targetProjectId },
+        data: { taskCounter: { increment: 1 + subtaskIds.length } },
+      });
+
+      // Calculate position: append at end
+      const lastTask = await tx.task.findFirst({
+        where: { projectId: targetProjectId, statusId: defaultStatus.id, deletedAt: null },
+        orderBy: { position: 'desc' },
+        select: { position: true },
+      });
+      const position = (lastTask?.position ?? 0) + 1000;
+
+      // Move the main task
+      const movedTask = await tx.task.update({
+        where: { id },
+        data: {
+          projectId: targetProjectId,
+          statusId: defaultStatus.id,
+          taskNumber: updatedProject.taskCounter - subtaskIds.length,
+          position,
+          parentId: null,
+          assigneeId: null,
+        },
+        include: { status: true, assignee: true, reporter: true, labels: { include: { label: true } } },
+      });
+
+      // Move subtasks
+      for (let i = 0; i < subtaskIds.length; i++) {
+        await tx.task.update({
+          where: { id: subtaskIds[i] },
+          data: {
+            projectId: targetProjectId,
+            statusId: defaultStatus.id,
+            taskNumber: updatedProject.taskCounter - subtaskIds.length + 1 + i,
+            position: position + 1000 * (i + 1),
+            assigneeId: null,
+          },
+        });
+      }
+
+      // Remove labels that belong to the source project
+      await tx.taskLabel.deleteMany({
+        where: {
+          taskId: { in: [id, ...subtaskIds] },
+          label: { projectId: task.projectId },
+        },
+      });
+
+      // Remove dependencies that cross projects
+      await tx.taskDependency.deleteMany({
+        where: {
+          OR: [
+            { taskId: { in: [id, ...subtaskIds] }, dependsOnTask: { projectId: task.projectId } },
+            { dependsOnTaskId: { in: [id, ...subtaskIds] }, task: { projectId: task.projectId } },
+          ],
+        },
+      });
+
+      return movedTask;
+    });
+
+    // Emit events
+    emitToProject(task.projectId, 'task:deleted', { id: task.id });
+    emitToProject(targetProjectId, 'task:created', result);
+
+    // Audit log
+    const proj = await prisma.project.findUnique({ where: { id: targetProjectId }, select: { workspaceId: true } });
+    if (proj) {
+      logAudit({
+        workspaceId: proj.workspaceId,
+        userId: movedByUserId,
+        action: 'updated',
+        entityType: 'task',
+        entityId: id,
+        metadata: { title: result.title, movedFrom: task.projectId, movedTo: targetProjectId },
+      });
+    }
+
+    return result;
+  }
+
   async updatePosition(id: string, position: number, statusId?: string) {
     const existing = await prisma.task.findFirst({
       where: { id, deletedAt: null },

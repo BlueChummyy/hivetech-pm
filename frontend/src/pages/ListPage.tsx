@@ -1,12 +1,14 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, type KeyboardEvent } from 'react';
 import { useParams } from 'react-router-dom';
-import { ListFilter } from 'lucide-react';
+import { ListFilter, Plus } from 'lucide-react';
 import { TaskTable } from '@/components/list/TaskTable';
 import { FilterBar, type TaskFilterState } from '@/components/list/FilterBar';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageError } from '@/components/ui/PageError';
-import { useTasks } from '@/hooks/useTasks';
+import { useTasks, useCreateTask } from '@/hooks/useTasks';
 import { useStatuses } from '@/hooks/useStatuses';
+import { useProjectPermissions } from '@/hooks/useProjectRole';
+import { useToast } from '@/components/ui/Toast';
 import type { Task } from '@/types/models.types';
 
 function ListSkeleton() {
@@ -38,6 +40,12 @@ export function ListPage() {
     error: statusesErr,
     refetch: refetchStatuses,
   } = useStatuses(projectId ?? '');
+
+  const createTask = useCreateTask();
+  const permissions = useProjectPermissions(projectId);
+  const { toast } = useToast();
+  const [isAdding, setIsAdding] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
 
   const [filters, setFilters] = useState<TaskFilterState>({
     search: '',
@@ -82,6 +90,44 @@ export function ListPage() {
     return result;
   }, [tasks, filters]);
 
+  const sortedStatuses = useMemo(
+    () => (statuses ?? []).slice().sort((a, b) => a.position - b.position),
+    [statuses],
+  );
+
+  const handleAddTask = async () => {
+    const title = newTitle.trim();
+    if (!title) {
+      setIsAdding(false);
+      return;
+    }
+    const defaultStatus = sortedStatuses[0];
+    if (!defaultStatus || !projectId) return;
+    try {
+      await createTask.mutateAsync({
+        projectId,
+        statusId: defaultStatus.id,
+        title,
+      });
+      setNewTitle('');
+      setIsAdding(false);
+    } catch (err) {
+      toast({
+        type: 'error',
+        title: 'Failed to create task',
+        description: (err as Error).message || 'Please try again.',
+      });
+    }
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') handleAddTask();
+    else if (e.key === 'Escape') {
+      setNewTitle('');
+      setIsAdding(false);
+    }
+  };
+
   if (tasksLoading || statusesLoading) {
     return <ListSkeleton />;
   }
@@ -104,11 +150,36 @@ export function ListPage() {
 
   return (
     <div className="flex h-full flex-col gap-3 sm:gap-4 p-2 sm:p-4">
-      <FilterBar
-        filters={filters}
-        onFiltersChange={setFilters}
-        statuses={statuses ?? []}
-      />
+      <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0">
+          <FilterBar
+            filters={filters}
+            onFiltersChange={setFilters}
+            statuses={statuses ?? []}
+          />
+        </div>
+        {permissions.canCreateTasks && (
+          isAdding ? (
+            <input
+              autoFocus
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              onBlur={handleAddTask}
+              onKeyDown={handleKeyDown}
+              placeholder="Task title..."
+              className="w-48 sm:w-56 rounded-md border border-white/[0.08] bg-[#1E1E26] px-3 py-1.5 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-primary-500 shrink-0"
+            />
+          ) : (
+            <button
+              onClick={() => setIsAdding(true)}
+              className="flex items-center gap-1.5 rounded-md bg-primary-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-primary-500 shrink-0"
+            >
+              <Plus className="h-4 w-4" />
+              Task
+            </button>
+          )
+        )}
+      </div>
       {filteredTasks.length === 0 ? (
         hasActiveFilters ? (
           <EmptyState
@@ -125,7 +196,7 @@ export function ListPage() {
           <EmptyState
             icon={<ListFilter className="h-10 w-10" />}
             title="No tasks yet"
-            description="Create tasks from the Board view to see them here."
+            description="Click the + Task button above to create your first task."
           />
         )
       ) : (

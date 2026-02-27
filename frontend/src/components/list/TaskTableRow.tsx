@@ -518,6 +518,11 @@ export function TaskTableRow({ task, statuses, dragEnabled, overlay, depth = 0, 
       ref={overlay ? undefined : setNodeRef}
       style={overlay ? undefined : style}
       onClick={handleRowClick}
+      draggable={!overlay}
+      onDragStart={(e) => {
+        e.dataTransfer.setData('application/task-id', task.id);
+        e.dataTransfer.effectAllowed = 'move';
+      }}
       className={cn(
         'group cursor-pointer border-b border-white/[0.04] transition-colors hover:bg-white/[0.03]',
         isDragging && 'opacity-50',

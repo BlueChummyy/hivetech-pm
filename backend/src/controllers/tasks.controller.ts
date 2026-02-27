@@ -158,6 +158,23 @@ export class TasksController {
     }
   }
 
+  async moveToProject(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const id = req.params.id as string;
+      const existing = await tasksService.getById(id);
+      await requireProjectMember(existing.project.id, req.user!.id);
+
+      const { targetProjectId } = req.body;
+      // Also verify the user is a member of the target project
+      await requireProjectMember(targetProjectId, req.user!.id);
+
+      const task = await tasksService.moveToProject(id, targetProjectId, req.user!.id);
+      res.json(successResponse(task));
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async updatePosition(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = req.params.id as string;
