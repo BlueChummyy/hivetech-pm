@@ -217,10 +217,11 @@ function AssigneeBadge({ task }: { task: Task }) {
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (open && searchRef.current) {
-      searchRef.current.focus();
+    if (open) {
+      requestAnimationFrame(() => searchRef.current?.focus());
+    } else {
+      setSearch('');
     }
-    if (!open) setSearch('');
   }, [open]);
 
   const filteredMembers = (members ?? []).filter((m: ProjectMember) => {
@@ -231,36 +232,11 @@ function AssigneeBadge({ task }: { task: Task }) {
     return name.includes(q) || email.includes(q);
   });
 
-  // Determine selected IDs from multi-assignee or single
   const selectedIds: string[] =
     task.assignees && task.assignees.length > 0
       ? task.assignees.map((a) => a.userId)
       : task.assigneeId ? [task.assigneeId] : [];
 
-  const handleToggle = (userId: string) => {
-    const isSelected = selectedIds.includes(userId);
-    const newIds = isSelected
-      ? selectedIds.filter((id) => id !== userId)
-      : [...selectedIds, userId];
-
-    if (task.assignees !== undefined) {
-      updateTask.mutate({ id: task.id, data: { assigneeIds: newIds } });
-    } else {
-      close();
-      updateTask.mutate({ id: task.id, data: { assigneeId: newIds[0] || null } });
-    }
-  };
-
-  const handleClearAll = () => {
-    close();
-    if (task.assignees !== undefined) {
-      updateTask.mutate({ id: task.id, data: { assigneeIds: [] } });
-    } else {
-      updateTask.mutate({ id: task.id, data: { assigneeId: null } });
-    }
-  };
-
-  // Resolve assignee users for display
   const assigneeUsers = task.assignees && task.assignees.length > 0
     ? task.assignees.map((a) => a.user).filter(Boolean)
     : task.assignee ? [task.assignee] : [];
@@ -322,9 +298,9 @@ function AssigneeBadge({ task }: { task: Task }) {
         createPortal(
           <div
             ref={dropdownRef}
-            className="fixed z-[9999] w-[220px] rounded-lg border border-white/[0.08] bg-[#1E1E26] py-1 shadow-xl"
-            style={{ top: pos.top, left: pos.left }}
             onClick={(e) => e.stopPropagation()}
+            className="fixed z-[9999] w-[260px] rounded-lg border border-white/[0.08] bg-[#1E1E26] py-1 shadow-xl"
+            style={{ top: pos.top, left: pos.left }}
           >
             <div className="px-2 pb-1 pt-1.5">
               <input
@@ -333,14 +309,17 @@ function AssigneeBadge({ task }: { task: Task }) {
                 placeholder="Search members..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
                 className="w-full rounded bg-white/[0.06] px-2 py-1 text-sm text-white placeholder-gray-500 outline-none focus:ring-1 focus:ring-primary-500"
               />
             </div>
             {selectedIds.length > 0 && (
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleClearAll();
+                  close();
+                  updateTask.mutate({ id: task.id, data: { assigneeIds: [] } });
                 }}
                 className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-400 hover:bg-white/[0.04]"
               >
@@ -355,35 +334,32 @@ function AssigneeBadge({ task }: { task: Task }) {
               return (
                 <button
                   key={m.id}
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleToggle(user.id);
+                    const newIds = isSelected
+                      ? selectedIds.filter((id) => id !== user.id)
+                      : [...selectedIds, user.id];
+                    updateTask.mutate({ id: task.id, data: { assigneeIds: newIds } });
                   }}
                   className={cn(
-                    'flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-300 hover:bg-white/[0.04]',
+                    'flex w-full items-center gap-3 px-3 py-2 text-sm text-gray-300 hover:bg-white/[0.06]',
                     isSelected && 'text-white bg-white/[0.03]',
                   )}
                 >
-                  <span
-                    className={cn(
-                      'flex h-4 w-4 items-center justify-center rounded border shrink-0',
-                      isSelected ? 'border-primary-500 bg-primary-500' : 'border-white/[0.15]',
-                    )}
-                  >
-                    {isSelected && (
-                      <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </span>
                   {user.avatarUrl ? (
-                    <img src={user.avatarUrl} alt={displayName} className="h-5 w-5 rounded-full" />
+                    <img src={user.avatarUrl} alt={displayName} className="h-6 w-6 rounded-full" />
                   ) : (
-                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary-600 text-[10px] font-medium text-white">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary-600 text-[10px] font-medium text-white">
                       {displayName.charAt(0).toUpperCase()}
                     </div>
                   )}
-                  {displayName}
+                  <span className="truncate">{displayName}</span>
+                  {isSelected && (
+                    <svg className="ml-auto h-4 w-4 text-primary-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
                 </button>
               );
             })}
