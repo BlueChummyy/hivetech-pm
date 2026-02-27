@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import { Search, Check, X } from 'lucide-react';
 import type { User, ProjectMember, TaskAssignee } from '@/types/models.types';
 import { useAuthStore } from '@/store/auth.store';
@@ -27,19 +26,29 @@ export function AssigneeSelector({
   const [search, setSearch] = useState('');
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
   const currentUser = useAuthStore((s) => s.user);
 
   // Derive selected IDs
-  const selectedIds: string[] =
+  const serverSelectedIds: string[] =
     currentAssignees && currentAssignees.length > 0
       ? currentAssignees.map((a) => a.userId)
       : currentAssigneeId
         ? [currentAssigneeId]
         : [];
 
+  // Optimistic local state
+  const [localSelectedIds, setLocalSelectedIds] = useState<string[]>(serverSelectedIds);
+
+  // Sync local state when server data changes
+  useEffect(() => {
+    setLocalSelectedIds(serverSelectedIds);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(serverSelectedIds)]);
+
   // Resolve selected users for display
-  const selectedUsers: User[] = selectedIds
+  const selectedUsers: User[] = localSelectedIds
     .map((uid) => {
       const fromAssignees = currentAssignees?.find((a) => a.userId === uid)?.user;
       if (fromAssignees) return fromAssignees;
@@ -60,15 +69,29 @@ export function AssigneeSelector({
     });
   }, []);
 
+  const handleToggle = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setOpen((prev) => {
+      if (!prev) updatePos();
+      return !prev;
+    });
+  }, [updatePos]);
+
+  // Focus search and update position when dropdown opens
   useEffect(() => {
-    if (!open) return;
-    updatePos();
-    window.addEventListener('scroll', updatePos, true);
-    window.addEventListener('resize', updatePos);
-    return () => {
-      window.removeEventListener('scroll', updatePos, true);
-      window.removeEventListener('resize', updatePos);
-    };
+    if (open) {
+      updatePos();
+      requestAnimationFrame(() => searchRef.current?.focus());
+      window.addEventListener('scroll', updatePos, true);
+      window.addEventListener('resize', updatePos);
+      return () => {
+        window.removeEventListener('scroll', updatePos, true);
+        window.removeEventListener('resize', updatePos);
+      };
+    } else {
+      setSearch('');
+    }
   }, [open, updatePos]);
 
   // Click outside to close
@@ -104,23 +127,30 @@ export function AssigneeSelector({
     return name.toLowerCase().includes(search.toLowerCase());
   });
 
-  function handleSelect(userId: string) {
+  function handleSelect(e: React.MouseEvent, userId: string) {
+    e.stopPropagation();
+    e.preventDefault();
     if (onChangeMultiple) {
-      const isSelected = selectedIds.includes(userId);
+      const isSelected = localSelectedIds.includes(userId);
       const newIds = isSelected
-        ? selectedIds.filter((id) => id !== userId)
-        : [...selectedIds, userId];
+        ? localSelectedIds.filter((id) => id !== userId)
+        : [...localSelectedIds, userId];
+      setLocalSelectedIds(newIds);
       onChangeMultiple(newIds);
     } else {
-      // Single-select: assign and close
-      const isSelected = selectedIds.includes(userId);
-      onChange(isSelected ? null : userId);
+      const isSelected = localSelectedIds.includes(userId);
+      const newId = isSelected ? null : userId;
+      setLocalSelectedIds(newId ? [newId] : []);
+      onChange(newId);
       setOpen(false);
       setSearch('');
     }
   }
 
-  function handleClear() {
+  function handleClear(e: React.MouseEvent) {
+    e.stopPropagation();
+    e.preventDefault();
+    setLocalSelectedIds([]);
     if (onChangeMultiple) {
       onChangeMultiple([]);
     } else {
@@ -135,7 +165,7 @@ export function AssigneeSelector({
       <button
         ref={triggerRef}
         type="button"
-        onClick={() => setOpen(!open)}
+        onMouseDown={handleToggle}
         aria-haspopup="listbox"
         aria-expanded={open}
         className="flex items-center gap-2 rounded-md border border-surface-700 bg-surface-800 px-3 py-1.5 text-sm text-surface-100 hover:border-surface-600 transition-colors w-full min-h-[34px]"
@@ -162,10 +192,12 @@ export function AssigneeSelector({
         )}
       </button>
 
-      {open && createPortal(
+      {open && (
         <div
           ref={dropdownRef}
           role="listbox"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
           style={{
             position: 'fixed',
             top: pos.top,
@@ -180,17 +212,23 @@ export function AssigneeSelector({
             <div className="flex items-center gap-2 rounded-md border border-surface-700 bg-surface-900 px-2.5 py-1.5">
               <Search className="h-4 w-4 text-surface-500 shrink-0" />
               <input
+                ref={searchRef}
                 type="text"
                 placeholder="Search members..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
                 className="flex-1 bg-transparent text-sm text-white placeholder-surface-500 focus:outline-none"
-                autoFocus
               />
               {search && (
                 <button
                   type="button"
-                  onClick={() => setSearch('')}
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    setSearch('');
+                  }}
                   className="text-surface-500 hover:text-surface-300"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -202,10 +240,10 @@ export function AssigneeSelector({
           {/* Member list */}
           <div className="max-h-64 overflow-y-auto py-1">
             {/* Unassign option when someone is assigned */}
-            {selectedIds.length > 0 && (
+            {localSelectedIds.length > 0 && (
               <button
                 type="button"
-                onClick={handleClear}
+                onMouseDown={handleClear}
                 className="flex w-full items-center gap-3 px-3 py-2 text-sm text-surface-400 transition-colors hover:bg-surface-700"
               >
                 <Avatar src={null} name={undefined} size="sm" />
@@ -214,7 +252,7 @@ export function AssigneeSelector({
             )}
 
             {filtered.map((member) => {
-              const isSelected = selectedIds.includes(member.userId);
+              const isSelected = localSelectedIds.includes(member.userId);
               const user = member.user;
               const isMe = currentUser && member.userId === currentUser.id;
               return (
@@ -223,7 +261,7 @@ export function AssigneeSelector({
                   type="button"
                   role="option"
                   aria-selected={isSelected}
-                  onClick={() => handleSelect(member.userId)}
+                  onMouseDown={(e) => handleSelect(e, member.userId)}
                   className={cn(
                     'flex w-full items-center gap-3 px-3 py-2 text-sm transition-colors hover:bg-surface-700',
                     isSelected && 'bg-surface-700/40',
@@ -247,8 +285,7 @@ export function AssigneeSelector({
               <p className="px-3 py-3 text-sm text-surface-500 text-center">No members found</p>
             )}
           </div>
-        </div>,
-        document.body,
+        </div>
       )}
     </>
   );
