@@ -206,7 +206,7 @@ function PriorityBadge({ task }: { task: Task }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  AssigneeBadge – NO portal, inline fixed dropdown                  */
+/*  AssigneeBadge – inline fixed dropdown with optimistic UI           */
 /* ------------------------------------------------------------------ */
 function AssigneeBadge({ task }: { task: Task }) {
   const { projectId } = useParams<{ projectId: string }>();
@@ -218,6 +218,21 @@ function AssigneeBadge({ task }: { task: Task }) {
   const { data: members } = useProjectMembers(projectId ?? '');
   const [search, setSearch] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
+
+  // Server-derived selected IDs
+  const serverSelectedIds: string[] =
+    task.assignees && task.assignees.length > 0
+      ? task.assignees.map((a) => a.userId)
+      : task.assigneeId ? [task.assigneeId] : [];
+
+  // Optimistic local state for instant feedback
+  const [localSelectedIds, setLocalSelectedIds] = useState<string[]>(serverSelectedIds);
+
+  // Sync local state when server data changes
+  useEffect(() => {
+    setLocalSelectedIds(serverSelectedIds);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(serverSelectedIds)]);
 
   const handleToggle = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -240,7 +255,7 @@ function AssigneeBadge({ task }: { task: Task }) {
     }
   }, [open]);
 
-  // Click outside to close – native handler on document
+  // Click outside to close
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
@@ -265,14 +280,16 @@ function AssigneeBadge({ task }: { task: Task }) {
     return name.includes(q) || email.includes(q);
   });
 
-  const selectedIds: string[] =
-    task.assignees && task.assignees.length > 0
-      ? task.assignees.map((a) => a.userId)
-      : task.assigneeId ? [task.assigneeId] : [];
-
-  const assigneeUsers = task.assignees && task.assignees.length > 0
-    ? task.assignees.map((a) => a.user).filter(Boolean)
-    : task.assignee ? [task.assignee] : [];
+  // Resolve display users from local state + members data
+  const displayUsers = localSelectedIds
+    .map((uid) => {
+      const fromAssignees = task.assignees?.find((a) => a.userId === uid)?.user;
+      if (fromAssignees) return fromAssignees;
+      if (task.assignee && task.assignee.id === uid) return task.assignee;
+      const fromMembers = (members ?? []).find((m) => m.userId === uid)?.user;
+      return fromMembers || null;
+    })
+    .filter(Boolean);
 
   return (
     <>
@@ -283,10 +300,10 @@ function AssigneeBadge({ task }: { task: Task }) {
         aria-expanded={open}
         className="flex items-center gap-2 rounded px-2 py-0.5 text-sm transition-colors hover:bg-white/[0.06]"
       >
-        {assigneeUsers.length > 1 ? (
+        {displayUsers.length > 1 ? (
           <div className="flex items-center gap-1.5">
             <div className="flex -space-x-1.5">
-              {assigneeUsers.slice(0, 3).map((user) => {
+              {displayUsers.slice(0, 3).map((user) => {
                 if (!user) return null;
                 return user.avatarUrl ? (
                   <img
@@ -305,22 +322,22 @@ function AssigneeBadge({ task }: { task: Task }) {
                 );
               })}
             </div>
-            <span className="text-gray-300">{assigneeUsers.length} assigned</span>
+            <span className="text-gray-300">{displayUsers.length} assigned</span>
           </div>
-        ) : assigneeUsers.length === 1 && assigneeUsers[0] ? (
+        ) : displayUsers.length === 1 && displayUsers[0] ? (
           <>
-            {assigneeUsers[0].avatarUrl ? (
+            {displayUsers[0].avatarUrl ? (
               <img
-                src={assigneeUsers[0].avatarUrl}
-                alt={assigneeUsers[0].name || assigneeUsers[0].displayName}
+                src={displayUsers[0].avatarUrl}
+                alt={displayUsers[0].name || displayUsers[0].displayName}
                 className="h-5 w-5 rounded-full"
               />
             ) : (
               <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary-600 text-[10px] font-medium text-white">
-                {(assigneeUsers[0].name || assigneeUsers[0].displayName || '?').charAt(0).toUpperCase()}
+                {(displayUsers[0].name || displayUsers[0].displayName || '?').charAt(0).toUpperCase()}
               </div>
             )}
-            <span className="text-gray-300">{assigneeUsers[0].name || assigneeUsers[0].displayName}</span>
+            <span className="text-gray-300">{displayUsers[0].name || displayUsers[0].displayName}</span>
           </>
         ) : (
           <span className="text-gray-400">Unassigned</span>
@@ -346,12 +363,13 @@ function AssigneeBadge({ task }: { task: Task }) {
               className="w-full rounded bg-white/[0.06] px-2 py-1 text-sm text-white placeholder-gray-500 outline-none focus:ring-1 focus:ring-primary-500"
             />
           </div>
-          {selectedIds.length > 0 && (
+          {localSelectedIds.length > 0 && (
             <button
               type="button"
               onMouseDown={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
+                setLocalSelectedIds([]);
                 setOpen(false);
                 updateTask.mutate({ id: task.id, data: { assigneeIds: [] } });
               }}
@@ -364,7 +382,7 @@ function AssigneeBadge({ task }: { task: Task }) {
             const user = m.user;
             if (!user) return null;
             const displayName = user.name || user.displayName || user.email;
-            const isSelected = selectedIds.includes(user.id);
+            const isSelected = localSelectedIds.includes(user.id);
             return (
               <button
                 key={m.id}
@@ -373,19 +391,10 @@ function AssigneeBadge({ task }: { task: Task }) {
                   e.stopPropagation();
                   e.preventDefault();
                   const newIds = isSelected
-                    ? selectedIds.filter((id) => id !== user.id)
-                    : [...selectedIds, user.id];
-                  try {
-                    updateTask.mutate(
-                      { id: task.id, data: { assigneeIds: newIds } },
-                      {
-                        onSuccess: () => window.alert('SUCCESS - assigned!'),
-                        onError: (err: any) => window.alert('MUTATION ERROR: ' + (err?.response?.data?.message || err?.message || String(err))),
-                      },
-                    );
-                  } catch (err: any) {
-                    window.alert('SYNC ERROR: ' + (err?.message || String(err)));
-                  }
+                    ? localSelectedIds.filter((id) => id !== user.id)
+                    : [...localSelectedIds, user.id];
+                  setLocalSelectedIds(newIds);
+                  updateTask.mutate({ id: task.id, data: { assigneeIds: newIds } });
                 }}
                 className={cn(
                   'flex w-full items-center gap-3 px-3 py-2 text-sm text-gray-300 hover:bg-white/[0.06]',
