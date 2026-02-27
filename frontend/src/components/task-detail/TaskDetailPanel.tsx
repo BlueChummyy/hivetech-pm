@@ -11,12 +11,15 @@ import {
   Trash2,
   Loader2,
   Activity,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useUIStore } from '@/store/ui.store';
-import { useTask, useUpdateTask } from '@/hooks/useTasks';
+import { useTask, useUpdateTask, useDeleteTask, useMoveTaskToProject } from '@/hooks/useTasks';
 import { useStatuses } from '@/hooks/useStatuses';
 import { useProjectMembers } from '@/hooks/useMembers';
+import { useProjects } from '@/hooks/useProjects';
+import { useWorkspaceStore } from '@/store/workspace.store';
 import { useLabels, useAttachLabel, useDetachLabel } from '@/hooks/useLabels';
 import { useAttachments, useUploadAttachment, useDeleteAttachment } from '@/hooks/useAttachments';
 import { attachmentsApi } from '@/api/attachments';
@@ -39,7 +42,11 @@ export function TaskDetailPanel() {
 
   const { data: task, isLoading } = useTask(taskPanelTaskId || '');
   const updateTask = useUpdateTask();
+  const deleteTask = useDeleteTask();
+  const moveTask = useMoveTaskToProject();
   const permissions = useProjectPermissions(task?.projectId);
+  const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
+  const { data: projects } = useProjects(activeWorkspaceId ?? '');
 
   const { data: statuses } = useStatuses(task?.projectId || '');
   const { data: members } = useProjectMembers(task?.projectId || '');
@@ -59,6 +66,9 @@ export function TaskDetailPanel() {
   const [labelDropdownOpen, setLabelDropdownOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewName, setPreviewName] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showMoveDropdown, setShowMoveDropdown] = useState(false);
+  const moveRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const labelRef = useRef<HTMLDivElement>(null);
@@ -101,6 +111,17 @@ export function TaskDetailPanel() {
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [labelDropdownOpen]);
+
+  useEffect(() => {
+    if (!showMoveDropdown) return;
+    function handleClick(e: MouseEvent) {
+      if (moveRef.current && !moveRef.current.contains(e.target as Node)) {
+        setShowMoveDropdown(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showMoveDropdown]);
 
   const onMutationError = useCallback(
     (err: Error) => {
@@ -149,6 +170,14 @@ export function TaskDetailPanel() {
     if (!task) return;
     updateTask.mutate(
       { id: task.id, data: { assigneeId } },
+      { onError: onMutationError },
+    );
+  }
+
+  function handleAssigneesChange(assigneeIds: string[]) {
+    if (!task) return;
+    updateTask.mutate(
+      { id: task.id, data: { assigneeIds } },
       { onError: onMutationError },
     );
   }
@@ -276,14 +305,101 @@ export function TaskDetailPanel() {
               <span className="rounded bg-surface-700 px-2 py-0.5 text-xs font-mono text-surface-400">
                 #{task.taskNumber}
               </span>
-              <button
-                onClick={closeTaskPanel}
-                aria-label="Close task panel"
-                className="rounded-md p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-surface-400 hover:bg-surface-700 hover:text-surface-200 transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <div className="flex items-center gap-1">
+                {/* Move to project */}
+                {permissions.canEditTasks && (
+                  <div ref={moveRef} className="relative">
+                    <button
+                      onClick={() => setShowMoveDropdown(!showMoveDropdown)}
+                      aria-label="Move to project"
+                      title="Move to project"
+                      className="rounded-md p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-surface-400 hover:bg-surface-700 hover:text-surface-200 transition-colors"
+                    >
+                      <ArrowRightLeft className="h-4 w-4" />
+                    </button>
+                    {showMoveDropdown && projects && (
+                      <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-lg border border-surface-700 bg-surface-800 py-1 shadow-xl">
+                        <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-surface-500">
+                          Move to project
+                        </div>
+                        {projects
+                          .filter((p) => p.id !== task.projectId)
+                          .map((p) => (
+                            <button
+                              key={p.id}
+                              onClick={async () => {
+                                try {
+                                  await moveTask.mutateAsync({ id: task.id, targetProjectId: p.id });
+                                  setShowMoveDropdown(false);
+                                  closeTaskPanel();
+                                  toast({ type: 'success', title: 'Task moved', description: `Moved to "${p.name}"` });
+                                } catch (err) {
+                                  toast({ type: 'error', title: 'Failed to move task', description: (err as Error).message });
+                                }
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-surface-300 hover:bg-surface-700 transition-colors"
+                            >
+                              <span className="truncate">{p.name}</span>
+                              <span className="ml-auto text-xs text-surface-500">{p.key}</span>
+                            </button>
+                          ))}
+                        {projects.filter((p) => p.id !== task.projectId).length === 0 && (
+                          <p className="px-3 py-2 text-sm text-surface-500">No other projects</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {/* Delete task */}
+                {permissions.canEditTasks && (
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    aria-label="Delete task"
+                    title="Delete task"
+                    className="rounded-md p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-surface-400 hover:bg-red-500/10 hover:text-red-400 transition-colors"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+                <button
+                  onClick={closeTaskPanel}
+                  aria-label="Close task panel"
+                  className="rounded-md p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-surface-400 hover:bg-surface-700 hover:text-surface-200 transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
+
+            {/* Delete confirmation */}
+            {showDeleteConfirm && (
+              <div className="flex items-center justify-between gap-2 border-b border-red-500/20 bg-red-500/10 px-4 py-2">
+                <span className="text-sm text-red-300">Delete this task?</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="rounded-md px-3 py-1 text-sm text-surface-300 hover:bg-surface-700 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await deleteTask.mutateAsync(task.id);
+                        setShowDeleteConfirm(false);
+                        closeTaskPanel();
+                        toast({ type: 'success', title: 'Task deleted' });
+                      } catch (err) {
+                        toast({ type: 'error', title: 'Failed to delete task', description: (err as Error).message });
+                      }
+                    }}
+                    className="rounded-md bg-red-600 px-3 py-1 text-sm font-medium text-white hover:bg-red-500 transition-colors"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Scrollable content */}
             <div className="flex-1 overflow-y-auto">
@@ -360,11 +476,15 @@ export function TaskDetailPanel() {
                         members={members}
                         currentAssigneeId={task.assigneeId}
                         currentAssignee={task.assignee}
+                        currentAssignees={task.assignees}
                         onChange={handleAssigneeChange}
+                        onChangeMultiple={handleAssigneesChange}
                       />
                     ) : (
                       <div className="flex items-center gap-2 rounded-md border border-surface-700 bg-surface-800 px-3 py-1.5 text-sm text-surface-300">
-                        {task.assignee?.name || task.assignee?.displayName || 'Unassigned'}
+                        {task.assignees && task.assignees.length > 0
+                          ? task.assignees.map((a) => a.user?.name || a.user?.displayName).join(', ')
+                          : task.assignee?.name || task.assignee?.displayName || 'Unassigned'}
                       </div>
                     )}
                   </div>

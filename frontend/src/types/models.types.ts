@@ -158,6 +158,7 @@ export interface Task {
   reporter?: User;
   parent?: Task;
   subtasks?: Task[];
+  assignees?: TaskAssignee[];
   labels?: TaskLabel[];
   comments?: Comment[];
   attachments?: Attachment[];
@@ -166,6 +167,14 @@ export interface Task {
     comments: number;
     attachments: number;
   };
+}
+
+export interface TaskAssignee {
+  id: string;
+  taskId: string;
+  userId: string;
+  user?: User;
+  createdAt: string;
 }
 
 export interface TaskDependency {

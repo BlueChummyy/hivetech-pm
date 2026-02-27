@@ -54,7 +54,12 @@ export function GanttPage() {
 
     if (filters.assigneeIds.length > 0) {
       result = result.filter(
-        (t) => t.assigneeId && filters.assigneeIds.includes(t.assigneeId),
+        (t) => {
+          if (t.assignees && t.assignees.length > 0) {
+            return t.assignees.some((a) => filters.assigneeIds.includes(a.userId));
+          }
+          return t.assigneeId && filters.assigneeIds.includes(t.assigneeId);
+        },
       );
     }
 

@@ -74,6 +74,7 @@ model User {
   projectMembers   ProjectMember[]
   assignedTasks    Task[]          @relation("TaskAssignee")
   reportedTasks    Task[]          @relation("TaskReporter")
+  taskAssignments  TaskAssignee[]
   comments         Comment[]
   attachments      Attachment[]
   notifications    Notification[]
@@ -240,6 +241,7 @@ model Task {
   labels         TaskLabel[]
   comments       Comment[]
   attachments    Attachment[]
+  assignees      TaskAssignee[]
 
   @@unique([projectId, taskNumber])
   @@index([projectId])
@@ -249,6 +251,20 @@ model Task {
   @@index([parentId])
   @@index([deletedAt])
   @@map("tasks")
+}
+
+model TaskAssignee {
+  id        String   @id @default(cuid())
+  taskId    String   @map("task_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId])
+  @@index([userId])
+  @@map("task_assignees")
 }
 
 model TaskDependency {

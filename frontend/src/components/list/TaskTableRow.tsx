@@ -231,12 +231,39 @@ function AssigneeBadge({ task }: { task: Task }) {
     return name.includes(q) || email.includes(q);
   });
 
-  const handleSelect = (userId: string | null) => {
-    close();
-    if (userId !== task.assigneeId) {
-      updateTask.mutate({ id: task.id, data: { assigneeId: userId } });
+  // Determine selected IDs from multi-assignee or single
+  const selectedIds: string[] =
+    task.assignees && task.assignees.length > 0
+      ? task.assignees.map((a) => a.userId)
+      : task.assigneeId ? [task.assigneeId] : [];
+
+  const handleToggle = (userId: string) => {
+    const isSelected = selectedIds.includes(userId);
+    const newIds = isSelected
+      ? selectedIds.filter((id) => id !== userId)
+      : [...selectedIds, userId];
+
+    if (task.assignees !== undefined) {
+      updateTask.mutate({ id: task.id, data: { assigneeIds: newIds } });
+    } else {
+      close();
+      updateTask.mutate({ id: task.id, data: { assigneeId: newIds[0] || null } });
     }
   };
+
+  const handleClearAll = () => {
+    close();
+    if (task.assignees !== undefined) {
+      updateTask.mutate({ id: task.id, data: { assigneeIds: [] } });
+    } else {
+      updateTask.mutate({ id: task.id, data: { assigneeId: null } });
+    }
+  };
+
+  // Resolve assignee users for display
+  const assigneeUsers = task.assignees && task.assignees.length > 0
+    ? task.assignees.map((a) => a.user).filter(Boolean)
+    : task.assignee ? [task.assignee] : [];
 
   return (
     <>
@@ -247,20 +274,44 @@ function AssigneeBadge({ task }: { task: Task }) {
         aria-expanded={open}
         className="flex items-center gap-2 rounded px-2 py-0.5 text-sm transition-colors hover:bg-white/[0.06]"
       >
-        {task.assignee ? (
+        {assigneeUsers.length > 1 ? (
+          <div className="flex items-center gap-1.5">
+            <div className="flex -space-x-1.5">
+              {assigneeUsers.slice(0, 3).map((user) => {
+                if (!user) return null;
+                return user.avatarUrl ? (
+                  <img
+                    key={user.id}
+                    src={user.avatarUrl}
+                    alt={user.name || user.displayName}
+                    className="h-5 w-5 rounded-full ring-1 ring-[#14141A]"
+                  />
+                ) : (
+                  <div
+                    key={user.id}
+                    className="flex h-5 w-5 items-center justify-center rounded-full bg-primary-600 text-[10px] font-medium text-white ring-1 ring-[#14141A]"
+                  >
+                    {(user.name || user.displayName || '?').charAt(0).toUpperCase()}
+                  </div>
+                );
+              })}
+            </div>
+            <span className="text-gray-300">{assigneeUsers.length} assigned</span>
+          </div>
+        ) : assigneeUsers.length === 1 && assigneeUsers[0] ? (
           <>
-            {task.assignee.avatarUrl ? (
+            {assigneeUsers[0].avatarUrl ? (
               <img
-                src={task.assignee.avatarUrl}
-                alt={task.assignee.name || task.assignee.displayName}
+                src={assigneeUsers[0].avatarUrl}
+                alt={assigneeUsers[0].name || assigneeUsers[0].displayName}
                 className="h-5 w-5 rounded-full"
               />
             ) : (
               <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary-600 text-[10px] font-medium text-white">
-                {(task.assignee.name || task.assignee.displayName || '?').charAt(0).toUpperCase()}
+                {(assigneeUsers[0].name || assigneeUsers[0].displayName || '?').charAt(0).toUpperCase()}
               </div>
             )}
-            <span className="text-gray-300">{task.assignee.name || task.assignee.displayName}</span>
+            <span className="text-gray-300">{assigneeUsers[0].name || assigneeUsers[0].displayName}</span>
           </>
         ) : (
           <span className="text-gray-400">Unassigned</span>
@@ -285,34 +336,46 @@ function AssigneeBadge({ task }: { task: Task }) {
                 className="w-full rounded bg-white/[0.06] px-2 py-1 text-sm text-white placeholder-gray-500 outline-none focus:ring-1 focus:ring-primary-500"
               />
             </div>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleSelect(null);
-              }}
-              className={cn(
-                'flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-400 hover:bg-white/[0.04]',
-                !task.assigneeId && 'text-white',
-              )}
-            >
-              Unassigned
-            </button>
+            {selectedIds.length > 0 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleClearAll();
+                }}
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-400 hover:bg-white/[0.04]"
+              >
+                Clear all
+              </button>
+            )}
             {filteredMembers.map((m: ProjectMember) => {
               const user = m.user;
               if (!user) return null;
               const displayName = user.name || user.displayName || user.email;
+              const isSelected = selectedIds.includes(user.id);
               return (
                 <button
                   key={m.id}
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleSelect(user.id);
+                    handleToggle(user.id);
                   }}
                   className={cn(
                     'flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-300 hover:bg-white/[0.04]',
-                    user.id === task.assigneeId && 'text-white',
+                    isSelected && 'text-white bg-white/[0.03]',
                   )}
                 >
+                  <span
+                    className={cn(
+                      'flex h-4 w-4 items-center justify-center rounded border shrink-0',
+                      isSelected ? 'border-primary-500 bg-primary-500' : 'border-white/[0.15]',
+                    )}
+                  >
+                    {isSelected && (
+                      <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </span>
                   {user.avatarUrl ? (
                     <img src={user.avatarUrl} alt={displayName} className="h-5 w-5 rounded-full" />
                   ) : (

@@ -1,8 +1,13 @@
+import { useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { KanbanBoard } from '@/components/board/KanbanBoard';
+import { FilterBar, type TaskFilterState } from '@/components/list/FilterBar';
 import { PageError } from '@/components/ui/PageError';
 import { useTasks } from '@/hooks/useTasks';
 import { useStatuses } from '@/hooks/useStatuses';
+import { useProjectMembers } from '@/hooks/useMembers';
+import { useLabels } from '@/hooks/useLabels';
+import type { Task } from '@/types/models.types';
 
 function BoardSkeleton() {
   return (
@@ -49,6 +54,59 @@ export function BoardPage() {
     refetch: refetchStatuses,
   } = useStatuses(projectId ?? '');
 
+  const { data: members } = useProjectMembers(projectId ?? '');
+  const { data: labels } = useLabels(projectId ?? '');
+
+  const [filters, setFilters] = useState<TaskFilterState>({
+    search: '',
+    statusIds: [],
+    priorities: [],
+    assigneeIds: [],
+    labelIds: [],
+    groupBy: { field: 'status', direction: 'asc', enabled: false },
+  });
+
+  const filteredTasks = useMemo(() => {
+    if (!tasks) return [];
+    let result: Task[] = tasks;
+
+    if (filters.search) {
+      const query = filters.search.toLowerCase();
+      result = result.filter(
+        (t) =>
+          t.title.toLowerCase().includes(query) ||
+          String(t.taskNumber).includes(query),
+      );
+    }
+
+    if (filters.statusIds.length > 0) {
+      result = result.filter((t) => filters.statusIds.includes(t.statusId));
+    }
+
+    if (filters.priorities.length > 0) {
+      result = result.filter((t) => filters.priorities.includes(t.priority));
+    }
+
+    if (filters.assigneeIds.length > 0) {
+      result = result.filter(
+        (t) => {
+          if (t.assignees && t.assignees.length > 0) {
+            return t.assignees.some((a) => filters.assigneeIds.includes(a.userId));
+          }
+          return t.assigneeId && filters.assigneeIds.includes(t.assigneeId);
+        },
+      );
+    }
+
+    if (filters.labelIds.length > 0) {
+      result = result.filter((t) =>
+        t.labels?.some((tl) => filters.labelIds.includes(tl.labelId)),
+      );
+    }
+
+    return result;
+  }, [tasks, filters]);
+
   if (tasksLoading || statusesLoading) {
     return <BoardSkeleton />;
   }
@@ -83,10 +141,21 @@ export function BoardPage() {
   }
 
   return (
-    <KanbanBoard
-      tasks={tasks ?? []}
-      statuses={statuses}
-      projectId={projectId ?? ''}
-    />
+    <div className="flex h-full flex-col gap-3 p-2 sm:p-4">
+      <FilterBar
+        filters={filters}
+        onFiltersChange={setFilters}
+        statuses={statuses}
+        members={members}
+        labels={labels}
+      />
+      <div className="flex-1 min-h-0">
+        <KanbanBoard
+          tasks={filteredTasks}
+          statuses={statuses}
+          projectId={projectId ?? ''}
+        />
+      </div>
+    </div>
   );
 }

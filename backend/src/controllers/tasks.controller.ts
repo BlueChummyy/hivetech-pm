@@ -10,7 +10,7 @@ const tasksService = new TasksService();
 export class TasksController {
   async create(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { projectId, title, description, statusId, assigneeId, parentId, priority, startDate, dueDate, estimatedHours } = req.body;
+      const { projectId, title, description, statusId, assigneeId, assigneeIds, parentId, priority, startDate, dueDate, estimatedHours } = req.body;
       await requireProjectMember(projectId, req.user!.id);
 
       const task = await tasksService.create({
@@ -19,6 +19,7 @@ export class TasksController {
         description,
         statusId,
         assigneeId,
+        assigneeIds,
         reporterId: req.user!.id,
         parentId,
         priority,
@@ -86,7 +87,7 @@ export class TasksController {
       const existing = await tasksService.getById(id);
       await requireProjectMember(existing.project.id, req.user!.id);
 
-      const { title, description, statusId, assigneeId, priority, position, startDate, dueDate, estimatedHours } = req.body;
+      const { title, description, statusId, assigneeId, assigneeIds, priority, position, startDate, dueDate, estimatedHours } = req.body;
 
       // If changing status to a DONE category, require PROJECT_MANAGER+ role
       if (statusId) {
@@ -105,6 +106,7 @@ export class TasksController {
         description,
         statusId,
         assigneeId,
+        assigneeIds,
         priority,
         position,
         startDate: startDate === null ? null : startDate ? new Date(startDate) : undefined,

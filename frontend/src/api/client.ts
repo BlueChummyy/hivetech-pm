@@ -45,7 +45,12 @@ apiClient.interceptors.response.use(
   (response) => {
     // Unwrap { success: true, data: T } envelope returned by the backend
     if (response.data && response.data.success === true && 'data' in response.data) {
+      // Preserve pagination meta on array responses so callers can auto-paginate
+      const meta = response.data.meta;
       response.data = response.data.data;
+      if (meta && Array.isArray(response.data)) {
+        (response.data as any)._meta = meta;
+      }
     }
     return response;
   },

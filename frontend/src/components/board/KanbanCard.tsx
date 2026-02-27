@@ -146,8 +146,35 @@ export function KanbanCard({ task, overlay }: KanbanCardProps) {
           </div>
         )}
 
-        {/* Assignee avatar (pushed to the right) */}
-        {task.assignee && (
+        {/* Assignee avatar(s) (pushed to the right) */}
+        {(task.assignees && task.assignees.length > 0) ? (
+          <div className="ml-auto flex -space-x-1.5" title={task.assignees.map((a) => a.user?.name || a.user?.displayName).join(', ')}>
+            {task.assignees.slice(0, 3).map((a) => {
+              const user = a.user;
+              if (!user) return null;
+              return user.avatarUrl ? (
+                <img
+                  key={a.id}
+                  src={user.avatarUrl}
+                  alt={user.name || user.displayName}
+                  className="h-5 w-5 rounded-full ring-1 ring-[#1E1E26]"
+                />
+              ) : (
+                <div
+                  key={a.id}
+                  className="flex h-5 w-5 items-center justify-center rounded-full bg-primary-600 text-[10px] font-medium text-white ring-1 ring-[#1E1E26]"
+                >
+                  {(user.name || user.displayName || '?').charAt(0).toUpperCase()}
+                </div>
+              );
+            })}
+            {task.assignees.length > 3 && (
+              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-surface-600 text-[10px] font-medium text-white ring-1 ring-[#1E1E26]">
+                +{task.assignees.length - 3}
+              </div>
+            )}
+          </div>
+        ) : task.assignee ? (
           <div className="ml-auto" title={task.assignee.name || task.assignee.displayName}>
             {task.assignee.avatarUrl ? (
               <img
@@ -161,7 +188,7 @@ export function KanbanCard({ task, overlay }: KanbanCardProps) {
               </div>
             )}
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

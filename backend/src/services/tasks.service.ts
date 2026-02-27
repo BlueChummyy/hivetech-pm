@@ -10,6 +10,7 @@ export class TasksService {
     description?: string;
     statusId: string;
     assigneeId?: string;
+    assigneeIds?: string[];
     reporterId: string;
     parentId?: string;
     priority?: string;
@@ -31,6 +32,11 @@ export class TasksService {
       if (!parent) throw ApiError.badRequest('Parent task not found in this project');
     }
 
+    // Resolve assignee IDs: prefer assigneeIds array, fall back to single assigneeId
+    const resolvedAssigneeIds = data.assigneeIds && data.assigneeIds.length > 0
+      ? data.assigneeIds
+      : data.assigneeId ? [data.assigneeId] : [];
+
     // Atomically increment taskCounter and create task in transaction
     const task = await prisma.$transaction(async (tx: any) => {
       const project = await tx.project.update({
@@ -46,11 +52,11 @@ export class TasksService {
       });
       const position = (lastTask?.position ?? 0) + 1000;
 
-      return tx.task.create({
+      const created = await tx.task.create({
         data: {
           projectId: data.projectId,
           statusId: data.statusId,
-          assigneeId: data.assigneeId,
+          assigneeId: resolvedAssigneeIds[0] || null,
           reporterId: data.reporterId,
           parentId: data.parentId,
           taskNumber: project.taskCounter,
@@ -69,9 +75,33 @@ export class TasksService {
           labels: { include: { label: true } },
         },
       });
+
+      // Create TaskAssignee junction records
+      if (resolvedAssigneeIds.length > 0) {
+        await tx.taskAssignee.createMany({
+          data: resolvedAssigneeIds.map((userId: string) => ({
+            taskId: created.id,
+            userId,
+          })),
+        });
+      }
+
+      return created;
     });
 
-    emitToProject(task.projectId, 'task:created', task);
+    // Re-fetch with assignees included
+    const fullTask = await prisma.task.findUnique({
+      where: { id: task.id },
+      include: {
+        status: true,
+        assignee: true,
+        reporter: true,
+        labels: { include: { label: true } },
+        assignees: { include: { user: true } },
+      },
+    });
+
+    emitToProject(task.projectId, 'task:created', fullTask);
 
     // Audit log
     const project = await prisma.project.findUnique({ where: { id: task.projectId }, select: { workspaceId: true } });
@@ -79,22 +109,24 @@ export class TasksService {
       logAudit({ workspaceId: project.workspaceId, userId: data.reporterId, action: 'created', entityType: 'task', entityId: task.id, metadata: { title: task.title, taskNumber: task.taskNumber } });
     }
 
-    // Notify assignee about task assignment
-    if (task.assigneeId && task.assigneeId !== data.reporterId) {
-      const notification = await prisma.notification.create({
-        data: {
-          userId: task.assigneeId,
-          type: 'TASK_ASSIGNED',
-          title: 'Task assigned to you',
-          message: `You've been assigned to "${task.title}"`,
-          resourceType: 'task',
-          resourceId: task.id,
-        },
-      });
-      emitToUser(task.assigneeId, 'notification:new', notification);
+    // Notify all assignees about task assignment
+    for (const assigneeId of resolvedAssigneeIds) {
+      if (assigneeId !== data.reporterId) {
+        const notification = await prisma.notification.create({
+          data: {
+            userId: assigneeId,
+            type: 'TASK_ASSIGNED',
+            title: 'Task assigned to you',
+            message: `You've been assigned to "${task.title}"`,
+            resourceType: 'task',
+            resourceId: task.id,
+          },
+        });
+        emitToUser(assigneeId, 'notification:new', notification);
+      }
     }
 
-    return task;
+    return fullTask || task;
   }
 
   async list(filters: {
@@ -130,6 +162,7 @@ export class TasksService {
         include: {
           status: true,
           assignee: true,
+          assignees: { include: { user: true } },
           labels: { include: { label: true } },
           _count: { select: { subtasks: { where: { deletedAt: null } }, comments: { where: { deletedAt: null } }, attachments: true } },
         },
@@ -142,11 +175,18 @@ export class TasksService {
 
   async listMyTasks(userId: string) {
     const tasks = await prisma.task.findMany({
-      where: { assigneeId: userId, deletedAt: null },
+      where: {
+        deletedAt: null,
+        OR: [
+          { assigneeId: userId },
+          { assignees: { some: { userId } } },
+        ],
+      },
       orderBy: [{ dueDate: 'asc' }, { position: 'asc' }],
       include: {
         status: true,
         assignee: true,
+        assignees: { include: { user: true } },
         project: { select: { id: true, key: true, name: true, workspaceId: true } },
         labels: { include: { label: true } },
         _count: { select: { subtasks: { where: { deletedAt: null } }, comments: { where: { deletedAt: null } }, attachments: true } },
@@ -161,6 +201,7 @@ export class TasksService {
       include: {
         status: true,
         assignee: true,
+        assignees: { include: { user: true } },
         reporter: true,
         parent: { select: { id: true, title: true, taskNumber: true } },
         subtasks: {
@@ -169,6 +210,7 @@ export class TasksService {
           include: {
             status: true,
             assignee: true,
+            assignees: { include: { user: true } },
           },
         },
         labels: { include: { label: true } },
@@ -202,15 +244,17 @@ export class TasksService {
     description?: string;
     statusId?: string;
     assigneeId?: string | null;
+    assigneeIds?: string[];
     priority?: string;
     position?: number;
     startDate?: Date | null;
     dueDate?: Date | null;
     estimatedHours?: number | null;
   }, updatedByUserId?: string) {
-    // Fetch existing task to get projectId
+    // Fetch existing task to get projectId and current assignees
     const existing = await prisma.task.findFirst({
       where: { id, deletedAt: null },
+      include: { assignees: true },
     });
     if (!existing) throw ApiError.notFound('Task not found');
 
@@ -222,28 +266,88 @@ export class TasksService {
       if (!status) throw ApiError.badRequest('Status does not belong to this project');
     }
 
+    // Determine assigneeId for backward compat
+    const updateData: any = {
+      ...(data.title !== undefined && { title: data.title }),
+      ...(data.description !== undefined && { description: data.description }),
+      ...(data.statusId !== undefined && { statusId: data.statusId }),
+      ...(data.priority !== undefined && { priority: data.priority as any }),
+      ...(data.position !== undefined && { position: data.position }),
+      ...(data.startDate !== undefined && { startDate: data.startDate }),
+      ...(data.dueDate !== undefined && { dueDate: data.dueDate }),
+      ...(data.estimatedHours !== undefined && { estimatedHours: data.estimatedHours }),
+    };
+
+    // If assigneeIds is provided, sync junction table and set assigneeId for backward compat
+    if (data.assigneeIds !== undefined) {
+      updateData.assigneeId = data.assigneeIds.length > 0 ? data.assigneeIds[0] : null;
+    } else if (data.assigneeId !== undefined) {
+      updateData.assigneeId = data.assigneeId;
+    }
+
     const task = await prisma.task.update({
       where: { id },
-      data: {
-        ...(data.title !== undefined && { title: data.title }),
-        ...(data.description !== undefined && { description: data.description }),
-        ...(data.statusId !== undefined && { statusId: data.statusId }),
-        ...(data.assigneeId !== undefined && { assigneeId: data.assigneeId }),
-        ...(data.priority !== undefined && { priority: data.priority as any }),
-        ...(data.position !== undefined && { position: data.position }),
-        ...(data.startDate !== undefined && { startDate: data.startDate }),
-        ...(data.dueDate !== undefined && { dueDate: data.dueDate }),
-        ...(data.estimatedHours !== undefined && { estimatedHours: data.estimatedHours }),
-      },
+      data: updateData,
       include: {
         status: true,
         assignee: true,
         reporter: true,
         labels: { include: { label: true } },
+        assignees: { include: { user: true } },
       },
     });
 
-    emitToProject(task.projectId, 'task:updated', task);
+    // Sync TaskAssignee junction table if assigneeIds provided
+    if (data.assigneeIds !== undefined) {
+      const currentAssigneeIds = (existing.assignees || []).map((a: any) => a.userId);
+      const newAssigneeIds = data.assigneeIds;
+      const toAdd = newAssigneeIds.filter((uid: string) => !currentAssigneeIds.includes(uid));
+      const toRemove = currentAssigneeIds.filter((uid: string) => !newAssigneeIds.includes(uid));
+
+      if (toRemove.length > 0) {
+        await prisma.taskAssignee.deleteMany({
+          where: { taskId: id, userId: { in: toRemove } },
+        });
+      }
+      if (toAdd.length > 0) {
+        await prisma.taskAssignee.createMany({
+          data: toAdd.map((userId: string) => ({ taskId: id, userId })),
+        });
+      }
+
+      // Notify newly added assignees
+      for (const userId of toAdd) {
+        if (userId !== updatedByUserId) {
+          const notification = await prisma.notification.create({
+            data: {
+              userId,
+              type: 'TASK_ASSIGNED',
+              title: 'Task assigned to you',
+              message: `You've been assigned to "${task.title}"`,
+              resourceType: 'task',
+              resourceId: task.id,
+            },
+          });
+          emitToUser(userId, 'notification:new', notification);
+        }
+      }
+
+      // Re-fetch assignees after sync
+      const updatedTask = await prisma.task.findUnique({
+        where: { id },
+        include: {
+          status: true,
+          assignee: true,
+          reporter: true,
+          labels: { include: { label: true } },
+          assignees: { include: { user: true } },
+        },
+      });
+
+      emitToProject(task.projectId, 'task:updated', updatedTask);
+    } else {
+      emitToProject(task.projectId, 'task:updated', task);
+    }
 
     // Audit log
     const proj = await prisma.project.findUnique({ where: { id: task.projectId }, select: { workspaceId: true } });
@@ -271,6 +375,57 @@ export class TasksService {
         },
       });
       emitToUser(data.assigneeId, 'notification:new', notification);
+    }
+
+    // Collect users to notify (assignee + reporter, excluding the updater)
+    const usersToNotify = new Set<string>();
+    if (existing.assigneeId && existing.assigneeId !== updatedByUserId) {
+      usersToNotify.add(existing.assigneeId);
+    }
+    if (existing.reporterId && existing.reporterId !== updatedByUserId) {
+      usersToNotify.add(existing.reporterId);
+    }
+
+    // STATUS_CHANGED notification
+    if (data.statusId && data.statusId !== existing.statusId && usersToNotify.size > 0) {
+      const newStatusName = task.status?.name || 'Unknown';
+      for (const userId of usersToNotify) {
+        const notification = await prisma.notification.create({
+          data: {
+            userId,
+            type: 'STATUS_CHANGED',
+            title: 'Task status changed',
+            message: `"${task.title}" status changed to ${newStatusName}`,
+            resourceType: 'task',
+            resourceId: task.id,
+          },
+        });
+        emitToUser(userId, 'notification:new', notification);
+      }
+    }
+
+    // TASK_UPDATED notification (for non-status, non-assignee field changes)
+    const otherFieldsChanged =
+      (data.title !== undefined && data.title !== existing.title) ||
+      (data.description !== undefined && data.description !== existing.description) ||
+      (data.priority !== undefined && data.priority !== existing.priority) ||
+      (data.startDate !== undefined) ||
+      (data.dueDate !== undefined);
+
+    if (otherFieldsChanged && !(data.statusId && data.statusId !== existing.statusId) && usersToNotify.size > 0) {
+      for (const userId of usersToNotify) {
+        const notification = await prisma.notification.create({
+          data: {
+            userId,
+            type: 'TASK_UPDATED',
+            title: 'Task updated',
+            message: `"${task.title}" has been updated`,
+            resourceType: 'task',
+            resourceId: task.id,
+          },
+        });
+        emitToUser(userId, 'notification:new', notification);
+      }
     }
 
     return task;
