@@ -154,23 +154,29 @@ export function NotificationsPage() {
             >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-medium uppercase tracking-wider text-surface-500">
+                  <span className={cn(
+                    'inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider',
+                    notification.type === NotificationType.TASK_ASSIGNED
+                      ? 'bg-blue-500/15 text-blue-400'
+                      : notification.type === NotificationType.COMMENT_ADDED
+                      ? 'bg-amber-500/15 text-amber-400'
+                      : notification.type === NotificationType.STATUS_CHANGED
+                      ? 'bg-green-500/15 text-green-400'
+                      : notification.type === NotificationType.MENTIONED
+                      ? 'bg-purple-500/15 text-purple-400'
+                      : 'bg-surface-600/30 text-surface-400',
+                  )}>
                     {getNotificationLabel(notification.type)}
                   </span>
                   {!notification.isRead && (
                     <span className="h-1.5 w-1.5 rounded-full bg-primary-500" />
                   )}
+                  <span className="ml-auto text-xs text-surface-500 shrink-0">
+                    {timeAgo(notification.createdAt)}
+                  </span>
                 </div>
-                <p className="mt-0.5 text-sm text-surface-200">
-                  {notification.title}
-                </p>
-                {notification.message && (
-                  <p className="mt-0.5 text-xs text-surface-400 line-clamp-2">
-                    {notification.message}
-                  </p>
-                )}
-                <p className="mt-1 text-xs text-surface-500">
-                  {timeAgo(notification.createdAt)}
+                <p className="mt-1 text-sm text-surface-200">
+                  {notification.message || notification.title}
                 </p>
               </div>
             </button>

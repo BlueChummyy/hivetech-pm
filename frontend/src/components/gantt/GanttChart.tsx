@@ -17,6 +17,9 @@ const SCALE_OPTIONS: { value: TimeScale; label: string }[] = [
   { value: 'month', label: 'Month' },
 ];
 
+// Exported for external use
+export { ROW_HEIGHT as GANTT_ROW_HEIGHT };
+
 export function GanttChart({ tasks, isLoading, projectId }: GanttChartProps) {
   const [scale, setScale] = useState<TimeScale>('week');
   const [listWidth, setListWidth] = useState(
@@ -76,24 +79,45 @@ export function GanttChart({ tasks, isLoading, projectId }: GanttChartProps) {
     return a.position - b.position;
   });
 
+  const timelineRef = useRef<HTMLDivElement>(null);
+
+  const scrollToToday = useCallback(() => {
+    if (!timelineRef.current) return;
+    const scrollContainer = timelineRef.current;
+    // Find the today marker and scroll to it
+    const todayMarker = scrollContainer.querySelector('[data-today-marker]') as HTMLElement;
+    if (todayMarker) {
+      const offset = parseInt(todayMarker.style.left, 10) || 0;
+      scrollContainer.scrollTo({ left: Math.max(0, offset - scrollContainer.clientWidth / 3), behavior: 'smooth' });
+    }
+  }, []);
+
   return (
     <div className="space-y-3">
       {/* Scale toggle */}
-      <div className="flex items-center gap-1 rounded-lg bg-surface-800 p-1 w-fit border border-surface-700">
-        {SCALE_OPTIONS.map((opt) => (
-          <button
-            key={opt.value}
-            onClick={() => setScale(opt.value)}
-            className={cn(
-              'rounded-md px-3 py-1 text-sm font-medium transition-colors',
-              scale === opt.value
-                ? 'bg-primary-600 text-white'
-                : 'text-surface-400 hover:text-surface-200',
-            )}
-          >
-            {opt.label}
-          </button>
-        ))}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={scrollToToday}
+          className="rounded-md border border-surface-700 bg-surface-800 px-3 py-1 text-sm text-surface-300 hover:text-surface-100 transition-colors"
+        >
+          Today
+        </button>
+        <div className="flex items-center gap-1 rounded-lg bg-surface-800 p-1 w-fit border border-surface-700">
+          {SCALE_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setScale(opt.value)}
+              className={cn(
+                'rounded-md px-3 py-1 text-sm font-medium transition-colors',
+                scale === opt.value
+                  ? 'bg-primary-600 text-white'
+                  : 'text-surface-400 hover:text-surface-200',
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Chart */}
@@ -119,7 +143,7 @@ export function GanttChart({ tasks, isLoading, projectId }: GanttChartProps) {
         />
 
         {/* Right panel: Timeline */}
-        <div className="flex-1 overflow-auto">
+        <div ref={timelineRef} className="flex-1 overflow-auto">
           <GanttTimeline tasks={sortedTasks} scale={scale} rowHeight={ROW_HEIGHT} projectId={projectId} />
         </div>
       </div>

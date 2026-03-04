@@ -242,21 +242,36 @@ function TimelineChart({
           <h1 className="text-2xl font-bold text-surface-100">{projectName} - Timeline</h1>
           <p className="text-sm text-surface-500">Team member workload overview</p>
         </div>
-        <div className="flex items-center gap-1 rounded-lg bg-surface-800 p-1 border border-surface-700">
-          {SCALE_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => onScaleChange(opt.value)}
-              className={cn(
-                'rounded-md px-3 py-1 text-sm font-medium transition-colors',
-                scale === opt.value
-                  ? 'bg-primary-600 text-white'
-                  : 'text-surface-400 hover:text-surface-200',
-              )}
-            >
-              {opt.label}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              const scrollContainer = document.querySelector('[data-timeline-scroll]');
+              const todayMarker = scrollContainer?.querySelector('[data-today-marker]') as HTMLElement;
+              if (scrollContainer && todayMarker) {
+                const offset = parseInt(todayMarker.style.left, 10) || 0;
+                scrollContainer.scrollTo({ left: Math.max(0, offset - scrollContainer.clientWidth / 3), behavior: 'smooth' });
+              }
+            }}
+            className="rounded-md border border-surface-700 bg-surface-800 px-3 py-1 text-sm text-surface-300 hover:text-surface-100 transition-colors"
+          >
+            Today
+          </button>
+          <div className="flex items-center gap-1 rounded-lg bg-surface-800 p-1 border border-surface-700">
+            {SCALE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => onScaleChange(opt.value)}
+                className={cn(
+                  'rounded-md px-3 py-1 text-sm font-medium transition-colors',
+                  scale === opt.value
+                    ? 'bg-primary-600 text-white'
+                    : 'text-surface-400 hover:text-surface-200',
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -294,7 +309,7 @@ function TimelineChart({
         </div>
 
         {/* Right panel: Timeline */}
-        <div className="flex-1 overflow-auto">
+        <div data-timeline-scroll className="flex-1 overflow-auto">
           <div className="relative min-h-full" style={{ width: `${totalWidth}px` }}>
             {/* Column headers */}
             <div
@@ -328,6 +343,7 @@ function TimelineChart({
               {/* Today marker */}
               {todayOffset >= 0 && todayOffset <= totalWidth && (
                 <div
+                  data-today-marker
                   className="absolute top-0 bottom-0 z-20 w-0.5 bg-primary-500/70"
                   style={{ left: `${todayOffset}px` }}
                 />

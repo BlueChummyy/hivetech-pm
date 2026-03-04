@@ -50,7 +50,7 @@ export class ProjectsService {
           members: {
             include: { user: true },
           },
-          _count: { select: { tasks: { where: { deletedAt: null } }, members: true } },
+          _count: { select: { tasks: { where: { deletedAt: null, closedAt: null } }, members: true } },
         },
       });
     });
@@ -72,7 +72,7 @@ export class ProjectsService {
       where,
       include: {
         space: true,
-        _count: { select: { tasks: { where: { deletedAt: null } }, members: true } },
+        _count: { select: { tasks: { where: { deletedAt: null, closedAt: null } }, members: true } },
       },
     });
   }
@@ -85,7 +85,7 @@ export class ProjectsService {
         members: {
           include: { user: true },
         },
-        _count: { select: { tasks: { where: { deletedAt: null } }, members: true } },
+        _count: { select: { tasks: { where: { deletedAt: null, closedAt: null } }, members: true } },
       },
     });
 

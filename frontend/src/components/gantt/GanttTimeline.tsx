@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useRef } from 'react';
 import {
   addDays,
   addWeeks,
@@ -12,6 +12,7 @@ import {
   isSameMonth,
 } from 'date-fns';
 import type { Task } from '@/types/models.types';
+import { useUpdateTask } from '@/hooks/useTasks';
 import { GanttBar } from './GanttBar';
 import { GanttCreatePopover } from './GanttCreatePopover';
 
@@ -174,6 +175,42 @@ export function GanttTimeline({ tasks, scale, rowHeight, projectId }: GanttTimel
     [projectId, dayWidth, dateRange.start],
   );
 
+  const updateTask = useUpdateTask();
+
+  // Hover tooltip state for task rows
+  const [hoverInfo, setHoverInfo] = useState<{
+    type: 'schedule' | 'create';
+    x: number;
+    y: number;
+  } | null>(null);
+
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleRowMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>, rowType: 'task' | 'empty') => {
+      if (!projectId) return;
+      const target = e.target as HTMLElement;
+      if (target.closest('button') || target.closest('[data-gantt-bar]')) {
+        setHoverInfo(null);
+        return;
+      }
+      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = setTimeout(() => {
+        setHoverInfo({
+          type: rowType === 'task' ? 'schedule' : 'create',
+          x: e.clientX,
+          y: e.clientY,
+        });
+      }, 50);
+    },
+    [projectId],
+  );
+
+  const handleRowMouseLeave = useCallback(() => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    setHoverInfo(null);
+  }, []);
+
   const scheduledTasks = tasks.filter((t) => t.dueDate);
   const unscheduledTasks = tasks.filter((t) => !t.dueDate);
 
@@ -242,6 +279,7 @@ export function GanttTimeline({ tasks, scale, rowHeight, projectId }: GanttTimel
         {/* Today marker */}
         {todayOffset >= 0 && todayOffset <= totalWidth && (
           <div
+            data-today-marker
             className="absolute top-0 bottom-0 z-20 w-0.5 bg-primary-500/70"
             style={{ left: `${todayOffset}px` }}
           />
@@ -269,42 +307,64 @@ export function GanttTimeline({ tasks, scale, rowHeight, projectId }: GanttTimel
           );
         })}
 
-        {/* Unscheduled section */}
-        {unscheduledTasks.length > 0 && (
-          <>
-            <div
-              className="flex items-center px-3 text-xs font-medium text-surface-500 bg-surface-900/50 border-y border-surface-700"
-              style={{ height: `${rowHeight}px` }}
-            >
-              Unscheduled ({unscheduledTasks.length})
-            </div>
-            {unscheduledTasks.map((task) => (
-              <div
-                key={task.id}
-                className="relative border-b border-surface-700/30"
-                style={{ height: `${rowHeight}px` }}
-              >
-                <GanttBar
-                  task={task}
-                  left={8}
-                  width={120}
-                  rowHeight={rowHeight}
-                />
-              </div>
-            ))}
-          </>
-        )}
-
-        {/* Empty area hint for click-to-create */}
-        {projectId && tasks.length === 0 && (
+        {/* Unscheduled task rows - hover shows "Click to Schedule Task" */}
+        {unscheduledTasks.map((task) => (
           <div
-            className="flex items-center justify-center text-xs text-surface-500"
-            style={{ height: `${rowHeight * 3}px` }}
+            key={task.id}
+            className="relative border-b border-surface-700/30 cursor-pointer"
+            style={{ height: `${rowHeight}px`, background: 'repeating-linear-gradient(135deg, transparent, transparent 4px, rgba(255,255,255,0.02) 4px, rgba(255,255,255,0.02) 8px)' }}
+            onMouseMove={(e) => handleRowMouseMove(e, 'task')}
+            onMouseLeave={handleRowMouseLeave}
+            onClick={(e) => {
+              if (!projectId) return;
+              const target = e.target as HTMLElement;
+              if (target.closest('button')) return;
+
+              const rect = e.currentTarget.getBoundingClientRect();
+              const scrollContainer = e.currentTarget.closest('.overflow-auto');
+              const clickX = e.clientX - rect.left + (scrollContainer?.scrollLeft || 0);
+              const daysFromStart = Math.floor(clickX / dayWidth);
+              const clickDate = addDays(dateRange.start, daysFromStart);
+
+              // Schedule this task at the clicked date
+              const sd = startOfDay(clickDate);
+              const dd = addDays(sd, 3);
+              updateTask.mutate({
+                id: task.id,
+                data: { startDate: sd.toISOString(), dueDate: dd.toISOString() },
+              });
+            }}
           >
-            Click anywhere on the timeline to create a task
+            <div className="absolute inset-0 flex items-center px-3">
+              <span className="text-xs text-surface-500 italic truncate">{task.title}</span>
+            </div>
+          </div>
+        ))}
+
+        {/* Empty click-to-create area */}
+        {projectId && (
+          <div
+            className="relative border-b border-surface-700/30 cursor-pointer"
+            style={{ height: `${rowHeight}px` }}
+            onMouseMove={(e) => handleRowMouseMove(e, 'empty')}
+            onMouseLeave={handleRowMouseLeave}
+          >
+            <div className="absolute inset-0 flex items-center px-3 gap-1.5 text-surface-500">
+              <span className="text-xs">+ Add Task</span>
+            </div>
           </div>
         )}
       </div>
+
+      {/* Hover tooltip */}
+      {hoverInfo && (
+        <div
+          className="fixed z-50 pointer-events-none rounded-md bg-surface-900 border border-surface-600 px-2.5 py-1 text-xs text-surface-200 shadow-lg whitespace-nowrap"
+          style={{ left: `${hoverInfo.x + 12}px`, top: `${hoverInfo.y - 28}px` }}
+        >
+          {hoverInfo.type === 'schedule' ? 'Click to Schedule Task' : 'Click to Create Task'}
+        </div>
+      )}
 
       {/* Create popover */}
       {createPopover && projectId && (
