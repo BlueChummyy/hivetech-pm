@@ -33,19 +33,24 @@ export function AppLayout() {
 
       {/* Mobile sidebar overlay - only shown when sidebarOpen on small screens */}
       {sidebarOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden">
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => useUIStore.setState({ sidebarOpen: false })}
-            onTouchEnd={(e) => {
-              e.preventDefault();
+        <div
+          className="fixed inset-0 z-40 flex lg:hidden"
+          onPointerDown={(e) => {
+            // Close if tapping outside the sidebar (the backdrop area)
+            const sidebar = (e.currentTarget as HTMLElement).querySelector('[data-sidebar]');
+            if (sidebar && !sidebar.contains(e.target as Node)) {
               useUIStore.setState({ sidebarOpen: false });
-            }}
-            aria-hidden="true"
-          />
-          <aside className="relative z-50">
+            }
+          }}
+        >
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" aria-hidden="true" />
+          {/* Sidebar */}
+          <aside data-sidebar className="relative z-50 shrink-0">
             <Sidebar />
           </aside>
+          {/* Tap-to-close zone fills the rest */}
+          <div className="relative z-50 flex-1" />
         </div>
       )}
 
