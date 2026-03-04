@@ -6,9 +6,11 @@ import { Avatar } from '@/components/ui/Avatar';
 interface GanttTaskListProps {
   tasks: Task[];
   rowHeight: number;
+  hoveredRow: string | null;
+  onHoverRow: (taskId: string | null) => void;
 }
 
-export function GanttTaskList({ tasks, rowHeight }: GanttTaskListProps) {
+export function GanttTaskList({ tasks, rowHeight, hoveredRow, onHoverRow }: GanttTaskListProps) {
   const openTaskPanel = useUIStore((s) => s.openTaskPanel);
 
   const scheduled = tasks.filter((t) => t.dueDate);
@@ -29,8 +31,13 @@ export function GanttTaskList({ tasks, rowHeight }: GanttTaskListProps) {
       {scheduled.map((task) => (
         <div
           key={task.id}
-          className="flex items-center border-b border-surface-700/50 px-3 hover:bg-surface-800/50 transition-colors"
-          style={{ height: `${rowHeight}px` }}
+          className="flex items-center border-b border-surface-700/50 px-3 transition-colors"
+          style={{
+            height: `${rowHeight}px`,
+            backgroundColor: hoveredRow === task.id ? 'rgba(255,255,255,0.03)' : undefined,
+          }}
+          onMouseEnter={() => onHoverRow(task.id)}
+          onMouseLeave={() => onHoverRow(null)}
         >
           <button
             onClick={() => openTaskPanel(task.id)}
@@ -66,8 +73,13 @@ export function GanttTaskList({ tasks, rowHeight }: GanttTaskListProps) {
       {unscheduled.map((task) => (
         <div
           key={task.id}
-          className="flex items-center border-b border-surface-700/50 px-3 hover:bg-surface-800/50 transition-colors"
-          style={{ height: `${rowHeight}px` }}
+          className="flex items-center border-b border-surface-700/50 px-3 transition-colors"
+          style={{
+            height: `${rowHeight}px`,
+            backgroundColor: hoveredRow === task.id ? 'rgba(255,255,255,0.03)' : undefined,
+          }}
+          onMouseEnter={() => onHoverRow(task.id)}
+          onMouseLeave={() => onHoverRow(null)}
         >
           <button
             onClick={() => openTaskPanel(task.id)}

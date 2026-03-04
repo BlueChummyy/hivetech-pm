@@ -12,9 +12,9 @@ import {
   isSameMonth,
 } from 'date-fns';
 import type { Task } from '@/types/models.types';
-import { useUpdateTask } from '@/hooks/useTasks';
 import { GanttBar } from './GanttBar';
 import { GanttCreatePopover } from './GanttCreatePopover';
+import { GanttSchedulePopover } from './GanttSchedulePopover';
 
 export type TimeScale = 'day' | 'week' | 'month';
 
@@ -23,6 +23,8 @@ interface GanttTimelineProps {
   scale: TimeScale;
   rowHeight: number;
   projectId?: string;
+  hoveredRow: string | null;
+  onHoverRow: (taskId: string | null) => void;
 }
 
 function getColumnWidth(scale: TimeScale): number {
@@ -117,7 +119,7 @@ function formatTopHeader(date: Date, scale: TimeScale): string | null {
   }
 }
 
-export function GanttTimeline({ tasks, scale, rowHeight, projectId }: GanttTimelineProps) {
+export function GanttTimeline({ tasks, scale, rowHeight, projectId, hoveredRow, onHoverRow }: GanttTimelineProps) {
   const colWidth = getColumnWidth(scale);
   const dateRange = useMemo(() => getDateRange(tasks, scale), [tasks, scale]);
   const columns = useMemo(
@@ -135,7 +137,12 @@ export function GanttTimeline({ tasks, scale, rowHeight, projectId }: GanttTimel
     position: { x: number; y: number };
   } | null>(null);
 
-  const updateTask = useUpdateTask();
+  const [schedulePopover, setSchedulePopover] = useState<{
+    taskId: string;
+    taskTitle: string;
+    startDate: Date;
+    position: { x: number; y: number };
+  } | null>(null);
 
   function getTaskPosition(task: Task) {
     if (!task.dueDate) return null;
@@ -170,10 +177,10 @@ export function GanttTimeline({ tasks, scale, rowHeight, projectId }: GanttTimel
     [projectId, dayWidth, dateRange.start],
   );
 
-  // Click on unscheduled task row = schedule that task at clicked date
+  // Click on unscheduled task row = show schedule popover
   const handleScheduleClick = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>, taskId: string) => {
-      e.stopPropagation(); // prevent parent handleTimelineClick
+    (e: React.MouseEvent<HTMLDivElement>, task: Task) => {
+      e.stopPropagation();
       if (!projectId) return;
 
       const scrollContainer = e.currentTarget.closest('.overflow-auto');
@@ -182,14 +189,14 @@ export function GanttTimeline({ tasks, scale, rowHeight, projectId }: GanttTimel
       const daysFromStart = Math.floor(clickX / dayWidth);
       const clickDate = addDays(dateRange.start, daysFromStart);
 
-      const sd = startOfDay(clickDate);
-      const dd = addDays(sd, 3);
-      updateTask.mutate({
-        id: taskId,
-        data: { startDate: sd.toISOString(), dueDate: dd.toISOString() },
+      setSchedulePopover({
+        taskId: task.id,
+        taskTitle: task.title,
+        startDate: startOfDay(clickDate),
+        position: { x: e.clientX, y: e.clientY },
       });
     },
-    [projectId, dayWidth, dateRange.start, updateTask],
+    [projectId, dayWidth, dateRange.start],
   );
 
   const scheduledTasks = useMemo(() => tasks.filter((t) => t.dueDate), [tasks]);
@@ -273,8 +280,13 @@ export function GanttTimeline({ tasks, scale, rowHeight, projectId }: GanttTimel
           return (
             <div
               key={task.id}
-              className="relative border-b border-surface-700/30"
-              style={{ height: `${rowHeight}px` }}
+              className="relative border-b border-surface-700/30 transition-colors"
+              style={{
+                height: `${rowHeight}px`,
+                backgroundColor: hoveredRow === task.id ? 'rgba(255,255,255,0.03)' : undefined,
+              }}
+              onMouseEnter={() => onHoverRow(task.id)}
+              onMouseLeave={() => onHoverRow(null)}
             >
               <GanttBar
                 task={task}
@@ -293,12 +305,16 @@ export function GanttTimeline({ tasks, scale, rowHeight, projectId }: GanttTimel
           <div
             key={task.id}
             data-unscheduled-row
-            className="relative border-b border-surface-700/30 cursor-pointer group/row"
+            className="relative border-b border-surface-700/30 cursor-pointer group/row transition-colors"
             style={{
               height: `${rowHeight}px`,
-              background: 'repeating-linear-gradient(135deg, transparent, transparent 4px, rgba(255,255,255,0.015) 4px, rgba(255,255,255,0.015) 8px)',
+              background: hoveredRow === task.id
+                ? 'rgba(255,255,255,0.03)'
+                : 'repeating-linear-gradient(135deg, transparent, transparent 4px, rgba(255,255,255,0.015) 4px, rgba(255,255,255,0.015) 8px)',
             }}
-            onClick={(e) => handleScheduleClick(e, task.id)}
+            onClick={(e) => handleScheduleClick(e, task)}
+            onMouseEnter={() => onHoverRow(task.id)}
+            onMouseLeave={() => onHoverRow(null)}
             title="Click to schedule this task"
           >
             <div className="absolute inset-0 flex items-center px-3">
@@ -331,6 +347,17 @@ export function GanttTimeline({ tasks, scale, rowHeight, projectId }: GanttTimel
           startDate={createPopover.startDate}
           position={createPopover.position}
           onClose={() => setCreatePopover(null)}
+        />
+      )}
+
+      {/* Schedule popover */}
+      {schedulePopover && (
+        <GanttSchedulePopover
+          taskId={schedulePopover.taskId}
+          taskTitle={schedulePopover.taskTitle}
+          startDate={schedulePopover.startDate}
+          position={schedulePopover.position}
+          onClose={() => setSchedulePopover(null)}
         />
       )}
     </div>

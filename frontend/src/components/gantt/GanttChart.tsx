@@ -27,6 +27,7 @@ export function GanttChart({ tasks, isLoading, projectId }: GanttChartProps) {
   );
   const [isResizing, setIsResizing] = useState(false);
   const [grabCursor, setGrabCursor] = useState(false);
+  const [hoveredRow, setHoveredRow] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const isGrabbingRef = useRef(false);
@@ -184,7 +185,7 @@ export function GanttChart({ tasks, isLoading, projectId }: GanttChartProps) {
           className="hidden sm:block shrink-0 overflow-y-auto border-r border-surface-700 bg-surface-800"
           style={{ width: `${listWidth}px` }}
         >
-          <GanttTaskList tasks={sortedTasks} rowHeight={ROW_HEIGHT} />
+          <GanttTaskList tasks={sortedTasks} rowHeight={ROW_HEIGHT} hoveredRow={hoveredRow} onHoverRow={setHoveredRow} />
         </div>
 
         {/* Resize handle (hidden on mobile) */}
@@ -195,7 +196,7 @@ export function GanttChart({ tasks, isLoading, projectId }: GanttChartProps) {
 
         {/* Right panel: Timeline */}
         <div ref={timelineRef} className={cn('flex-1 overflow-auto', grabCursor && 'cursor-grabbing select-none')}>
-          <GanttTimeline tasks={sortedTasks} scale={scale} rowHeight={ROW_HEIGHT} projectId={projectId} />
+          <GanttTimeline tasks={sortedTasks} scale={scale} rowHeight={ROW_HEIGHT} projectId={projectId} hoveredRow={hoveredRow} onHoverRow={setHoveredRow} />
         </div>
       </div>
     </div>
