@@ -390,6 +390,8 @@ export function AdminDashboardPage() {
     onSuccess: () => {
       toast({ type: 'success', title: 'Project restored' });
       qc.invalidateQueries({ queryKey: ['admin', 'projects', 'deleted'] });
+      qc.invalidateQueries({ queryKey: ['projects'] });
+      qc.invalidateQueries({ queryKey: ['spaces'] });
     },
     onError: (err) => {
       toast({ type: 'error', title: 'Failed to restore project', description: (err as Error).message });
@@ -401,6 +403,8 @@ export function AdminDashboardPage() {
     onSuccess: () => {
       toast({ type: 'success', title: 'Project permanently deleted' });
       qc.invalidateQueries({ queryKey: ['admin', 'projects', 'deleted'] });
+      qc.invalidateQueries({ queryKey: ['projects'] });
+      qc.invalidateQueries({ queryKey: ['spaces'] });
     },
     onError: (err) => {
       toast({ type: 'error', title: 'Failed to permanently delete project', description: (err as Error).message });

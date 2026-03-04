@@ -59,6 +59,7 @@ export function useDeleteProject() {
     mutationFn: (id: string) => projectsApi.remove(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['projects'] });
+      qc.invalidateQueries({ queryKey: ['spaces'] });
     },
   });
 }

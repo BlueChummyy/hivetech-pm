@@ -45,7 +45,12 @@ function usePortalDropdown() {
     setOpen((prev) => {
       if (!prev && triggerRef.current) {
         const rect = triggerRef.current.getBoundingClientRect();
-        setPos({ top: rect.bottom + 4, left: rect.left });
+        const dropdownHeight = 200; // estimated max height
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const top = spaceBelow < dropdownHeight
+          ? rect.top - dropdownHeight
+          : rect.bottom + 4;
+        setPos({ top: Math.max(8, top), left: rect.left });
       }
       return !prev;
     });
@@ -242,7 +247,12 @@ function AssigneeBadge({ task }: { task: Task }) {
     setOpen((prev) => {
       if (!prev && triggerRef.current) {
         const rect = triggerRef.current.getBoundingClientRect();
-        setPos({ top: rect.bottom + 4, left: rect.left });
+        const dropdownHeight = 300;
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const top = spaceBelow < dropdownHeight
+          ? rect.top - dropdownHeight
+          : rect.bottom + 4;
+        setPos({ top: Math.max(8, top), left: rect.left });
       }
       return !prev;
     });
@@ -298,6 +308,7 @@ function AssigneeBadge({ task }: { task: Task }) {
       <button
         ref={triggerRef}
         onMouseDown={handleToggle}
+        onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
         aria-haspopup="listbox"
         aria-expanded={open}
         className="flex items-center gap-2 rounded px-2 py-0.5 text-sm transition-colors hover:bg-white/[0.06]"

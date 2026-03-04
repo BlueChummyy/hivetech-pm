@@ -6,6 +6,7 @@ import {
   useMarkAsRead,
   useMarkAllAsRead,
 } from '@/hooks/useNotifications';
+import { useUIStore } from '@/store/ui.store';
 import { NotificationType } from '@/types/models.types';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageError } from '@/components/ui/PageError';
@@ -145,6 +146,9 @@ export function NotificationsPage() {
               onClick={() => {
                 if (!notification.isRead) {
                   markAsRead.mutate(notification.id);
+                }
+                if (notification.resourceType === 'TASK' && notification.resourceId) {
+                  useUIStore.getState().openTaskPanel(notification.resourceId);
                 }
               }}
             >

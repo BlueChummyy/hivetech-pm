@@ -107,6 +107,32 @@ export function BoardPage() {
       );
     }
 
+    // Apply groupBy sorting when enabled (board always displays by status columns,
+    // but we can sort tasks within each column by the selected group field)
+    if (filters.groupBy.enabled && filters.groupBy.field !== 'status' && filters.groupBy.field !== 'none') {
+      const dir = filters.groupBy.direction === 'asc' ? 1 : -1;
+      result = [...result].sort((a, b) => {
+        switch (filters.groupBy.field) {
+          case 'priority': {
+            const order = { URGENT: 0, HIGH: 1, MEDIUM: 2, LOW: 3, NONE: 4 };
+            return dir * ((order[a.priority] ?? 4) - (order[b.priority] ?? 4));
+          }
+          case 'assignee': {
+            const nameA = a.assignees?.[0]?.user?.name || a.assignee?.name || 'zzz';
+            const nameB = b.assignees?.[0]?.user?.name || b.assignee?.name || 'zzz';
+            return dir * nameA.localeCompare(nameB);
+          }
+          case 'dueDate': {
+            const dateA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+            const dateB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+            return dir * (dateA - dateB);
+          }
+          default:
+            return 0;
+        }
+      });
+    }
+
     return result;
   }, [tasks, filters]);
 
