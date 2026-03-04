@@ -115,13 +115,15 @@ export function ProfileSettingsPage() {
     setImageLoaded(true);
   }, []);
 
-  const handleCropMouseDown = useCallback((mode: 'move' | 'nw' | 'ne' | 'sw' | 'se', e: React.MouseEvent) => {
+  const handleCropStart = useCallback((mode: 'move' | 'nw' | 'ne' | 'sw' | 'se', e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
     setDragMode(mode);
     dragStart.current = {
-      mx: e.clientX,
-      my: e.clientY,
+      mx: clientX,
+      my: clientY,
       bx: cropBox.x,
       by: cropBox.y,
       bsize: cropBox.size,
@@ -132,9 +134,11 @@ export function ProfileSettingsPage() {
     if (dragMode === 'none') return;
     const MIN_SIZE = 40;
 
-    const handleMouseMove = (e: MouseEvent) => {
-      const dx = e.clientX - dragStart.current.mx;
-      const dy = e.clientY - dragStart.current.my;
+    const handleMouseMove = (e: MouseEvent | TouchEvent) => {
+      const clientX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
+      const clientY = 'touches' in e ? e.touches[0].clientY : (e as MouseEvent).clientY;
+      const dx = clientX - dragStart.current.mx;
+      const dy = clientY - dragStart.current.my;
       const { bx, by, bsize } = dragStart.current;
       const { width: dw, height: dh } = displayDims;
 
@@ -196,9 +200,13 @@ export function ProfileSettingsPage() {
 
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('touchmove', handleMouseMove, { passive: false });
+    window.addEventListener('touchend', handleMouseUp);
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchmove', handleMouseMove);
+      window.removeEventListener('touchend', handleMouseUp);
     };
   }, [dragMode, displayDims.width, displayDims.height]);
 
@@ -304,10 +312,10 @@ export function ProfileSettingsPage() {
       <h1 className="text-2xl font-bold text-surface-100">Profile Settings</h1>
 
       {/* Profile section */}
-      <div className="rounded-xl border border-surface-700 bg-surface-800 p-6 space-y-6">
+      <div className="rounded-xl border border-surface-700 bg-surface-800 p-4 sm:p-6 space-y-6">
         <h2 className="text-lg font-semibold text-surface-100">Profile</h2>
 
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-center gap-4">
           <div className="relative">
             {avatarPreview ? (
               <img
@@ -360,7 +368,7 @@ export function ProfileSettingsPage() {
         </div>
 
         <div className="max-w-md space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               label="First name"
               value={firstName}
@@ -391,7 +399,7 @@ export function ProfileSettingsPage() {
       </div>
 
       {/* Password section */}
-      <div className="rounded-xl border border-surface-700 bg-surface-800 p-6 space-y-6">
+      <div className="rounded-xl border border-surface-700 bg-surface-800 p-4 sm:p-6 space-y-6">
         <h2 className="text-lg font-semibold text-surface-100">Change Password</h2>
 
         <div className="max-w-md space-y-4">
@@ -428,7 +436,7 @@ export function ProfileSettingsPage() {
       </div>
 
       {/* Appearance section */}
-      <div className="rounded-xl border border-surface-700 bg-surface-800 p-6 space-y-6">
+      <div className="rounded-xl border border-surface-700 bg-surface-800 p-4 sm:p-6 space-y-6">
         <h2 className="text-lg font-semibold text-surface-100">Appearance</h2>
 
         <div className="max-w-md space-y-4">
@@ -476,7 +484,7 @@ export function ProfileSettingsPage() {
             <div
               ref={cropContainerRef}
               className="relative mx-auto flex items-center justify-center overflow-hidden rounded-lg bg-surface-900"
-              style={{ width: '100%', height: 360 }}
+              style={{ width: '100%', height: 'min(360px, 50vh)' }}
             >
               <img
                 ref={cropImageRef}
@@ -488,7 +496,7 @@ export function ProfileSettingsPage() {
                   width: displayDims.width || 'auto',
                   height: displayDims.height || 'auto',
                   maxWidth: '100%',
-                  maxHeight: 360,
+                  maxHeight: '50vh',
                   objectFit: 'contain',
                 }}
               />
@@ -521,7 +529,8 @@ export function ProfileSettingsPage() {
                     />
                     {/* Crop selection box - drag to move */}
                     <div
-                      onMouseDown={(e) => handleCropMouseDown('move', e)}
+                      onMouseDown={(e) => handleCropStart('move', e)}
+                      onTouchStart={(e) => handleCropStart('move', e)}
                       className="absolute border-2 border-white rounded-sm"
                       style={{
                         left: offsetX + cropBox.x,
@@ -530,24 +539,33 @@ export function ProfileSettingsPage() {
                         height: cropBox.size,
                         cursor: dragMode === 'move' ? 'grabbing' : 'grab',
                         boxShadow: '0 0 0 1px rgba(0,0,0,0.3)',
+                        touchAction: 'none',
                       }}
                     >
                       {/* Corner handles - drag to resize */}
                       <div
-                        onMouseDown={(e) => handleCropMouseDown('nw', e)}
-                        className="absolute -left-2 -top-2 h-4 w-4 rounded-full bg-white border-2 border-surface-600 cursor-nw-resize hover:bg-primary-300 transition-colors"
+                        onMouseDown={(e) => handleCropStart('nw', e)}
+                        onTouchStart={(e) => handleCropStart('nw', e)}
+                        className="absolute -left-2 -top-2 h-5 w-5 rounded-full bg-white border-2 border-surface-600 cursor-nw-resize hover:bg-primary-300 transition-colors"
+                        style={{ touchAction: 'none' }}
                       />
                       <div
-                        onMouseDown={(e) => handleCropMouseDown('ne', e)}
-                        className="absolute -right-2 -top-2 h-4 w-4 rounded-full bg-white border-2 border-surface-600 cursor-ne-resize hover:bg-primary-300 transition-colors"
+                        onMouseDown={(e) => handleCropStart('ne', e)}
+                        onTouchStart={(e) => handleCropStart('ne', e)}
+                        className="absolute -right-2 -top-2 h-5 w-5 rounded-full bg-white border-2 border-surface-600 cursor-ne-resize hover:bg-primary-300 transition-colors"
+                        style={{ touchAction: 'none' }}
                       />
                       <div
-                        onMouseDown={(e) => handleCropMouseDown('sw', e)}
-                        className="absolute -bottom-2 -left-2 h-4 w-4 rounded-full bg-white border-2 border-surface-600 cursor-sw-resize hover:bg-primary-300 transition-colors"
+                        onMouseDown={(e) => handleCropStart('sw', e)}
+                        onTouchStart={(e) => handleCropStart('sw', e)}
+                        className="absolute -bottom-2 -left-2 h-5 w-5 rounded-full bg-white border-2 border-surface-600 cursor-sw-resize hover:bg-primary-300 transition-colors"
+                        style={{ touchAction: 'none' }}
                       />
                       <div
-                        onMouseDown={(e) => handleCropMouseDown('se', e)}
-                        className="absolute -bottom-2 -right-2 h-4 w-4 rounded-full bg-white border-2 border-surface-600 cursor-se-resize hover:bg-primary-300 transition-colors"
+                        onMouseDown={(e) => handleCropStart('se', e)}
+                        onTouchStart={(e) => handleCropStart('se', e)}
+                        className="absolute -bottom-2 -right-2 h-5 w-5 rounded-full bg-white border-2 border-surface-600 cursor-se-resize hover:bg-primary-300 transition-colors"
+                        style={{ touchAction: 'none' }}
                       />
                     </div>
                   </>

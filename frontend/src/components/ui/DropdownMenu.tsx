@@ -25,7 +25,7 @@ export function DropdownMenu({ trigger, children, align = 'right', className, po
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
 
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
+    function handleClickOutside(e: MouseEvent | TouchEvent) {
       if (
         ref.current && !ref.current.contains(e.target as Node) &&
         (!menuRef.current || !menuRef.current.contains(e.target as Node))
@@ -35,8 +35,12 @@ export function DropdownMenu({ trigger, children, align = 'right', className, po
     }
     if (open) {
       document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, [open]);
 
   // Compute fixed position when portal mode is on

@@ -33,7 +33,11 @@ export function GanttCreatePopover({ projectId, startDate, position, onClose }: 
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside as EventListener);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside as EventListener);
+    };
   }, [onClose]);
 
   function handleCreate() {

@@ -107,24 +107,32 @@ export function TaskDetailPanel() {
 
   useEffect(() => {
     if (!labelDropdownOpen) return;
-    function handleClick(e: MouseEvent) {
+    function handleClick(e: MouseEvent | TouchEvent) {
       if (labelRef.current && !labelRef.current.contains(e.target as Node)) {
         setLabelDropdownOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    document.addEventListener('touchstart', handleClick);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('touchstart', handleClick);
+    };
   }, [labelDropdownOpen]);
 
   useEffect(() => {
     if (!showMoveDropdown) return;
-    function handleClick(e: MouseEvent) {
+    function handleClick(e: MouseEvent | TouchEvent) {
       if (moveRef.current && !moveRef.current.contains(e.target as Node)) {
         setShowMoveDropdown(false);
       }
     }
     document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    document.addEventListener('touchstart', handleClick);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('touchstart', handleClick);
+    };
   }, [showMoveDropdown]);
 
   const onMutationError = useCallback(

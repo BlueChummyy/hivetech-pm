@@ -62,7 +62,7 @@ export function ProjectLayout() {
   // Close picker on click outside
   useEffect(() => {
     if (!showViewPicker) return;
-    function handleClick(e: MouseEvent) {
+    function handleClick(e: MouseEvent | TouchEvent) {
       const target = e.target as Node;
       if (pickerRef.current?.contains(target)) return;
       if (dropdownRef.current?.contains(target)) return;
@@ -72,9 +72,11 @@ export function ProjectLayout() {
       if (e.key === 'Escape') setShowViewPicker(false);
     }
     document.addEventListener('mousedown', handleClick);
+    document.addEventListener('touchstart', handleClick);
     document.addEventListener('keydown', handleKey);
     return () => {
       document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('touchstart', handleClick);
       document.removeEventListener('keydown', handleKey);
     };
   }, [showViewPicker]);

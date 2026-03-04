@@ -102,7 +102,7 @@ export function AssigneeSelector({
   // Click outside to close
   useEffect(() => {
     if (!open) return;
-    function handleClick(e: MouseEvent) {
+    function handleClick(e: MouseEvent | TouchEvent) {
       const target = e.target as Node;
       if (
         triggerRef.current && !triggerRef.current.contains(target) &&
@@ -113,7 +113,11 @@ export function AssigneeSelector({
       }
     }
     document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    document.addEventListener('touchstart', handleClick);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('touchstart', handleClick);
+    };
   }, [open]);
 
   // Sort members: "Me" first, then alphabetical

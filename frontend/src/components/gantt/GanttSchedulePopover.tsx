@@ -34,9 +34,11 @@ export function GanttSchedulePopover({
       if (e.key === 'Escape') onClose();
     }
     document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('touchstart', handleMouseDown as EventListener);
     document.addEventListener('keydown', handleKey);
     return () => {
       document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('touchstart', handleMouseDown as EventListener);
       document.removeEventListener('keydown', handleKey);
     };
   }, [onClose]);
