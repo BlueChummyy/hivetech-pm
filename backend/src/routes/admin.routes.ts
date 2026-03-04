@@ -820,6 +820,52 @@ router.delete(
   },
 );
 
+// ── GET /api/v1/admin/settings/app — Get app settings ───────────────
+router.get(
+  '/settings/app',
+  async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const rows = await prisma.systemSetting.findMany({
+        where: { key: { in: ['hideCreateUser'] } },
+      });
+      const settings: Record<string, any> = { hideCreateUser: false };
+      for (const row of rows) {
+        settings[row.key] = JSON.parse(row.value);
+      }
+      res.json(successResponse(settings));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ── PUT /api/v1/admin/settings/app — Save app settings ──────────────
+const appSettingsSchema = z.object({
+  hideCreateUser: z.boolean().optional(),
+});
+
+router.put(
+  '/settings/app',
+  validate({ body: appSettingsSchema }),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const updates = req.body;
+      for (const [key, value] of Object.entries(updates)) {
+        if (value !== undefined) {
+          await prisma.systemSetting.upsert({
+            where: { key },
+            create: { key, value: JSON.stringify(value) },
+            update: { value: JSON.stringify(value) },
+          });
+        }
+      }
+      res.json(successResponse({ message: 'App settings saved' }));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 // ── GET /api/v1/admin/settings/smtp — Get SMTP settings (password masked)
 router.get(
   '/settings/smtp',

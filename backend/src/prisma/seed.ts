@@ -3,8 +3,19 @@ import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
+/**
+ * Seed script — optional dev helper.
+ * In production, the first-time setup flow (/setup) replaces this.
+ * Only seeds if no users exist in the database.
+ */
 async function main() {
-  console.log('Seeding database...');
+  const userCount = await prisma.user.count();
+  if (userCount > 0) {
+    console.log('Database already has users — skipping seed. Use the /setup page for first-time setup.');
+    return;
+  }
+
+  console.log('No users found. Seeding database with default admin...');
 
   const passwordHash = await bcrypt.hash('password123', 12);
 

@@ -102,7 +102,18 @@ export interface UpsertAuthProviderData {
   enabled: boolean;
 }
 
+export interface AppSettings {
+  hideCreateUser: boolean;
+}
+
 export const adminApi = {
+  // App settings
+  getAppSettings: () =>
+    get<AppSettings>('/admin/settings/app').then((r) => r.data),
+
+  updateAppSettings: (data: Partial<AppSettings>) =>
+    put<{ message: string }>('/admin/settings/app', data).then((r) => r.data),
+
   // Users
   listUsers: (params?: { search?: string; page?: number; limit?: number }) =>
     get<AdminUsersResponse>('/admin/users', { params }).then((r) => r.data),

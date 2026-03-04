@@ -1,5 +1,5 @@
-import { lazy, Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { lazy, Suspense, useEffect, useState } from 'react';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ProjectLayout } from '@/components/layout/ProjectLayout';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
@@ -7,9 +7,11 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { LoginPage } from '@/pages/LoginPage';
 import { RegisterPage } from '@/pages/RegisterPage';
 import { AuthCallbackPage } from '@/pages/AuthCallbackPage';
+import { SetupPage } from '@/pages/SetupPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { PlaceholderPage } from '@/pages/PlaceholderPage';
+import { setupApi } from '@/api/auth';
 
 // Helper: lazy-load a named export, with a fallback placeholder
 function lazyPage(
@@ -85,10 +87,34 @@ function withErrorBoundary(Component: React.ComponentType) {
   );
 }
 
+function SetupGuard({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    setupApi.getStatus().then(({ needsSetup }) => {
+      if (needsSetup && location.pathname !== '/setup') {
+        navigate('/setup', { replace: true });
+      } else if (!needsSetup && location.pathname === '/setup') {
+        navigate('/login', { replace: true });
+      }
+      setChecking(false);
+    }).catch(() => {
+      setChecking(false);
+    });
+  }, [location.pathname, navigate]);
+
+  if (checking) return <PageLoader />;
+  return <>{children}</>;
+}
+
 export function App() {
   return (
     <Suspense fallback={<PageLoader />}>
+      <SetupGuard>
       <Routes>
+        <Route path="/setup" element={<SetupPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
@@ -123,6 +149,7 @@ export function App() {
 
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
+      </SetupGuard>
     </Suspense>
   );
 }

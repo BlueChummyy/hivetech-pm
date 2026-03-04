@@ -130,6 +130,22 @@ export function AdminDashboardPage() {
     },
   });
 
+  // ── App Settings (hide create user, etc.) ──────────────────────────
+  const { data: appSettings } = useQuery({
+    queryKey: ['admin', 'app-settings'],
+    queryFn: () => adminApi.getAppSettings(),
+  });
+
+  const toggleHideCreateUser = useMutation({
+    mutationFn: (hide: boolean) => adminApi.updateAppSettings({ hideCreateUser: hide }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'app-settings'] });
+    },
+    onError: (err) => {
+      toast({ type: 'error', title: 'Failed to update setting', description: (err as Error).message });
+    },
+  });
+
   // ── SMTP Settings ────────────────────────────────────────────────────
   const [smtpForm, setSmtpForm] = useState<SmtpSettingsData>({
     host: '',
@@ -521,7 +537,7 @@ export function AdminDashboardPage() {
       {/* ── Users Tab ─────────────────────────────────────────────── */}
       {activeTab === 'users' && (
         <div className="space-y-4">
-          {/* Search + Create User button */}
+          {/* Search + Create User button + Hide toggle */}
           <div className="flex items-center justify-between gap-3">
             <div className="relative max-w-md flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-500" />
@@ -533,19 +549,32 @@ export function AdminDashboardPage() {
                 className="w-full rounded-lg border border-surface-700 bg-surface-900 pl-10 pr-3 py-2 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               />
             </div>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => {
-                setNewUser({ email: '', password: '', firstName: '', lastName: '', workspaceRole: 'MEMBER' });
-                setShowPassword(false);
-                setShowCreateUserModal(true);
-              }}
-              className="flex items-center gap-2 whitespace-nowrap"
-            >
-              <UserPlus className="h-4 w-4" />
-              Create User
-            </Button>
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 text-xs text-surface-400 cursor-pointer select-none whitespace-nowrap">
+                <input
+                  type="checkbox"
+                  checked={appSettings?.hideCreateUser ?? false}
+                  onChange={(e) => toggleHideCreateUser.mutate(e.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-surface-600 bg-surface-800 text-primary-500 focus:ring-primary-500"
+                />
+                Hide &quot;Create User&quot;
+              </label>
+              {!appSettings?.hideCreateUser && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    setNewUser({ email: '', password: '', firstName: '', lastName: '', workspaceRole: 'MEMBER' });
+                    setShowPassword(false);
+                    setShowCreateUserModal(true);
+                  }}
+                  className="flex items-center gap-2 whitespace-nowrap"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  Create User
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Users table */}
