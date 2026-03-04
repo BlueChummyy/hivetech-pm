@@ -1,16 +1,16 @@
-import { useState, useMemo, type KeyboardEvent } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { ListFilter, Plus } from 'lucide-react';
 import { TaskTable } from '@/components/list/TaskTable';
 import { FilterBar, type TaskFilterState } from '@/components/list/FilterBar';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageError } from '@/components/ui/PageError';
-import { useTasks, useCreateTask } from '@/hooks/useTasks';
+import { CreateTaskModal } from '@/components/CreateTaskModal';
+import { useTasks } from '@/hooks/useTasks';
 import { useStatuses } from '@/hooks/useStatuses';
 import { useProjectMembers } from '@/hooks/useMembers';
 import { useLabels } from '@/hooks/useLabels';
 import { useProjectPermissions } from '@/hooks/useProjectRole';
-import { useToast } from '@/components/ui/Toast';
 import type { Task } from '@/types/models.types';
 
 function ListSkeleton() {
@@ -26,6 +26,17 @@ function ListSkeleton() {
 
 export function ListPage() {
   const { projectId } = useParams<{ projectId: string }>();
+
+  const [filters, setFilters] = useState<TaskFilterState>({
+    search: '',
+    statusIds: [],
+    priorities: [],
+    assigneeIds: [],
+    labelIds: [],
+    showClosed: false,
+    groupBy: { field: 'status', direction: 'asc', enabled: false },
+  });
+
   const {
     data: tasks,
     isLoading: tasksLoading,
@@ -34,6 +45,7 @@ export function ListPage() {
     refetch: refetchTasks,
   } = useTasks({
     projectId: projectId ?? '',
+    includeClosed: filters.showClosed,
   });
   const {
     data: statuses,
@@ -45,20 +57,8 @@ export function ListPage() {
 
   const { data: members } = useProjectMembers(projectId ?? '');
   const { data: labels } = useLabels(projectId ?? '');
-  const createTask = useCreateTask();
   const permissions = useProjectPermissions(projectId);
-  const { toast } = useToast();
-  const [isAdding, setIsAdding] = useState(false);
-  const [newTitle, setNewTitle] = useState('');
-
-  const [filters, setFilters] = useState<TaskFilterState>({
-    search: '',
-    statusIds: [],
-    priorities: [],
-    assigneeIds: [],
-    labelIds: [],
-    groupBy: { field: 'status', direction: 'asc', enabled: false },
-  });
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const hasActiveFilters =
     filters.search !== '' ||
@@ -113,38 +113,7 @@ export function ListPage() {
     [statuses],
   );
 
-  const handleAddTask = async () => {
-    const title = newTitle.trim();
-    if (!title) {
-      setIsAdding(false);
-      return;
-    }
-    const defaultStatus = sortedStatuses[0];
-    if (!defaultStatus || !projectId) return;
-    try {
-      await createTask.mutateAsync({
-        projectId,
-        statusId: defaultStatus.id,
-        title,
-      });
-      setNewTitle('');
-      setIsAdding(false);
-    } catch (err) {
-      toast({
-        type: 'error',
-        title: 'Failed to create task',
-        description: (err as Error).message || 'Please try again.',
-      });
-    }
-  };
-
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') handleAddTask();
-    else if (e.key === 'Escape') {
-      setNewTitle('');
-      setIsAdding(false);
-    }
-  };
+  const defaultStatus = sortedStatuses[0];
 
   if (tasksLoading || statusesLoading) {
     return <ListSkeleton />;
@@ -179,25 +148,13 @@ export function ListPage() {
           />
         </div>
         {permissions.canCreateTasks && (
-          isAdding ? (
-            <input
-              autoFocus
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              onBlur={handleAddTask}
-              onKeyDown={handleKeyDown}
-              placeholder="Task title..."
-              className="w-48 sm:w-56 rounded-md border border-white/[0.08] bg-[#1E1E26] px-3 py-1.5 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-primary-500 shrink-0"
-            />
-          ) : (
-            <button
-              onClick={() => setIsAdding(true)}
-              className="flex items-center gap-1.5 rounded-md bg-primary-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-primary-500 shrink-0"
-            >
-              <Plus className="h-4 w-4" />
-              Task
-            </button>
-          )
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-1.5 rounded-md bg-primary-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-primary-500 shrink-0"
+          >
+            <Plus className="h-4 w-4" />
+            Task
+          </button>
         )}
       </div>
       {filteredTasks.length === 0 ? (
@@ -215,6 +172,7 @@ export function ListPage() {
                   priorities: [],
                   assigneeIds: [],
                   labelIds: [],
+                  showClosed: false,
                   groupBy: filters.groupBy,
                 }),
             }}
@@ -231,6 +189,15 @@ export function ListPage() {
           tasks={filteredTasks}
           statuses={statuses ?? []}
           groupBy={filters.groupBy}
+        />
+      )}
+
+      {showCreateModal && projectId && defaultStatus && (
+        <CreateTaskModal
+          projectId={projectId}
+          statusId={defaultStatus.id}
+          statusName={defaultStatus.name}
+          onClose={() => setShowCreateModal(false)}
         />
       )}
     </div>

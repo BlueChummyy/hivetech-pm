@@ -1,18 +1,19 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Calendar, MessageSquare, Paperclip, ListChecks } from 'lucide-react';
+import { Calendar, MessageSquare, Paperclip, ListChecks, Flag } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/utils/cn';
 import { useUIStore } from '@/store/ui.store';
 import { Avatar } from '@/components/ui/Avatar';
+import { TaskContextMenu } from '@/components/TaskContextMenu';
 import type { Task, Priority } from '@/types/models.types';
 
 const PRIORITY_COLORS: Record<Priority, string> = {
-  URGENT: 'bg-red-500',
-  HIGH: 'bg-orange-500',
-  MEDIUM: 'bg-yellow-500',
-  LOW: 'bg-blue-500',
-  NONE: 'bg-gray-500',
+  URGENT: '#EF4444',
+  HIGH: '#F97316',
+  MEDIUM: '#EAB308',
+  LOW: '#3B82F6',
+  NONE: '#6B7280',
 };
 
 const PRIORITY_LABELS: Record<Priority, string> = {
@@ -74,11 +75,19 @@ export function KanbanCard({ task, overlay }: KanbanCardProps) {
         }
       }}
       className={cn(
-        'cursor-pointer rounded-lg border border-white/[0.08] bg-[#1E1E26] p-3 transition-colors hover:bg-[#252530] touch-manipulation',
+        'group/card relative cursor-pointer rounded-lg border border-white/[0.08] bg-[#1E1E26] p-3 transition-colors hover:bg-[#252530] touch-manipulation',
         isDragging && 'opacity-50',
         overlay && 'shadow-xl shadow-black/40 rotate-2',
+        task.closedAt && 'opacity-50',
       )}
     >
+      {/* Context menu - top right, visible on hover */}
+      {!overlay && (
+        <div className="absolute top-2 right-2 opacity-0 group-hover/card:opacity-100 transition-opacity">
+          <TaskContextMenu task={task} />
+        </div>
+      )}
+
       {/* Labels */}
       {task.labels && task.labels.length > 0 && (
         <div className="mb-2 flex flex-wrap gap-1">
@@ -98,17 +107,24 @@ export function KanbanCard({ task, overlay }: KanbanCardProps) {
       )}
 
       {/* Title */}
-      <p className="text-sm font-medium text-white leading-snug">{task.title}</p>
+      <p className={cn('text-sm font-medium text-white leading-snug', task.closedAt && 'line-through text-gray-400')}>{task.title}</p>
 
-      {/* Task number */}
-      <p className="mt-1 text-xs text-gray-400">#{task.taskNumber}</p>
+      {/* Task number + closed badge */}
+      <div className="mt-1 flex items-center gap-1.5">
+        <span className="text-xs text-gray-400">#{task.taskNumber}</span>
+        {task.closedAt && (
+          <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
+            CLOSED
+          </span>
+        )}
+      </div>
 
       {/* Bottom row: metadata */}
       <div className="mt-3 flex items-center gap-3">
         {/* Priority */}
         {task.priority !== 'NONE' && (
           <div className="flex items-center gap-1" title={PRIORITY_LABELS[task.priority]}>
-            <span className={cn('h-2 w-2 rounded-full', PRIORITY_COLORS[task.priority])} />
+            <Flag className="h-3 w-3" style={{ color: PRIORITY_COLORS[task.priority] }} fill="currentColor" />
             <span className="text-[10px] text-gray-400">{PRIORITY_LABELS[task.priority]}</span>
           </div>
         )}

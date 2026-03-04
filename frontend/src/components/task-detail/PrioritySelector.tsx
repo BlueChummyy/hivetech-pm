@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { Flag } from 'lucide-react';
 import { Priority } from '@/types/models.types';
 import { cn } from '@/utils/cn';
 
@@ -48,9 +49,10 @@ export function PrioritySelector({ currentPriority, onChange }: PrioritySelector
         aria-expanded={open}
         className="flex items-center gap-2 rounded-md border border-surface-700 bg-surface-800 px-3 py-1.5 text-sm text-surface-200 hover:border-surface-600 transition-colors w-full"
       >
-        <span
-          className="h-2.5 w-2.5 rounded-full shrink-0"
-          style={{ backgroundColor: current.color }}
+        <Flag
+          className="h-3.5 w-3.5 shrink-0"
+          style={{ color: current.color }}
+          fill={currentPriority !== Priority.NONE ? 'currentColor' : 'none'}
         />
         <span>{current.label}</span>
       </button>
@@ -75,9 +77,10 @@ export function PrioritySelector({ currentPriority, onChange }: PrioritySelector
                     : 'text-surface-300',
                 )}
               >
-                <span
-                  className="h-2.5 w-2.5 rounded-full shrink-0"
-                  style={{ backgroundColor: config.color }}
+                <Flag
+                  className="h-3.5 w-3.5 shrink-0"
+                  style={{ color: config.color }}
+                  fill={priority !== Priority.NONE ? 'currentColor' : 'none'}
                 />
                 <span>{config.label}</span>
               </button>

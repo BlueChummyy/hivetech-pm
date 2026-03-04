@@ -7,6 +7,7 @@ export interface TaskFilters {
   assigneeId?: string;
   priority?: string;
   search?: string;
+  includeClosed?: boolean;
   page?: number;
   limit?: number;
 }
@@ -84,6 +85,15 @@ export const tasksApi = {
 
   remove: (id: string) =>
     del(`/tasks/${id}`),
+
+  clone: (id: string) =>
+    post<Task>(`/tasks/${id}/clone`, {}).then((r) => r.data),
+
+  close: (id: string) =>
+    patch<Task>(`/tasks/${id}/close`, {}).then((r) => r.data),
+
+  reopen: (id: string) =>
+    patch<Task>(`/tasks/${id}/reopen`, {}).then((r) => r.data),
 
   updatePosition: (id: string, data: UpdatePositionData) =>
     patch<Task>(`/tasks/${id}/position`, data).then((r) => r.data),

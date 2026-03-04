@@ -12,10 +12,12 @@ import {
   Loader2,
   Activity,
   ArrowRightLeft,
+  Archive,
+  ArchiveRestore,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useUIStore } from '@/store/ui.store';
-import { useTask, useUpdateTask, useDeleteTask, useMoveTaskToProject } from '@/hooks/useTasks';
+import { useTask, useUpdateTask, useDeleteTask, useMoveTaskToProject, useCloseTask, useReopenTask } from '@/hooks/useTasks';
 import { useStatuses } from '@/hooks/useStatuses';
 import { useProjectMembers } from '@/hooks/useMembers';
 import { useProjects } from '@/hooks/useProjects';
@@ -44,6 +46,8 @@ export function TaskDetailPanel() {
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
   const moveTask = useMoveTaskToProject();
+  const closeTask = useCloseTask();
+  const reopenTask = useReopenTask();
   const permissions = useProjectPermissions(task?.projectId);
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
   const { data: projects } = useProjects(activeWorkspaceId ?? '');
@@ -352,6 +356,42 @@ export function TaskDetailPanel() {
                     )}
                   </div>
                 )}
+                {/* Close / Reopen task */}
+                {permissions.canEditTasks && (
+                  task.closedAt ? (
+                    <button
+                      onClick={async () => {
+                        try {
+                          await reopenTask.mutateAsync(task.id);
+                          toast({ type: 'success', title: 'Task reopened' });
+                        } catch (err) {
+                          toast({ type: 'error', title: 'Failed to reopen task', description: (err as Error).message });
+                        }
+                      }}
+                      aria-label="Reopen task"
+                      title="Reopen task"
+                      className="rounded-md p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-surface-400 hover:bg-green-500/10 hover:text-green-400 transition-colors"
+                    >
+                      <ArchiveRestore className="h-4 w-4" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={async () => {
+                        try {
+                          await closeTask.mutateAsync(task.id);
+                          toast({ type: 'success', title: 'Task closed' });
+                        } catch (err) {
+                          toast({ type: 'error', title: 'Failed to close task', description: (err as Error).message });
+                        }
+                      }}
+                      aria-label="Close task"
+                      title="Close task"
+                      className="rounded-md p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-surface-400 hover:bg-amber-500/10 hover:text-amber-400 transition-colors"
+                    >
+                      <Archive className="h-4 w-4" />
+                    </button>
+                  )
+                )}
                 {/* Delete task */}
                 {permissions.canEditTasks && (
                   <button
@@ -400,6 +440,17 @@ export function TaskDetailPanel() {
                     Delete
                   </button>
                 </div>
+              </div>
+            )}
+
+            {/* Closed banner */}
+            {task.closedAt && (
+              <div className="flex items-center gap-2 border-b border-amber-500/20 bg-amber-500/10 px-4 py-2">
+                <Archive className="h-4 w-4 text-amber-400" />
+                <span className="text-sm text-amber-300">
+                  This task is closed
+                  {task.closedAt && ` (${formatDistanceToNow(new Date(task.closedAt), { addSuffix: true })})`}
+                </span>
               </div>
             )}
 
@@ -637,7 +688,7 @@ export function TaskDetailPanel() {
                       onBlur={saveDescription}
                       placeholder="Add a description..."
                       rows={4}
-                      className="w-full resize-none rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      className="w-full resize-y rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500 min-h-[6rem] max-h-[50vh]"
                     />
                   ) : (
                     <div className="rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-300 min-h-[4rem]">

@@ -8,6 +8,9 @@ import {
   Plus,
   ArrowRight,
   Building2,
+  ListChecks,
+  Activity,
+  UserX,
 } from 'lucide-react';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -18,41 +21,15 @@ import { useAuthStore } from '@/store/auth.store';
 import { useWorkspaceStore } from '@/store/workspace.store';
 import { useWorkspaces } from '@/hooks/useWorkspaces';
 import { useProjects } from '@/hooks/useProjects';
-import { useTasks } from '@/hooks/useTasks';
+import { useDashboardStats } from '@/hooks/useDashboard';
 import { CreateWorkspaceModal } from '@/components/CreateWorkspaceModal';
 import { CreateProjectModal } from '@/components/CreateProjectModal';
-
-function StatCard({
-  icon,
-  label,
-  value,
-  color,
-  loading,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-  color: string;
-  loading?: boolean;
-}) {
-  return (
-    <Card>
-      <CardBody className="flex items-center gap-4">
-        <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${color}`}>
-          {icon}
-        </div>
-        <div>
-          {loading ? (
-            <Skeleton className="h-7 w-12" />
-          ) : (
-            <p className="text-2xl font-bold text-surface-100">{value}</p>
-          )}
-          <p className="text-sm text-surface-400">{label}</p>
-        </div>
-      </CardBody>
-    </Card>
-  );
-}
+import { StatCard } from '@/components/dashboard/StatCard';
+import { StatusChart } from '@/components/dashboard/StatusChart';
+import { PriorityChart } from '@/components/dashboard/PriorityChart';
+import { AssigneeChart } from '@/components/dashboard/AssigneeChart';
+import { ProjectProgress } from '@/components/dashboard/ProjectProgress';
+import { RecentActivity } from '@/components/dashboard/RecentActivity';
 
 export function DashboardPage() {
   const user = useAuthStore((s) => s.user);
@@ -71,48 +48,34 @@ export function DashboardPage() {
   } = useProjects(activeWorkspaceId || '');
 
   const {
-    data: myTasks,
-    isLoading: tasksLoading,
-    isError: tasksError,
-    error: tasksErr,
-    refetch: refetchTasks,
-  } = useTasks(
-    user?.id ? { assigneeId: user.id } : {},
-  );
-
-  const overdueTasks = myTasks?.filter((t) => {
-    if (!t.dueDate) return false;
-    return new Date(t.dueDate) < new Date();
-  }) ?? [];
-
-  const upcomingTasks = myTasks?.filter((t) => {
-    if (!t.dueDate) return false;
-    const due = new Date(t.dueDate);
-    const now = new Date();
-    const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    return due >= now && due <= weekFromNow;
-  }) ?? [];
+    data: stats,
+    isLoading: statsLoading,
+    isError: statsError,
+    error: statsErr,
+    refetch: refetchStats,
+  } = useDashboardStats(activeWorkspaceId || '');
 
   const hasNoWorkspace = !workspacesLoading && (!workspaces || workspaces.length === 0);
 
-  if (tasksError && projectsError) {
+  if (statsError && projectsError) {
     return (
       <PageError
-        message={(projectsErr as Error)?.message || 'Failed to load dashboard data'}
-        onRetry={() => { refetchProjects(); refetchTasks(); }}
+        message={(statsErr as Error)?.message || (projectsErr as Error)?.message || 'Failed to load dashboard data'}
+        onRetry={() => { refetchProjects(); refetchStats(); }}
       />
     );
   }
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-surface-100">
             Welcome back{(user?.name || user?.displayName) ? `, ${(user.name || user.displayName || '').split(' ')[0]}` : ''}
           </h1>
           <p className="mt-1 text-sm text-surface-400">
-            Here&apos;s an overview of your work.
+            Here&apos;s an overview of your workspace.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -131,6 +94,7 @@ export function DashboardPage() {
         </div>
       </div>
 
+      {/* No workspace CTA */}
       {hasNoWorkspace && (
         <Card className="border-dashed border-primary-600/40 bg-primary-600/5">
           <CardBody>
@@ -151,37 +115,74 @@ export function DashboardPage() {
         </Card>
       )}
 
-      {tasksError ? (
+      {/* Summary Stat Cards */}
+      {statsError ? (
         <PageError
-          message={(tasksErr as Error)?.message || 'Failed to load tasks'}
-          onRetry={refetchTasks}
+          message={(statsErr as Error)?.message || 'Failed to load stats'}
+          onRetry={refetchStats}
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
           <StatCard
-            icon={<CheckSquare className="h-5 w-5 text-primary-400" />}
-            label="My Tasks"
-            value={myTasks?.length ?? 0}
+            icon={<ListChecks className="h-5 w-5 text-primary-400" />}
+            label="Total Tasks"
+            value={stats?.summary.total ?? 0}
             color="bg-primary-600/15"
-            loading={tasksLoading}
+            loading={statsLoading}
+          />
+          <StatCard
+            icon={<CheckSquare className="h-5 w-5 text-emerald-400" />}
+            label="Completed"
+            value={stats?.summary.completed ?? 0}
+            color="bg-emerald-500/15"
+            loading={statsLoading}
+          />
+          <StatCard
+            icon={<Activity className="h-5 w-5 text-blue-400" />}
+            label="In Progress"
+            value={stats?.summary.inProgress ?? 0}
+            color="bg-blue-500/15"
+            loading={statsLoading}
           />
           <StatCard
             icon={<AlertTriangle className="h-5 w-5 text-red-400" />}
             label="Overdue"
-            value={overdueTasks.length}
+            value={stats?.summary.overdue ?? 0}
             color="bg-red-500/15"
-            loading={tasksLoading}
+            loading={statsLoading}
           />
           <StatCard
             icon={<CalendarClock className="h-5 w-5 text-amber-400" />}
             label="Due This Week"
-            value={upcomingTasks.length}
+            value={stats?.summary.dueThisWeek ?? 0}
             color="bg-amber-500/15"
-            loading={tasksLoading}
+            loading={statsLoading}
+          />
+          <StatCard
+            icon={<UserX className="h-5 w-5 text-surface-400" />}
+            label="Unassigned"
+            value={stats?.summary.unassigned ?? 0}
+            color="bg-surface-600/30"
+            loading={statsLoading}
           />
         </div>
       )}
 
+      {/* Charts Section */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <StatusChart data={stats?.byStatus ?? []} loading={statsLoading} />
+        <PriorityChart data={stats?.byPriority ?? []} loading={statsLoading} />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <AssigneeChart data={stats?.byAssignee ?? []} loading={statsLoading} />
+        <ProjectProgress data={stats?.projectProgress ?? []} loading={statsLoading} />
+      </div>
+
+      {/* Recent Activity */}
+      <RecentActivity data={stats?.recentActivity ?? []} loading={statsLoading} />
+
+      {/* Recent Projects */}
       <div>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-surface-200">Recent Projects</h2>

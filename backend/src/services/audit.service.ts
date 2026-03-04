@@ -13,7 +13,10 @@ export type AuditAction =
   | 'member_role_changed'
   | 'status_changed'
   | 'assigned'
-  | 'unassigned';
+  | 'unassigned'
+  | 'cloned'
+  | 'closed'
+  | 'reopened';
 
 export type AuditEntityType = 'project' | 'task' | 'space' | 'comment' | 'workspace';
 

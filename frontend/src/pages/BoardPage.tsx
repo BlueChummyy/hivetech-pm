@@ -37,6 +37,17 @@ function BoardSkeleton() {
 
 export function BoardPage() {
   const { projectId } = useParams<{ projectId: string }>();
+
+  const [filters, setFilters] = useState<TaskFilterState>({
+    search: '',
+    statusIds: [],
+    priorities: [],
+    assigneeIds: [],
+    labelIds: [],
+    showClosed: false,
+    groupBy: { field: 'status', direction: 'asc', enabled: false },
+  });
+
   const {
     data: tasks,
     isLoading: tasksLoading,
@@ -45,6 +56,7 @@ export function BoardPage() {
     refetch: refetchTasks,
   } = useTasks({
     projectId: projectId ?? '',
+    includeClosed: filters.showClosed,
   });
   const {
     data: statuses,
@@ -56,15 +68,6 @@ export function BoardPage() {
 
   const { data: members } = useProjectMembers(projectId ?? '');
   const { data: labels } = useLabels(projectId ?? '');
-
-  const [filters, setFilters] = useState<TaskFilterState>({
-    search: '',
-    statusIds: [],
-    priorities: [],
-    assigneeIds: [],
-    labelIds: [],
-    groupBy: { field: 'status', direction: 'asc', enabled: false },
-  });
 
   const filteredTasks = useMemo(() => {
     if (!tasks) return [];

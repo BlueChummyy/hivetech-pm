@@ -1,3 +1,4 @@
+import { Flag } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import type { Priority, StatusCategory } from '@/types/models.types';
 
@@ -16,6 +17,14 @@ const priorityColors: Record<Priority, string> = {
   MEDIUM: 'bg-amber-500/15 text-amber-400 border-amber-500/20',
   LOW: 'bg-blue-500/15 text-blue-400 border-blue-500/20',
   NONE: 'bg-surface-500/15 text-surface-400 border-surface-500/20',
+};
+
+const priorityHex: Record<Priority, string> = {
+  URGENT: '#EF4444',
+  HIGH: '#F97316',
+  MEDIUM: '#EAB308',
+  LOW: '#3B82F6',
+  NONE: '#6B7280',
 };
 
 const statusCategoryColors: Record<StatusCategory, string> = {
@@ -52,6 +61,11 @@ export function Badge({ children, color, variant = 'filled', className }: BadgeP
 export function PriorityBadge({ priority }: { priority: Priority }) {
   return (
     <Badge color={priorityColors[priority]}>
+      <Flag
+        className="h-3 w-3"
+        style={{ color: priorityHex[priority] }}
+        fill={priority !== 'NONE' ? 'currentColor' : 'none'}
+      />
       {priority.charAt(0) + priority.slice(1).toLowerCase()}
     </Badge>
   );

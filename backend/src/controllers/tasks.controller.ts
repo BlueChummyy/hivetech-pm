@@ -36,7 +36,7 @@ export class TasksController {
 
   async list(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { projectId, statusId, assigneeId, priority, parentId, search, page, limit } = req.query as any;
+      const { projectId, statusId, assigneeId, priority, parentId, search, includeClosed, page, limit } = req.query as any;
       if (projectId) {
         await requireProjectMember(projectId, req.user!.id);
       } else if (!assigneeId || assigneeId !== req.user!.id) {
@@ -52,6 +52,7 @@ export class TasksController {
         priority,
         parentId: parentId === 'null' ? null : parentId,
         search,
+        includeClosed: includeClosed === 'true',
         page: page ? Number(page) : undefined,
         limit: limit ? Number(limit) : undefined,
       });
@@ -133,6 +134,19 @@ export class TasksController {
     }
   }
 
+  async clone(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const id = req.params.id as string;
+      const existing = await tasksService.getById(id);
+      await requireProjectMember(existing.project.id, req.user!.id);
+
+      const task = await tasksService.clone(id, req.user!.id);
+      res.status(201).json(successResponse(task));
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async addDependency(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = req.params.id as string;
@@ -185,6 +199,32 @@ export class TasksController {
 
       const { position, statusId } = req.body;
       const task = await tasksService.updatePosition(id, position, statusId);
+      res.json(successResponse(task));
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async close(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const id = req.params.id as string;
+      const existing = await tasksService.getById(id);
+      await requireProjectMember(existing.project.id, req.user!.id);
+
+      const task = await tasksService.closeTask(id, req.user!.id);
+      res.json(successResponse(task));
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async reopen(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const id = req.params.id as string;
+      const existing = await tasksService.getById(id);
+      await requireProjectMember(existing.project.id, req.user!.id);
+
+      const task = await tasksService.reopenTask(id, req.user!.id);
       res.json(successResponse(task));
     } catch (err) {
       next(err);

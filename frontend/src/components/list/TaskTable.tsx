@@ -22,6 +22,7 @@ import {
   Calendar,
   ChevronRight,
   ChevronDown,
+  Flag,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/utils/cn';
@@ -75,12 +76,12 @@ const PRIORITY_LABEL: Record<string, string> = {
   NONE: 'None',
 };
 
-const MOBILE_PRIORITY_COLORS: Record<string, string> = {
-  URGENT: 'bg-red-500',
-  HIGH: 'bg-orange-500',
-  MEDIUM: 'bg-yellow-500',
-  LOW: 'bg-blue-500',
-  NONE: 'bg-gray-500',
+const MOBILE_PRIORITY_HEX: Record<string, string> = {
+  URGENT: '#EF4444',
+  HIGH: '#F97316',
+  MEDIUM: '#EAB308',
+  LOW: '#3B82F6',
+  NONE: '#6B7280',
 };
 
 const DATE_BUCKET_COLORS: Record<string, string> = {
@@ -333,11 +334,10 @@ function TaskMobileCard({
         )}
         {task.priority !== ('NONE' as Priority) && (
           <span className="flex items-center gap-1 rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] text-gray-300">
-            <span
-              className={cn(
-                'h-1.5 w-1.5 rounded-full',
-                MOBILE_PRIORITY_COLORS[task.priority],
-              )}
+            <Flag
+              className="h-3 w-3"
+              style={{ color: MOBILE_PRIORITY_HEX[task.priority] }}
+              fill="currentColor"
             />
             {task.priority.charAt(0) + task.priority.slice(1).toLowerCase()}
           </span>
@@ -404,7 +404,7 @@ const columns: { key: SortField; label: string; sortable: boolean }[] = [
   { key: 'dueDate', label: 'Due Date', sortable: true },
 ];
 
-const TOTAL_COLUMNS = columns.length + 1; // +1 for drag handle
+const TOTAL_COLUMNS = columns.length + 2; // +1 for drag handle, +1 for actions
 
 /* ------------------------------------------------------------------ */
 /*  TaskTable                                                          */
@@ -726,6 +726,7 @@ export function TaskTable({ tasks, statuses, groupBy }: TaskTableProps) {
                   </div>
                 </th>
               ))}
+              <th scope="col" className="w-10 px-2 py-2.5" />
             </tr>
           </thead>
 

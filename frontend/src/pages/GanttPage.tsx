@@ -28,6 +28,7 @@ export function GanttPage() {
     priorities: [],
     assigneeIds: [],
     labelIds: [],
+    showClosed: false,
     groupBy: { field: 'status', direction: 'asc', enabled: false },
   });
 

@@ -136,6 +136,7 @@ export class TasksService {
     priority?: string;
     parentId?: string | null;
     search?: string;
+    includeClosed?: boolean;
     page?: number;
     limit?: number;
   }) {
@@ -146,6 +147,9 @@ export class TasksService {
     const where: any = {
       deletedAt: null,
     };
+    if (!filters.includeClosed) {
+      where.closedAt = null;
+    }
     if (filters.projectId) where.projectId = filters.projectId;
     if (filters.statusId) where.statusId = filters.statusId;
     if (filters.assigneeId) where.assigneeId = filters.assigneeId;
@@ -173,10 +177,11 @@ export class TasksService {
     return { tasks, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
   }
 
-  async listMyTasks(userId: string) {
+  async listMyTasks(userId: string, includeClosed?: boolean) {
     const tasks = await prisma.task.findMany({
       where: {
         deletedAt: null,
+        ...(includeClosed ? {} : { closedAt: null }),
         OR: [
           { assigneeId: userId },
           { assignees: { some: { userId } } },
@@ -629,6 +634,92 @@ export class TasksService {
     return result;
   }
 
+  async clone(id: string, clonedByUserId: string) {
+    // Fetch the source task with labels and assignees
+    const source = await prisma.task.findFirst({
+      where: { id, deletedAt: null },
+      include: {
+        labels: true,
+        assignees: true,
+      },
+    });
+    if (!source) throw ApiError.notFound('Task not found');
+
+    // Clone in a transaction: increment taskCounter, calculate position, create task + relations
+    const clonedTask = await prisma.$transaction(async (tx: any) => {
+      const project = await tx.project.update({
+        where: { id: source.projectId },
+        data: { taskCounter: { increment: 1 } },
+      });
+
+      // Place at end of same status column
+      const lastTask = await tx.task.findFirst({
+        where: { projectId: source.projectId, statusId: source.statusId, deletedAt: null },
+        orderBy: { position: 'desc' },
+        select: { position: true },
+      });
+      const position = (lastTask?.position ?? 0) + 1000;
+
+      const created = await tx.task.create({
+        data: {
+          projectId: source.projectId,
+          statusId: source.statusId,
+          reporterId: clonedByUserId,
+          assigneeId: source.assigneeId,
+          taskNumber: project.taskCounter,
+          title: `Copy of ${source.title}`,
+          description: source.description,
+          priority: source.priority,
+          position,
+        },
+      });
+
+      // Clone labels
+      if (source.labels.length > 0) {
+        await tx.taskLabel.createMany({
+          data: source.labels.map((tl: any) => ({
+            taskId: created.id,
+            labelId: tl.labelId,
+          })),
+        });
+      }
+
+      // Clone assignees
+      if (source.assignees.length > 0) {
+        await tx.taskAssignee.createMany({
+          data: source.assignees.map((a: any) => ({
+            taskId: created.id,
+            userId: a.userId,
+          })),
+        });
+      }
+
+      return created;
+    });
+
+    // Re-fetch with full includes
+    const fullTask = await prisma.task.findUnique({
+      where: { id: clonedTask.id },
+      include: {
+        status: true,
+        assignee: true,
+        reporter: true,
+        labels: { include: { label: true } },
+        assignees: { include: { user: true } },
+      },
+    });
+
+    emitToProject(source.projectId, 'task:created', fullTask);
+
+    // Audit log
+    const proj = await prisma.project.findUnique({ where: { id: source.projectId }, select: { workspaceId: true } });
+    if (proj) {
+      logAudit({ workspaceId: proj.workspaceId, userId: clonedByUserId, action: 'cloned', entityType: 'task', entityId: clonedTask.id, metadata: { title: clonedTask.title, taskNumber: clonedTask.taskNumber, sourceTaskId: id } });
+    }
+
+    return fullTask || clonedTask;
+  }
+
   async updatePosition(id: string, position: number, statusId?: string) {
     const existing = await prisma.task.findFirst({
       where: { id, deletedAt: null },
@@ -655,5 +746,67 @@ export class TasksService {
     emitToProject(task.projectId, 'task:updated', task);
 
     return task;
+  }
+
+  async closeTask(id: string, closedByUserId: string) {
+    const task = await prisma.task.findFirst({
+      where: { id, deletedAt: null },
+      select: { id: true, projectId: true, title: true, taskNumber: true, closedAt: true },
+    });
+    if (!task) throw ApiError.notFound('Task not found');
+    if (task.closedAt) throw ApiError.badRequest('Task is already closed');
+
+    const updated = await prisma.task.update({
+      where: { id },
+      data: { closedAt: new Date(), closedById: closedByUserId },
+      include: {
+        status: true,
+        assignee: true,
+        reporter: true,
+        labels: { include: { label: true } },
+        assignees: { include: { user: true } },
+      },
+    });
+
+    emitToProject(task.projectId, 'task:updated', updated);
+
+    // Audit log
+    const proj = await prisma.project.findUnique({ where: { id: task.projectId }, select: { workspaceId: true } });
+    if (proj) {
+      logAudit({ workspaceId: proj.workspaceId, userId: closedByUserId, action: 'closed', entityType: 'task', entityId: task.id, metadata: { title: task.title, taskNumber: task.taskNumber } });
+    }
+
+    return updated;
+  }
+
+  async reopenTask(id: string, reopenedByUserId: string) {
+    const task = await prisma.task.findFirst({
+      where: { id, deletedAt: null },
+      select: { id: true, projectId: true, title: true, taskNumber: true, closedAt: true },
+    });
+    if (!task) throw ApiError.notFound('Task not found');
+    if (!task.closedAt) throw ApiError.badRequest('Task is not closed');
+
+    const updated = await prisma.task.update({
+      where: { id },
+      data: { closedAt: null, closedById: null },
+      include: {
+        status: true,
+        assignee: true,
+        reporter: true,
+        labels: { include: { label: true } },
+        assignees: { include: { user: true } },
+      },
+    });
+
+    emitToProject(task.projectId, 'task:updated', updated);
+
+    // Audit log
+    const proj = await prisma.project.findUnique({ where: { id: task.projectId }, select: { workspaceId: true } });
+    if (proj) {
+      logAudit({ workspaceId: proj.workspaceId, userId: reopenedByUserId, action: 'reopened', entityType: 'task', entityId: task.id, metadata: { title: task.title, taskNumber: task.taskNumber } });
+    }
+
+    return updated;
   }
 }

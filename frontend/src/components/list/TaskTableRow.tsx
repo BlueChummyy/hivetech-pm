@@ -4,20 +4,21 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { format } from 'date-fns';
 import { useParams } from 'react-router-dom';
-import { GripVertical, ChevronRight, ChevronDown, MessageSquare, Paperclip } from 'lucide-react';
+import { GripVertical, ChevronRight, ChevronDown, MessageSquare, Paperclip, Flag } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useUIStore } from '@/store/ui.store';
 import { useUpdateTask } from '@/hooks/useTasks';
 import { useProjectMembers } from '@/hooks/useMembers';
 import { Avatar } from '@/components/ui/Avatar';
+import { TaskContextMenu } from '@/components/TaskContextMenu';
 import type { Task, ProjectStatus, Priority, ProjectMember } from '@/types/models.types';
 
 const PRIORITY_COLORS: Record<Priority, string> = {
-  URGENT: 'bg-red-500',
-  HIGH: 'bg-orange-500',
-  MEDIUM: 'bg-yellow-500',
-  LOW: 'bg-blue-500',
-  NONE: 'bg-gray-500',
+  URGENT: '#EF4444',
+  HIGH: '#F97316',
+  MEDIUM: '#EAB308',
+  LOW: '#3B82F6',
+  NONE: '#6B7280',
 };
 
 const PRIORITY_LABELS: Record<Priority, string> = {
@@ -169,7 +170,7 @@ function PriorityBadge({ task }: { task: Task }) {
         aria-expanded={open}
         className="flex items-center gap-1.5 rounded px-2 py-0.5 text-xs font-medium transition-colors hover:bg-white/[0.06]"
       >
-        <span className={cn('h-2 w-2 rounded-full', PRIORITY_COLORS[task.priority])} aria-hidden="true" />
+        <Flag className="h-3.5 w-3.5" style={{ color: PRIORITY_COLORS[task.priority] }} fill={task.priority !== 'NONE' ? 'currentColor' : 'none'} aria-hidden="true" />
         {PRIORITY_LABELS[task.priority]}
       </button>
       {open &&
@@ -195,7 +196,7 @@ function PriorityBadge({ task }: { task: Task }) {
                   p === task.priority && 'text-white',
                 )}
               >
-                <span className={cn('h-2 w-2 rounded-full', PRIORITY_COLORS[p])} aria-hidden="true" />
+                <Flag className="h-3.5 w-3.5" style={{ color: PRIORITY_COLORS[p] }} fill={p !== 'NONE' ? 'currentColor' : 'none'} aria-hidden="true" />
                 {PRIORITY_LABELS[p]}
               </button>
             ))}
@@ -602,6 +603,7 @@ export function TaskTableRow({ task, statuses, dragEnabled, overlay, depth = 0, 
         'group cursor-pointer border-b border-white/[0.04] transition-colors hover:bg-white/[0.03]',
         isDragging && 'opacity-50',
         overlay && 'bg-[#1E1E26] shadow-xl shadow-black/40 border border-white/[0.08]',
+        task.closedAt && 'opacity-50',
       )}
     >
       {/* Drag handle */}
@@ -647,7 +649,14 @@ export function TaskTableRow({ task, statuses, dragEnabled, overlay, depth = 0, 
           ) : null}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <InlineTitle task={task} />
+              <span className={task.closedAt ? 'line-through text-gray-500' : ''}>
+                <InlineTitle task={task} />
+              </span>
+              {task.closedAt && (
+                <span className="shrink-0 rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
+                  CLOSED
+                </span>
+              )}
               {subtaskCount != null && subtaskCount > 0 && (
                 <span className="shrink-0 rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-gray-400">
                   {subtaskCount} subtask{subtaskCount !== 1 ? 's' : ''}
@@ -709,6 +718,13 @@ export function TaskTableRow({ task, statuses, dragEnabled, overlay, depth = 0, 
       {/* Due date */}
       <td className="px-4 py-2.5">
         <DatePickerBadge task={task} field="dueDate" />
+      </td>
+
+      {/* Actions */}
+      <td className="w-10 px-2 py-2.5">
+        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+          <TaskContextMenu task={task} />
+        </div>
       </td>
     </tr>
   );

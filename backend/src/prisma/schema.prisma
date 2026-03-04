@@ -74,11 +74,13 @@ model User {
   projectMembers   ProjectMember[]
   assignedTasks    Task[]          @relation("TaskAssignee")
   reportedTasks    Task[]          @relation("TaskReporter")
+  closedTasks      Task[]          @relation("TaskClosedBy")
   taskAssignments  TaskAssignee[]
   comments         Comment[]
   attachments      Attachment[]
   notifications    Notification[]
   activityLogs     ActivityLog[]
+  taskTemplates    TaskTemplate[]
 
   @@map("users")
 }
@@ -168,8 +170,9 @@ model Project {
   space     Space?          @relation(fields: [spaceId], references: [id], onDelete: SetNull)
   members   ProjectMember[]
   statuses  ProjectStatus[]
-  tasks     Task[]
-  labels    Label[]
+  tasks          Task[]
+  labels         Label[]
+  taskTemplates  TaskTemplate[]
 
   @@unique([workspaceId, key])
   @@index([spaceId])
@@ -225,6 +228,8 @@ model Task {
   startDate      DateTime? @map("start_date")
   dueDate        DateTime? @map("due_date")
   estimatedHours Float?    @map("estimated_hours")
+  closedAt       DateTime? @map("closed_at")
+  closedById     String?   @map("closed_by_id")
   deletedAt      DateTime? @map("deleted_at")
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
@@ -233,6 +238,7 @@ model Task {
   status     ProjectStatus @relation(fields: [statusId], references: [id], onDelete: Restrict)
   assignee   User?         @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   reporter   User          @relation("TaskReporter", fields: [reporterId], references: [id], onDelete: Restrict)
+  closedBy   User?         @relation("TaskClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
   parent     Task?         @relation("TaskSubtasks", fields: [parentId], references: [id], onDelete: SetNull)
   subtasks   Task[]        @relation("TaskSubtasks")
 
@@ -250,6 +256,7 @@ model Task {
   @@index([reporterId])
   @@index([parentId])
   @@index([deletedAt])
+  @@index([closedAt])
   @@map("tasks")
 }
 
@@ -361,6 +368,24 @@ model Notification {
   @@index([userId, isRead])
   @@index([userId, createdAt])
   @@map("notifications")
+}
+
+model TaskTemplate {
+  id               String   @id @default(cuid())
+  projectId        String   @map("project_id")
+  createdById      String   @map("created_by_id")
+  name             String
+  description      String?
+  priority         Priority @default(NONE)
+  subtaskTemplates Json?    @map("subtask_templates")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy User    @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([projectId])
+  @@map("task_templates")
 }
 
 model ActivityLog {

@@ -13,6 +13,7 @@ import {
   Check,
   ArrowUp,
   ArrowDown,
+  Archive,
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import type { ProjectStatus, Priority, ProjectMember, Label } from '@/types/models.types';
@@ -33,6 +34,7 @@ export interface TaskFilterState {
   priorities: Priority[];
   assigneeIds: string[];
   labelIds: string[];
+  showClosed: boolean;
   groupBy: GroupByConfig;
 }
 
@@ -382,6 +384,20 @@ export function FilterBar({
             </div>
           )}
         </div>
+
+        {/* ---- Show Closed toggle ---- */}
+        <button
+          onClick={() => onFiltersChange({ ...filters, showClosed: !filters.showClosed })}
+          className={cn(
+            'flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm transition-colors',
+            filters.showClosed
+              ? 'border-primary-500/50 bg-primary-500/10 text-primary-400'
+              : 'border-white/[0.08] text-gray-400 hover:border-white/[0.15] hover:text-gray-300',
+          )}
+        >
+          <Archive className="h-3.5 w-3.5" />
+          Closed
+        </button>
 
         {/* ---- Divider ---- */}
         <div className="hidden sm:block h-5 w-px bg-white/[0.08]" />

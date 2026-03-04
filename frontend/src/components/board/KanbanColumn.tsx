@@ -1,12 +1,11 @@
-import { useState, type KeyboardEvent } from 'react';
+import { useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Plus } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { KanbanCard } from './KanbanCard';
-import { useCreateTask } from '@/hooks/useTasks';
-import { useToast } from '@/components/ui/Toast';
 import { useProjectPermissions } from '@/hooks/useProjectRole';
+import { CreateTaskModal } from '@/components/CreateTaskModal';
 import type { Task, ProjectStatus } from '@/types/models.types';
 
 interface KanbanColumnProps {
@@ -16,46 +15,10 @@ interface KanbanColumnProps {
 }
 
 export function KanbanColumn({ status, tasks, projectId }: KanbanColumnProps) {
-  const [isAdding, setIsAdding] = useState(false);
-  const [newTitle, setNewTitle] = useState('');
-  const createTask = useCreateTask();
-  const { toast } = useToast();
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const permissions = useProjectPermissions(projectId);
 
   const { setNodeRef, isOver } = useDroppable({ id: status.id });
-
-  const handleAddTask = async () => {
-    const title = newTitle.trim();
-    if (!title) {
-      setIsAdding(false);
-      return;
-    }
-
-    try {
-      await createTask.mutateAsync({
-        projectId,
-        statusId: status.id,
-        title,
-      });
-      setNewTitle('');
-      setIsAdding(false);
-    } catch (err) {
-      toast({
-        type: 'error',
-        title: 'Failed to create task',
-        description: (err as Error).message || 'Please try again.',
-      });
-    }
-  };
-
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handleAddTask();
-    } else if (e.key === 'Escape') {
-      setNewTitle('');
-      setIsAdding(false);
-    }
-  };
 
   const taskIds = tasks.map((t) => t.id);
 
@@ -92,27 +55,23 @@ export function KanbanColumn({ status, tasks, projectId }: KanbanColumnProps) {
       {/* Add task */}
       {permissions.canCreateTasks && (
         <div className="px-2 pb-2">
-          {isAdding ? (
-            <input
-              autoFocus
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              onBlur={handleAddTask}
-              onKeyDown={handleKeyDown}
-              placeholder="Task title..."
-              aria-label={`New task in ${status.name}`}
-              className="w-full rounded-md border border-white/[0.08] bg-[#1E1E26] px-3 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-primary-500"
-            />
-          ) : (
-            <button
-              onClick={() => setIsAdding(true)}
-              className="flex w-full items-center gap-1.5 rounded-md px-3 py-2 text-sm text-gray-500 transition-colors hover:bg-white/[0.04] hover:text-gray-300"
-            >
-              <Plus className="h-4 w-4" />
-              Add task
-            </button>
-          )}
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex w-full items-center gap-1.5 rounded-md px-3 py-2 text-sm text-gray-500 transition-colors hover:bg-white/[0.04] hover:text-gray-300"
+          >
+            <Plus className="h-4 w-4" />
+            Add task
+          </button>
         </div>
+      )}
+
+      {showCreateModal && (
+        <CreateTaskModal
+          projectId={projectId}
+          statusId={status.id}
+          statusName={status.name}
+          onClose={() => setShowCreateModal(false)}
+        />
       )}
     </div>
   );

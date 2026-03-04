@@ -6,6 +6,7 @@ import { useProjectPermissions } from '@/hooks/useProjectRole';
 import { ProjectMembers } from '@/components/settings/ProjectMembers';
 import { LabelManager } from '@/components/settings/LabelManager';
 import { StatusManager } from '@/components/settings/StatusManager';
+import { TemplateManager } from '@/components/settings/TemplateManager';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -14,13 +15,14 @@ import { Card, CardBody } from '@/components/ui/Card';
 import { useToast } from '@/components/ui/Toast';
 import { cn } from '@/utils/cn';
 
-type Tab = 'general' | 'members' | 'labels' | 'statuses';
+type Tab = 'general' | 'members' | 'labels' | 'statuses' | 'templates';
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'general', label: 'General' },
   { key: 'members', label: 'Members' },
   { key: 'labels', label: 'Labels' },
   { key: 'statuses', label: 'Statuses' },
+  { key: 'templates', label: 'Templates' },
 ];
 
 function SettingsSkeleton() {
@@ -230,6 +232,10 @@ export function ProjectSettingsPage() {
 
         {activeTab === 'statuses' && projectId && (
           <StatusManager projectId={projectId} />
+        )}
+
+        {activeTab === 'templates' && projectId && (
+          <TemplateManager projectId={projectId} />
         )}
       </div>
     </div>

@@ -149,6 +149,8 @@ export interface Task {
   startDate: string | null;
   dueDate: string | null;
   estimatedHours: number | null;
+  closedAt: string | null;
+  closedById: string | null;
   deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -156,6 +158,7 @@ export interface Task {
   status?: ProjectStatus;
   assignee?: User;
   reporter?: User;
+  closedBy?: User;
   parent?: Task;
   subtasks?: Task[];
   assignees?: TaskAssignee[];
@@ -254,4 +257,22 @@ export interface ActivityLog {
   user?: User;
   workspace?: Workspace;
   createdAt: string;
+}
+
+export interface SubtaskTemplate {
+  title: string;
+  priority?: string;
+}
+
+export interface TaskTemplate {
+  id: string;
+  projectId: string;
+  createdById: string;
+  name: string;
+  description: string | null;
+  priority: Priority;
+  subtaskTemplates: SubtaskTemplate[] | null;
+  createdBy?: User;
+  createdAt: string;
+  updatedAt: string;
 }

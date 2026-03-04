@@ -50,6 +50,7 @@ router.get(
       priority: z.string().optional(),
       parentId: z.string().optional(),
       search: z.string().optional(),
+      includeClosed: z.string().optional(),
       page: z.coerce.number().optional(),
       limit: z.coerce.number().optional(),
     }),
@@ -88,6 +89,13 @@ router.delete(
   requireProjectPermission('DELETE_TASK'),
   requireOwnTaskOrManager(),
   controller.delete,
+);
+
+// POST /api/v1/tasks/:id/clone — Clone a task
+router.post(
+  '/:id/clone',
+  requireProjectPermission('CREATE_TASK'),
+  controller.clone,
 );
 
 // POST /api/v1/tasks/:id/dependencies — Add task dependency
@@ -135,6 +143,20 @@ router.patch(
   requireProjectPermission('CHANGE_TASK_STATUS'),
   requireOwnTaskOrManager(),
   controller.updatePosition,
+);
+
+// PATCH /api/v1/tasks/:id/close — Close/archive a task
+router.patch(
+  '/:id/close',
+  requireProjectPermission('EDIT_TASK'),
+  controller.close,
+);
+
+// PATCH /api/v1/tasks/:id/reopen — Reopen a closed task
+router.patch(
+  '/:id/reopen',
+  requireProjectPermission('EDIT_TASK'),
+  controller.reopen,
 );
 
 export { router as tasksRoutes };
