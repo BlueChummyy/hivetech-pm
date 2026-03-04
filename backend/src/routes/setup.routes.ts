@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import crypto from 'node:crypto';
 import { z } from 'zod';
+import { rateLimit } from 'express-rate-limit';
 import { validate } from '../middleware/validate.js';
 import { prisma } from '../prisma/client.js';
 import { ApiError } from '../utils/api-error.js';
@@ -11,6 +12,16 @@ import { env } from '../config/index.js';
 import type { Request, Response, NextFunction } from 'express';
 
 const router = Router();
+
+const setupLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  limit: 5,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { success: false, error: { code: 'TOO_MANY_REQUESTS', message: 'Too many requests, please try again later' } },
+});
+
+router.use(setupLimiter);
 
 function computeRefreshExpiry(): Date {
   const raw = env.JWT_REFRESH_EXPIRES_IN;
@@ -57,16 +68,17 @@ router.post(
   validate({ body: setupSchema }),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userCount = await prisma.user.count();
-      if (userCount > 0) {
-        throw ApiError.forbidden('Setup has already been completed');
-      }
-
       const { email, password, firstName, lastName } = req.body;
       const passwordHash = await hashPassword(password);
       const refreshTokenValue = crypto.randomUUID();
 
       const user = await prisma.$transaction(async (tx: any) => {
+        // Lock-and-check inside the transaction to prevent race conditions
+        const userCount = await tx.user.count();
+        if (userCount > 0) {
+          throw ApiError.forbidden('Setup has already been completed');
+        }
+
         // Create admin user
         const created = await tx.user.create({
           data: { email, passwordHash, firstName, lastName },

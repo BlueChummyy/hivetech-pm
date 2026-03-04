@@ -37,11 +37,12 @@ export class SsoController {
   async googleCallback(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const code = req.query.code as string;
+      const state = req.query.state as string | undefined;
       if (!code) {
         redirectWithError(res, 'Missing authorization code');
         return;
       }
-      const tokens = await ssoService.handleGoogleCallback(code);
+      const tokens = await ssoService.handleGoogleCallback(code, state);
       redirectWithTokens(res, tokens);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Google sign-in failed';
@@ -64,11 +65,12 @@ export class SsoController {
   async microsoftCallback(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const code = req.query.code as string;
+      const state = req.query.state as string | undefined;
       if (!code) {
         redirectWithError(res, 'Missing authorization code');
         return;
       }
-      const tokens = await ssoService.handleMicrosoftCallback(code);
+      const tokens = await ssoService.handleMicrosoftCallback(code, state);
       redirectWithTokens(res, tokens);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Microsoft sign-in failed';
@@ -90,11 +92,12 @@ export class SsoController {
   async oidcCallback(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const code = req.query.code as string;
+      const state = req.query.state as string | undefined;
       if (!code) {
         redirectWithError(res, 'Missing authorization code');
         return;
       }
-      const tokens = await ssoService.handleOidcCallback(code);
+      const tokens = await ssoService.handleOidcCallback(code, state);
       redirectWithTokens(res, tokens);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'OIDC sign-in failed';

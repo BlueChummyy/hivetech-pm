@@ -34,6 +34,30 @@ interface TokenResult {
   refreshToken: string;
 }
 
+// In-memory state store with TTL (5 minute expiry)
+const oauthStates = new Map<string, number>();
+
+function generateOAuthState(): string {
+  const state = crypto.randomBytes(32).toString('hex');
+  oauthStates.set(state, Date.now() + 5 * 60 * 1000);
+  // Prune expired states
+  for (const [key, expiry] of oauthStates) {
+    if (Date.now() > expiry) oauthStates.delete(key);
+  }
+  return state;
+}
+
+function validateOAuthState(state: string | undefined): void {
+  if (!state || !oauthStates.has(state)) {
+    throw ApiError.badRequest('Invalid or expired OAuth state parameter');
+  }
+  const expiry = oauthStates.get(state)!;
+  oauthStates.delete(state);
+  if (Date.now() > expiry) {
+    throw ApiError.badRequest('OAuth state parameter has expired');
+  }
+}
+
 export class SsoService {
   async getProviderConfig(provider: AuthProvider) {
     const config = await prisma.oAuthProvider.findUnique({ where: { provider } });
@@ -54,6 +78,7 @@ export class SsoService {
 
   getGoogleAuthUrl(config: { clientId: string }): string {
     const redirectUri = `${getCallbackBaseUrl()}/api/v1/auth/google/callback`;
+    const state = generateOAuthState();
     const params = new URLSearchParams({
       client_id: config.clientId,
       redirect_uri: redirectUri,
@@ -61,11 +86,13 @@ export class SsoService {
       scope: 'openid email profile',
       access_type: 'offline',
       prompt: 'select_account',
+      state,
     });
     return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
   }
 
-  async handleGoogleCallback(code: string): Promise<TokenResult> {
+  async handleGoogleCallback(code: string, state?: string): Promise<TokenResult> {
+    validateOAuthState(state);
     const config = await this.getProviderConfig('GOOGLE');
     const redirectUri = `${getCallbackBaseUrl()}/api/v1/auth/google/callback`;
 
@@ -120,6 +147,7 @@ export class SsoService {
   getMicrosoftAuthUrl(config: { clientId: string; tenantId: string | null }): string {
     const tenant = config.tenantId || 'common';
     const redirectUri = `${getCallbackBaseUrl()}/api/v1/auth/microsoft/callback`;
+    const state = generateOAuthState();
     const params = new URLSearchParams({
       client_id: config.clientId,
       redirect_uri: redirectUri,
@@ -127,11 +155,13 @@ export class SsoService {
       scope: 'openid email profile User.Read',
       response_mode: 'query',
       prompt: 'select_account',
+      state,
     });
     return `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/authorize?${params.toString()}`;
   }
 
-  async handleMicrosoftCallback(code: string): Promise<TokenResult> {
+  async handleMicrosoftCallback(code: string, state?: string): Promise<TokenResult> {
+    validateOAuthState(state);
     const config = await this.getProviderConfig('MICROSOFT');
     const tenant = config.tenantId || 'common';
     const redirectUri = `${getCallbackBaseUrl()}/api/v1/auth/microsoft/callback`;
@@ -193,17 +223,20 @@ export class SsoService {
 
     const discovery = await this.discoverOidc(config.issuerUrl);
     const redirectUri = `${getCallbackBaseUrl()}/api/v1/auth/oidc/callback`;
+    const state = generateOAuthState();
     const params = new URLSearchParams({
       client_id: config.clientId,
       redirect_uri: redirectUri,
       response_type: 'code',
       scope: 'openid email profile',
       prompt: 'login',
+      state,
     });
     return `${discovery.authorization_endpoint}?${params.toString()}`;
   }
 
-  async handleOidcCallback(code: string): Promise<TokenResult> {
+  async handleOidcCallback(code: string, state?: string): Promise<TokenResult> {
+    validateOAuthState(state);
     const config = await this.getProviderConfig('OIDC');
     if (!config.issuerUrl) {
       throw ApiError.badRequest('OIDC issuer URL is not configured');
@@ -290,19 +323,40 @@ export class SsoService {
     if (!user) {
       user = await prisma.user.findFirst({
         where: { email: info.email, deletedAt: null },
+        omit: { passwordHash: false },
       });
 
       if (user) {
-        // Link the existing account to this SSO provider
-        await prisma.user.update({
-          where: { id: user.id },
-          data: {
-            authProvider: provider,
-            providerId: info.providerId,
-            providerEmail: info.email,
-            avatarUrl: user.avatarUrl || info.avatarUrl || null,
-          },
-        });
+        // Only auto-link if the account was already using this SSO provider
+        // or has no password (pure SSO account). Never auto-link a local
+        // password account — that would allow account takeover.
+        if (user.authProvider === provider) {
+          // Same provider, just update the provider ID (e.g. re-linked)
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              providerId: info.providerId,
+              providerEmail: info.email,
+              avatarUrl: user.avatarUrl || info.avatarUrl || null,
+            },
+          });
+        } else if (user.authProvider === 'LOCAL' && user.passwordHash) {
+          // Local account with password — refuse auto-link
+          throw ApiError.forbidden(
+            'An account with this email already exists. Please sign in with your password first.',
+          );
+        } else {
+          // SSO account from a different provider with no password — allow linking
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              authProvider: provider,
+              providerId: info.providerId,
+              providerEmail: info.email,
+              avatarUrl: user.avatarUrl || info.avatarUrl || null,
+            },
+          });
+        }
       }
     }
 
