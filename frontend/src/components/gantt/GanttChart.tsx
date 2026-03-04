@@ -26,7 +26,11 @@ export function GanttChart({ tasks, isLoading, projectId }: GanttChartProps) {
     typeof window !== 'undefined' && window.innerWidth < 768 ? 160 : 340,
   );
   const [isResizing, setIsResizing] = useState(false);
+  const [grabCursor, setGrabCursor] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const timelineRef = useRef<HTMLDivElement>(null);
+  const isGrabbingRef = useRef(false);
+  const grabStartRef = useRef({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
 
   const handleMouseDown = useCallback(() => {
     setIsResizing(true);
@@ -46,6 +50,66 @@ export function GanttChart({ tasks, isLoading, projectId }: GanttChartProps) {
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
+  }, []);
+
+  // Middle-mouse grab-to-scroll
+  useEffect(() => {
+    const el = timelineRef.current;
+    if (!el) return;
+
+    function onMouseDown(e: MouseEvent) {
+      if (e.button !== 1) return;
+      e.preventDefault();
+      isGrabbingRef.current = true;
+      setGrabCursor(true);
+      grabStartRef.current = {
+        x: e.clientX,
+        y: e.clientY,
+        scrollLeft: el!.scrollLeft,
+        scrollTop: el!.scrollTop,
+      };
+    }
+
+    function onMouseMove(e: MouseEvent) {
+      if (!isGrabbingRef.current) return;
+      const dx = e.clientX - grabStartRef.current.x;
+      const dy = e.clientY - grabStartRef.current.y;
+      el!.scrollLeft = grabStartRef.current.scrollLeft - dx;
+      el!.scrollTop = grabStartRef.current.scrollTop - dy;
+    }
+
+    function onMouseUp(e: MouseEvent) {
+      if (e.button === 1 && isGrabbingRef.current) {
+        isGrabbingRef.current = false;
+        setGrabCursor(false);
+      }
+    }
+
+    function onAuxClick(e: MouseEvent) {
+      if (e.button === 1) e.preventDefault();
+    }
+
+    el.addEventListener('mousedown', onMouseDown);
+    el.addEventListener('auxclick', onAuxClick);
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+
+    return () => {
+      el.removeEventListener('mousedown', onMouseDown);
+      el.removeEventListener('auxclick', onAuxClick);
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+  }, []);
+
+  const scrollToToday = useCallback(() => {
+    if (!timelineRef.current) return;
+    const scrollContainer = timelineRef.current;
+    const todayMarker = scrollContainer.querySelector('[data-today-marker]') as HTMLElement;
+    if (todayMarker) {
+      const offset = parseInt(todayMarker.style.left, 10) || 0;
+      scrollContainer.scrollTo({ left: Math.max(0, offset - scrollContainer.clientWidth / 3), behavior: 'smooth' });
+    }
   }, []);
 
   if (isLoading) {
@@ -78,73 +142,6 @@ export function GanttChart({ tasks, isLoading, projectId }: GanttChartProps) {
     if (aStart && bStart) return aStart.localeCompare(bStart);
     return a.position - b.position;
   });
-
-  const timelineRef = useRef<HTMLDivElement>(null);
-  const isGrabbingRef = useRef(false);
-  const [grabCursor, setGrabCursor] = useState(false);
-  const grabStartRef = useRef({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
-
-  // Middle-mouse grab-to-scroll
-  useEffect(() => {
-    const el = timelineRef.current;
-    if (!el) return;
-
-    function onMouseDown(e: MouseEvent) {
-      if (e.button !== 1) return; // Middle mouse button only
-      e.preventDefault();
-      isGrabbingRef.current = true;
-      setGrabCursor(true);
-      grabStartRef.current = {
-        x: e.clientX,
-        y: e.clientY,
-        scrollLeft: el!.scrollLeft,
-        scrollTop: el!.scrollTop,
-      };
-    }
-
-    function onMouseMove(e: MouseEvent) {
-      if (!isGrabbingRef.current) return;
-      const dx = e.clientX - grabStartRef.current.x;
-      const dy = e.clientY - grabStartRef.current.y;
-      el!.scrollLeft = grabStartRef.current.scrollLeft - dx;
-      el!.scrollTop = grabStartRef.current.scrollTop - dy;
-    }
-
-    function onMouseUp(e: MouseEvent) {
-      if (e.button === 1 && isGrabbingRef.current) {
-        isGrabbingRef.current = false;
-        setGrabCursor(false);
-      }
-    }
-
-    // Prevent default middle-click auto-scroll behavior
-    function onAuxClick(e: MouseEvent) {
-      if (e.button === 1) e.preventDefault();
-    }
-
-    el.addEventListener('mousedown', onMouseDown);
-    el.addEventListener('auxclick', onAuxClick);
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mouseup', onMouseUp);
-
-    return () => {
-      el.removeEventListener('mousedown', onMouseDown);
-      el.removeEventListener('auxclick', onAuxClick);
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onMouseUp);
-    };
-  }, []);
-
-  const scrollToToday = useCallback(() => {
-    if (!timelineRef.current) return;
-    const scrollContainer = timelineRef.current;
-    // Find the today marker and scroll to it
-    const todayMarker = scrollContainer.querySelector('[data-today-marker]') as HTMLElement;
-    if (todayMarker) {
-      const offset = parseInt(todayMarker.style.left, 10) || 0;
-      scrollContainer.scrollTo({ left: Math.max(0, offset - scrollContainer.clientWidth / 3), behavior: 'smooth' });
-    }
-  }, []);
 
   return (
     <div className="space-y-3">
