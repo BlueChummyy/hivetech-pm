@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import type { Task } from '@/types/models.types';
 import { GanttTaskList } from './GanttTaskList';
 import { GanttTimeline, type TimeScale } from './GanttTimeline';
@@ -80,6 +80,60 @@ export function GanttChart({ tasks, isLoading, projectId }: GanttChartProps) {
   });
 
   const timelineRef = useRef<HTMLDivElement>(null);
+  const isGrabbingRef = useRef(false);
+  const [grabCursor, setGrabCursor] = useState(false);
+  const grabStartRef = useRef({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
+
+  // Middle-mouse grab-to-scroll
+  useEffect(() => {
+    const el = timelineRef.current;
+    if (!el) return;
+
+    function onMouseDown(e: MouseEvent) {
+      if (e.button !== 1) return; // Middle mouse button only
+      e.preventDefault();
+      isGrabbingRef.current = true;
+      setGrabCursor(true);
+      grabStartRef.current = {
+        x: e.clientX,
+        y: e.clientY,
+        scrollLeft: el!.scrollLeft,
+        scrollTop: el!.scrollTop,
+      };
+    }
+
+    function onMouseMove(e: MouseEvent) {
+      if (!isGrabbingRef.current) return;
+      const dx = e.clientX - grabStartRef.current.x;
+      const dy = e.clientY - grabStartRef.current.y;
+      el!.scrollLeft = grabStartRef.current.scrollLeft - dx;
+      el!.scrollTop = grabStartRef.current.scrollTop - dy;
+    }
+
+    function onMouseUp(e: MouseEvent) {
+      if (e.button === 1 && isGrabbingRef.current) {
+        isGrabbingRef.current = false;
+        setGrabCursor(false);
+      }
+    }
+
+    // Prevent default middle-click auto-scroll behavior
+    function onAuxClick(e: MouseEvent) {
+      if (e.button === 1) e.preventDefault();
+    }
+
+    el.addEventListener('mousedown', onMouseDown);
+    el.addEventListener('auxclick', onAuxClick);
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+
+    return () => {
+      el.removeEventListener('mousedown', onMouseDown);
+      el.removeEventListener('auxclick', onAuxClick);
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+  }, []);
 
   const scrollToToday = useCallback(() => {
     if (!timelineRef.current) return;
@@ -143,7 +197,7 @@ export function GanttChart({ tasks, isLoading, projectId }: GanttChartProps) {
         />
 
         {/* Right panel: Timeline */}
-        <div ref={timelineRef} className="flex-1 overflow-auto">
+        <div ref={timelineRef} className={cn('flex-1 overflow-auto', grabCursor && 'cursor-grabbing select-none')}>
           <GanttTimeline tasks={sortedTasks} scale={scale} rowHeight={ROW_HEIGHT} projectId={projectId} />
         </div>
       </div>

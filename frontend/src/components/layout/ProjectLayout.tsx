@@ -184,7 +184,7 @@ export function ProjectLayout() {
           )}
 
           {/* + View button */}
-          <div ref={pickerRef} className="relative shrink-0">
+          <div ref={pickerRef} className="shrink-0">
             <button
               onClick={() => setShowViewPicker((v) => !v)}
               className={cn(
@@ -197,56 +197,67 @@ export function ProjectLayout() {
               <Plus className="h-3.5 w-3.5" />
               View
             </button>
-
-            {showViewPicker && (
-              <div className="absolute left-0 top-full z-50 mt-1 w-64 rounded-xl border border-surface-700 bg-surface-800 shadow-xl overflow-hidden">
-                <div className="px-3 py-2 border-b border-surface-700">
-                  <p className="text-xs font-medium text-surface-400">Toggle Views</p>
-                </div>
-                <div className="py-1">
-                  {availableViews.map((view) => {
-                    const isEnabled = enabledViews.includes(view.path);
-                    return (
-                      <button
-                        key={view.path}
-                        onClick={() => toggleView(view.path)}
-                        className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-surface-700/50"
-                      >
-                        <div className={cn(
-                          'flex h-8 w-8 items-center justify-center rounded-lg',
-                          isEnabled ? 'bg-primary-600/20 text-primary-400' : 'bg-surface-700 text-surface-400',
-                        )}>
-                          <view.icon className="h-4 w-4" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className={cn(
-                            'text-sm font-medium',
-                            isEnabled ? 'text-surface-100' : 'text-surface-300',
-                          )}>
-                            {view.label}
-                          </p>
-                          <p className="text-[11px] text-surface-500">{view.description}</p>
-                        </div>
-                        <div className={cn(
-                          'h-4 w-4 rounded border-2 flex items-center justify-center shrink-0',
-                          isEnabled
-                            ? 'border-primary-500 bg-primary-500'
-                            : 'border-surface-600',
-                        )}>
-                          {isEnabled && (
-                            <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
           </div>
         </nav>
+
+        {/* View picker dropdown - rendered outside nav to avoid overflow clipping */}
+        {showViewPicker && (
+          <div
+            ref={(el) => {
+              if (!el || !pickerRef.current) return;
+              const btn = pickerRef.current.getBoundingClientRect();
+              el.style.position = 'fixed';
+              el.style.left = `${btn.left}px`;
+              el.style.top = `${btn.bottom + 4}px`;
+            }}
+            className="fixed z-50 w-64 rounded-xl border border-surface-700 bg-surface-800 shadow-xl overflow-hidden"
+          >
+            <div className="px-3 py-2 border-b border-surface-700">
+              <p className="text-xs font-medium text-surface-400">Toggle Views</p>
+            </div>
+            <div className="py-1">
+              {availableViews.map((view) => {
+                const isEnabled = enabledViews.includes(view.path);
+                const Icon = view.icon;
+                return (
+                  <button
+                    key={view.path}
+                    onClick={() => toggleView(view.path)}
+                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-surface-700/50"
+                  >
+                    <div className={cn(
+                      'flex h-8 w-8 items-center justify-center rounded-lg',
+                      isEnabled ? 'bg-primary-600/20 text-primary-400' : 'bg-surface-700 text-surface-400',
+                    )}>
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={cn(
+                        'text-sm font-medium',
+                        isEnabled ? 'text-surface-100' : 'text-surface-300',
+                      )}>
+                        {view.label}
+                      </p>
+                      <p className="text-[11px] text-surface-500">{view.description}</p>
+                    </div>
+                    <div className={cn(
+                      'h-4 w-4 rounded border-2 flex items-center justify-center shrink-0',
+                      isEnabled
+                        ? 'border-primary-500 bg-primary-500'
+                        : 'border-surface-600',
+                    )}>
+                      {isEnabled && (
+                        <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
       <div className="flex-1 overflow-hidden">
         <Outlet />

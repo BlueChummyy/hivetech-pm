@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useRef } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import {
   addDays,
   addWeeks,
@@ -39,9 +39,8 @@ function getColumnWidth(scale: TimeScale): number {
 function getDateRange(tasks: Task[], scale: TimeScale) {
   const now = new Date();
   let minDate = addMonths(now, -2);
-  let maxDate = new Date(now.getFullYear(), 11, 31); // End of current year
+  let maxDate = new Date(now.getFullYear(), 11, 31);
 
-  // Only extend range for task dates within a reasonable window (±12 months)
   const lowerBound = addMonths(now, -12);
   const upperBound = addMonths(now, 12);
 
@@ -62,7 +61,6 @@ function getDateRange(tasks: Task[], scale: TimeScale) {
     }
   });
 
-  // Add padding
   minDate = addDays(minDate, -7);
   maxDate = addDays(maxDate, 14);
 
@@ -130,14 +128,14 @@ export function GanttTimeline({ tasks, scale, rowHeight, projectId }: GanttTimel
   const totalWidth = columns.length * colWidth;
   const dayWidth = scale === 'day' ? colWidth : scale === 'week' ? colWidth / 7 : colWidth / 30;
 
-  // Today marker position
   const todayOffset = differenceInDays(startOfDay(new Date()), dateRange.start) * (scale === 'day' ? colWidth : colWidth / 7);
 
-  // Click-to-create state
   const [createPopover, setCreatePopover] = useState<{
     startDate: Date;
     position: { x: number; y: number };
   } | null>(null);
+
+  const updateTask = useUpdateTask();
 
   function getTaskPosition(task: Task) {
     if (!task.dueDate) return null;
@@ -152,18 +150,15 @@ export function GanttTimeline({ tasks, scale, rowHeight, projectId }: GanttTimel
     return { left, width };
   }
 
+  // Click on empty timeline area = create new task
   const handleTimelineClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       if (!projectId) return;
-
-      // Only trigger on clicks directly on the timeline area (not on bars)
       const target = e.target as HTMLElement;
-      if (target.closest('button') || target.closest('[data-gantt-bar]')) return;
+      if (target.closest('button') || target.closest('[data-gantt-bar]') || target.closest('[data-unscheduled-row]')) return;
 
       const rect = e.currentTarget.getBoundingClientRect();
       const clickX = e.clientX - rect.left + e.currentTarget.scrollLeft;
-
-      // Calculate date from click position
       const daysFromStart = Math.floor(clickX / dayWidth);
       const clickDate = addDays(dateRange.start, daysFromStart);
 
@@ -175,44 +170,30 @@ export function GanttTimeline({ tasks, scale, rowHeight, projectId }: GanttTimel
     [projectId, dayWidth, dateRange.start],
   );
 
-  const updateTask = useUpdateTask();
-
-  // Hover tooltip state for task rows
-  const [hoverInfo, setHoverInfo] = useState<{
-    type: 'schedule' | 'create';
-    x: number;
-    y: number;
-  } | null>(null);
-
-  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleRowMouseMove = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>, rowType: 'task' | 'empty') => {
+  // Click on unscheduled task row = schedule that task at clicked date
+  const handleScheduleClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>, taskId: string) => {
+      e.stopPropagation(); // prevent parent handleTimelineClick
       if (!projectId) return;
-      const target = e.target as HTMLElement;
-      if (target.closest('button') || target.closest('[data-gantt-bar]')) {
-        setHoverInfo(null);
-        return;
-      }
-      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-      hoverTimeoutRef.current = setTimeout(() => {
-        setHoverInfo({
-          type: rowType === 'task' ? 'schedule' : 'create',
-          x: e.clientX,
-          y: e.clientY,
-        });
-      }, 50);
+
+      const scrollContainer = e.currentTarget.closest('.overflow-auto');
+      const rect = e.currentTarget.getBoundingClientRect();
+      const clickX = e.clientX - rect.left + (scrollContainer?.scrollLeft || 0);
+      const daysFromStart = Math.floor(clickX / dayWidth);
+      const clickDate = addDays(dateRange.start, daysFromStart);
+
+      const sd = startOfDay(clickDate);
+      const dd = addDays(sd, 3);
+      updateTask.mutate({
+        id: taskId,
+        data: { startDate: sd.toISOString(), dueDate: dd.toISOString() },
+      });
     },
-    [projectId],
+    [projectId, dayWidth, dateRange.start, updateTask],
   );
 
-  const handleRowMouseLeave = useCallback(() => {
-    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-    setHoverInfo(null);
-  }, []);
-
-  const scheduledTasks = tasks.filter((t) => t.dueDate);
-  const unscheduledTasks = tasks.filter((t) => !t.dueDate);
+  const scheduledTasks = useMemo(() => tasks.filter((t) => t.dueDate), [tasks]);
+  const unscheduledTasks = useMemo(() => tasks.filter((t) => !t.dueDate), [tasks]);
 
   return (
     <div
@@ -285,7 +266,7 @@ export function GanttTimeline({ tasks, scale, rowHeight, projectId }: GanttTimel
           />
         )}
 
-        {/* Task rows */}
+        {/* Scheduled task rows */}
         {scheduledTasks.map((task) => {
           const pos = getTaskPosition(task);
           if (!pos) return null;
@@ -307,64 +288,41 @@ export function GanttTimeline({ tasks, scale, rowHeight, projectId }: GanttTimel
           );
         })}
 
-        {/* Unscheduled task rows - hover shows "Click to Schedule Task" */}
+        {/* Unscheduled task rows - click to schedule */}
         {unscheduledTasks.map((task) => (
           <div
             key={task.id}
-            className="relative border-b border-surface-700/30 cursor-pointer"
-            style={{ height: `${rowHeight}px`, background: 'repeating-linear-gradient(135deg, transparent, transparent 4px, rgba(255,255,255,0.02) 4px, rgba(255,255,255,0.02) 8px)' }}
-            onMouseMove={(e) => handleRowMouseMove(e, 'task')}
-            onMouseLeave={handleRowMouseLeave}
-            onClick={(e) => {
-              if (!projectId) return;
-              const target = e.target as HTMLElement;
-              if (target.closest('button')) return;
-
-              const rect = e.currentTarget.getBoundingClientRect();
-              const scrollContainer = e.currentTarget.closest('.overflow-auto');
-              const clickX = e.clientX - rect.left + (scrollContainer?.scrollLeft || 0);
-              const daysFromStart = Math.floor(clickX / dayWidth);
-              const clickDate = addDays(dateRange.start, daysFromStart);
-
-              // Schedule this task at the clicked date
-              const sd = startOfDay(clickDate);
-              const dd = addDays(sd, 3);
-              updateTask.mutate({
-                id: task.id,
-                data: { startDate: sd.toISOString(), dueDate: dd.toISOString() },
-              });
+            data-unscheduled-row
+            className="relative border-b border-surface-700/30 cursor-pointer group/row"
+            style={{
+              height: `${rowHeight}px`,
+              background: 'repeating-linear-gradient(135deg, transparent, transparent 4px, rgba(255,255,255,0.015) 4px, rgba(255,255,255,0.015) 8px)',
             }}
+            onClick={(e) => handleScheduleClick(e, task.id)}
+            title="Click to schedule this task"
           >
             <div className="absolute inset-0 flex items-center px-3">
               <span className="text-xs text-surface-500 italic truncate">{task.title}</span>
+              <span className="ml-2 text-[10px] text-surface-600 opacity-0 group-hover/row:opacity-100 transition-opacity whitespace-nowrap">
+                Click to schedule
+              </span>
             </div>
           </div>
         ))}
 
-        {/* Empty click-to-create area */}
+        {/* Empty + Add Task area */}
         {projectId && (
           <div
-            className="relative border-b border-surface-700/30 cursor-pointer"
+            className="relative border-b border-surface-700/30 cursor-pointer group/add"
             style={{ height: `${rowHeight}px` }}
-            onMouseMove={(e) => handleRowMouseMove(e, 'empty')}
-            onMouseLeave={handleRowMouseLeave}
+            title="Click to create a task"
           >
-            <div className="absolute inset-0 flex items-center px-3 gap-1.5 text-surface-500">
+            <div className="absolute inset-0 flex items-center px-3 gap-1.5 text-surface-500 group-hover/add:text-surface-400 transition-colors">
               <span className="text-xs">+ Add Task</span>
             </div>
           </div>
         )}
       </div>
-
-      {/* Hover tooltip */}
-      {hoverInfo && (
-        <div
-          className="fixed z-50 pointer-events-none rounded-md bg-surface-900 border border-surface-600 px-2.5 py-1 text-xs text-surface-200 shadow-lg whitespace-nowrap"
-          style={{ left: `${hoverInfo.x + 12}px`, top: `${hoverInfo.y - 28}px` }}
-        >
-          {hoverInfo.type === 'schedule' ? 'Click to Schedule Task' : 'Click to Create Task'}
-        </div>
-      )}
 
       {/* Create popover */}
       {createPopover && projectId && (
