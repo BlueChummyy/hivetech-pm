@@ -36,7 +36,11 @@ export function AppLayout() {
         <div className="fixed inset-0 z-40 lg:hidden">
           <div
             className="fixed inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => useUIStore.getState().toggleSidebar()}
+            onClick={() => useUIStore.setState({ sidebarOpen: false })}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              useUIStore.setState({ sidebarOpen: false });
+            }}
             aria-hidden="true"
           />
           <aside className="relative z-50">
