@@ -4,7 +4,7 @@ import type { User } from '@/types/models.types';
 
 export const setupApi = {
   getStatus: () =>
-    get<{ needsSetup: boolean }>('/setup/status').then((r) => r.data),
+    get<{ needsSetup: boolean; registrationDisabled: boolean }>('/setup/status').then((r) => r.data),
 
   complete: (data: { email: string; password: string; firstName: string; lastName: string }) =>
     post<AuthResponse>('/setup/complete', data),

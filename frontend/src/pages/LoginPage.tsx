@@ -7,6 +7,7 @@ import { authApi } from '@/api/auth';
 import { useAuthStore } from '@/store/auth.store';
 import { isAxiosError } from 'axios';
 import { SsoButtons } from '@/components/SsoButtons';
+import { useRegistrationDisabled } from '@/App';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
@@ -17,6 +18,7 @@ export function LoginPage() {
   const [searchParams] = useSearchParams();
   const login = useAuthStore((s) => s.login);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const registrationDisabled = useRegistrationDisabled();
 
   // Show error from SSO redirect
   useEffect(() => {
@@ -107,15 +109,17 @@ export function LoginPage() {
           </CardBody>
         </Card>
 
-        <p className="mt-4 text-center text-sm text-surface-400">
-          Don&apos;t have an account?{' '}
-          <Link
-            to="/register"
-            className="font-medium text-primary-400 hover:text-primary-300"
-          >
-            Create account
-          </Link>
-        </p>
+        {!registrationDisabled && (
+          <p className="mt-4 text-center text-sm text-surface-400">
+            Don&apos;t have an account?{' '}
+            <Link
+              to="/register"
+              className="font-medium text-primary-400 hover:text-primary-300"
+            >
+              Create account
+            </Link>
+          </p>
+        )}
       </div>
     </div>
   );

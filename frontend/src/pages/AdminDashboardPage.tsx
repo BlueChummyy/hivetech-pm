@@ -136,8 +136,8 @@ export function AdminDashboardPage() {
     queryFn: () => adminApi.getAppSettings(),
   });
 
-  const toggleHideCreateUser = useMutation({
-    mutationFn: (hide: boolean) => adminApi.updateAppSettings({ hideCreateUser: hide }),
+  const toggleHideRegistration = useMutation({
+    mutationFn: (hide: boolean) => adminApi.updateAppSettings({ hidePublicRegistration: hide }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'app-settings'] });
     },
@@ -537,7 +537,7 @@ export function AdminDashboardPage() {
       {/* ── Users Tab ─────────────────────────────────────────────── */}
       {activeTab === 'users' && (
         <div className="space-y-4">
-          {/* Search + Create User button + Hide toggle */}
+          {/* Search + Create User button */}
           <div className="flex items-center justify-between gap-3">
             <div className="relative max-w-md flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-500" />
@@ -549,32 +549,19 @@ export function AdminDashboardPage() {
                 className="w-full rounded-lg border border-surface-700 bg-surface-900 pl-10 pr-3 py-2 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               />
             </div>
-            <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2 text-xs text-surface-400 cursor-pointer select-none whitespace-nowrap">
-                <input
-                  type="checkbox"
-                  checked={appSettings?.hideCreateUser ?? false}
-                  onChange={(e) => toggleHideCreateUser.mutate(e.target.checked)}
-                  className="h-3.5 w-3.5 rounded border-surface-600 bg-surface-800 text-primary-500 focus:ring-primary-500"
-                />
-                Hide &quot;Create User&quot;
-              </label>
-              {!appSettings?.hideCreateUser && (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => {
-                    setNewUser({ email: '', password: '', firstName: '', lastName: '', workspaceRole: 'MEMBER' });
-                    setShowPassword(false);
-                    setShowCreateUserModal(true);
-                  }}
-                  className="flex items-center gap-2 whitespace-nowrap"
-                >
-                  <UserPlus className="h-4 w-4" />
-                  Create User
-                </Button>
-              )}
-            </div>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => {
+                setNewUser({ email: '', password: '', firstName: '', lastName: '', workspaceRole: 'MEMBER' });
+                setShowPassword(false);
+                setShowCreateUserModal(true);
+              }}
+              className="flex items-center gap-2 whitespace-nowrap"
+            >
+              <UserPlus className="h-4 w-4" />
+              Create User
+            </Button>
           </div>
 
           {/* Users table */}
@@ -2143,7 +2130,41 @@ export function AdminDashboardPage() {
 
       {/* ── Authentication Tab ──────────────────────────────────── */}
       {activeTab === 'auth' && (
-        <AuthProvidersPanel />
+        <div className="space-y-6">
+          {/* Registration toggle */}
+          <Card>
+            <CardBody>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium text-surface-200">Public Registration</h3>
+                  <p className="mt-0.5 text-xs text-surface-400">
+                    When disabled, the &quot;Create account&quot; link on the login page is hidden,
+                    the /register page redirects to /login, and the register API is blocked.
+                    Admins can still create users from the Users tab.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={!(appSettings?.hidePublicRegistration ?? false)}
+                  onClick={() => toggleHideRegistration.mutate(!appSettings?.hidePublicRegistration)}
+                  className={cn(
+                    'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors',
+                    appSettings?.hidePublicRegistration ? 'bg-surface-600' : 'bg-primary-500',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform transition-transform',
+                      appSettings?.hidePublicRegistration ? 'translate-x-0' : 'translate-x-5',
+                    )}
+                  />
+                </button>
+              </div>
+            </CardBody>
+          </Card>
+          <AuthProvidersPanel />
+        </div>
       )}
     </div>
   );

@@ -24,13 +24,20 @@ function computeRefreshExpiry(): Date {
   return new Date(Date.now() + value * multipliers[unit]);
 }
 
-// GET /api/v1/setup/status — Check if first-time setup is needed
+// GET /api/v1/setup/status — Check if first-time setup is needed + registration status
 router.get(
   '/status',
   async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const userCount = await prisma.user.count();
-      res.json(successResponse({ needsSetup: userCount === 0 }));
+      let registrationDisabled = false;
+      if (userCount > 0) {
+        const setting = await prisma.systemSetting.findUnique({ where: { key: 'hidePublicRegistration' } });
+        if (setting) {
+          registrationDisabled = JSON.parse(setting.value) === true;
+        }
+      }
+      res.json(successResponse({ needsSetup: userCount === 0, registrationDisabled }));
     } catch (err) {
       next(err);
     }

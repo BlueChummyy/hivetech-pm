@@ -826,9 +826,9 @@ router.get(
   async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const rows = await prisma.systemSetting.findMany({
-        where: { key: { in: ['hideCreateUser'] } },
+        where: { key: { in: ['hidePublicRegistration'] } },
       });
-      const settings: Record<string, any> = { hideCreateUser: false };
+      const settings: Record<string, any> = { hidePublicRegistration: false };
       for (const row of rows) {
         settings[row.key] = JSON.parse(row.value);
       }
@@ -841,7 +841,7 @@ router.get(
 
 // ── PUT /api/v1/admin/settings/app — Save app settings ──────────────
 const appSettingsSchema = z.object({
-  hideCreateUser: z.boolean().optional(),
+  hidePublicRegistration: z.boolean().optional(),
 });
 
 router.put(

@@ -30,6 +30,12 @@ const userSelectWithoutPassword = {
 
 export class AuthService {
   async register(email: string, password: string, firstName: string, lastName: string) {
+    // Check if public registration is disabled
+    const setting = await prisma.systemSetting.findUnique({ where: { key: 'hidePublicRegistration' } });
+    if (setting && JSON.parse(setting.value) === true) {
+      throw ApiError.forbidden('Public registration is disabled. Contact your administrator.');
+    }
+
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
       // Don't reveal whether the account is active or deleted

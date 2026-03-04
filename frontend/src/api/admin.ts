@@ -103,7 +103,7 @@ export interface UpsertAuthProviderData {
 }
 
 export interface AppSettings {
-  hideCreateUser: boolean;
+  hidePublicRegistration: boolean;
 }
 
 export const adminApi = {

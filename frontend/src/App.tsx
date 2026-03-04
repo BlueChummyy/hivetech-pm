@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ProjectLayout } from '@/components/layout/ProjectLayout';
@@ -87,16 +87,25 @@ function withErrorBoundary(Component: React.ComponentType) {
   );
 }
 
+const RegistrationContext = React.createContext(false);
+export function useRegistrationDisabled() {
+  return React.useContext(RegistrationContext);
+}
+
 function SetupGuard({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [checking, setChecking] = useState(true);
+  const [registrationDisabled, setRegistrationDisabled] = useState(false);
 
   useEffect(() => {
-    setupApi.getStatus().then(({ needsSetup }) => {
+    setupApi.getStatus().then(({ needsSetup, registrationDisabled: regDisabled }) => {
+      setRegistrationDisabled(regDisabled);
       if (needsSetup && location.pathname !== '/setup') {
         navigate('/setup', { replace: true });
       } else if (!needsSetup && location.pathname === '/setup') {
+        navigate('/login', { replace: true });
+      } else if (regDisabled && location.pathname === '/register') {
         navigate('/login', { replace: true });
       }
       setChecking(false);
@@ -106,7 +115,11 @@ function SetupGuard({ children }: { children: React.ReactNode }) {
   }, [location.pathname, navigate]);
 
   if (checking) return <PageLoader />;
-  return <>{children}</>;
+  return (
+    <RegistrationContext.Provider value={registrationDisabled}>
+      {children}
+    </RegistrationContext.Provider>
+  );
 }
 
 export function App() {
