@@ -126,19 +126,31 @@ function ToggleSwitch({
 function useDropdown() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const target = e.target as Node;
+      if (ref.current?.contains(target)) return;
+      if (menuRef.current?.contains(target)) return;
+      setOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  return { open, setOpen, ref };
+  // Position the menu as fixed relative to the trigger button
+  const positionMenu = (el: HTMLDivElement | null) => {
+    menuRef.current = el;
+    if (!el || !ref.current) return;
+    const btn = ref.current.getBoundingClientRect();
+    el.style.position = 'fixed';
+    el.style.left = `${btn.left}px`;
+    el.style.top = `${btn.bottom + 4}px`;
+  };
+
+  return { open, setOpen, ref, positionMenu };
 }
 
 /* ------------------------------------------------------------------ */
@@ -287,7 +299,7 @@ export function FilterBar({
           </button>
 
           {filterDD.open && (
-            <div className="absolute left-0 top-full z-20 mt-1 w-[260px] rounded-lg border border-white/[0.08] bg-[#1E1E26] py-1 shadow-xl max-h-[400px] overflow-y-auto">
+            <div ref={filterDD.positionMenu} className="fixed z-50 w-[260px] rounded-lg border border-white/[0.08] bg-[#1E1E26] py-1 shadow-xl max-h-[400px] overflow-y-auto">
               {/* Status */}
               <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
                 Status
@@ -426,7 +438,7 @@ export function FilterBar({
           </button>
 
           {groupByDD.open && (
-            <div className="absolute left-0 top-full z-20 mt-1 min-w-[180px] rounded-lg border border-white/[0.08] bg-[#1E1E26] py-1 shadow-xl">
+            <div ref={groupByDD.positionMenu} className="fixed z-50 min-w-[180px] rounded-lg border border-white/[0.08] bg-[#1E1E26] py-1 shadow-xl">
               {GROUP_BY_OPTIONS.map((option) => {
                 const Icon = option.icon;
                 const isSelected = filters.groupBy.field === option.value;
@@ -476,7 +488,7 @@ export function FilterBar({
             </button>
 
             {directionDD.open && (
-              <div className="absolute left-0 top-full z-20 mt-1 min-w-[150px] rounded-lg border border-white/[0.08] bg-[#1E1E26] py-1 shadow-xl">
+              <div ref={directionDD.positionMenu} className="fixed z-50 min-w-[150px] rounded-lg border border-white/[0.08] bg-[#1E1E26] py-1 shadow-xl">
                 <button
                   onClick={() => setGroupByDirection('asc')}
                   className={cn(
