@@ -111,9 +111,8 @@ function formatColumnHeader(date: Date, scale: TimeScale): string {
 function formatTopHeader(date: Date, scale: TimeScale): string | null {
   switch (scale) {
     case 'day':
-      return format(date, 'MMM yyyy');
     case 'week':
-      return format(date, 'yyyy');
+      return format(date, 'MMMM yyyy');
     case 'month':
       return null;
   }
@@ -209,25 +208,33 @@ export function GanttTimeline({ tasks, scale, rowHeight, projectId, hoveredRow, 
       onClick={handleTimelineClick}
     >
       {/* Top header row (month/year grouping) */}
-      {scale === 'day' && (
+      {(scale === 'day' || scale === 'week') && (
         <div
           className="sticky top-0 z-10 flex border-b border-surface-700 bg-surface-900"
           style={{ height: `${rowHeight / 2}px` }}
         >
           {columns.map((col, i) => {
             const showLabel = i === 0 || !isSameMonth(col, columns[i - 1]);
-            return showLabel ? (
+            if (!showLabel) return null;
+            // Calculate width of this month group
+            let spanCols = 1;
+            for (let j = i + 1; j < columns.length; j++) {
+              if (!isSameMonth(columns[j], col)) break;
+              spanCols++;
+            }
+            return (
               <div
                 key={`top-${i}`}
-                className="absolute flex items-center px-2 text-xs font-medium text-surface-400"
+                className="absolute flex items-center justify-center border-r border-surface-600 text-xs font-medium text-surface-300"
                 style={{
                   left: `${i * colWidth}px`,
+                  width: `${spanCols * colWidth}px`,
                   height: `${rowHeight / 2}px`,
                 }}
               >
                 {formatTopHeader(col, scale)}
               </div>
-            ) : null;
+            );
           })}
         </div>
       )}
@@ -236,33 +243,54 @@ export function GanttTimeline({ tasks, scale, rowHeight, projectId, hoveredRow, 
       <div
         className="sticky z-10 flex border-b border-surface-700 bg-surface-900"
         style={{
-          top: scale === 'day' ? `${rowHeight / 2}px` : '0px',
-          height: scale === 'day' ? `${rowHeight / 2}px` : `${rowHeight}px`,
+          top: (scale === 'day' || scale === 'week') ? `${rowHeight / 2}px` : '0px',
+          height: (scale === 'day' || scale === 'week') ? `${rowHeight / 2}px` : `${rowHeight}px`,
         }}
       >
-        {columns.map((col, i) => (
-          <div
-            key={i}
-            className="flex shrink-0 items-center justify-center border-r border-surface-700/50 text-xs text-surface-500"
-            style={{ width: `${colWidth}px` }}
-          >
-            <span className={isToday(col) ? 'text-primary-400 font-medium' : ''}>
-              {formatColumnHeader(col, scale)}
-            </span>
-          </div>
-        ))}
+        {columns.map((col, i) => {
+          const isMonthStart = scale === 'day' && col.getDate() === 1;
+          const isWeekMonthBoundary = scale === 'week' && i > 0 && !isSameMonth(col, columns[i - 1]);
+          return (
+            <div
+              key={i}
+              className="flex shrink-0 items-center justify-center text-xs text-surface-500"
+              style={{
+                width: `${colWidth}px`,
+                borderRight: (isMonthStart || isWeekMonthBoundary)
+                  ? '1px solid rgba(255,255,255,0.15)'
+                  : '1px solid rgba(255,255,255,0.06)',
+              }}
+            >
+              <span className={
+                isToday(col) ? 'text-primary-400 font-medium' :
+                isMonthStart ? 'text-surface-300 font-medium' : ''
+              }>
+                {formatColumnHeader(col, scale)}
+              </span>
+            </div>
+          );
+        })}
       </div>
 
       {/* Grid lines + Task bars */}
       <div className="relative">
         {/* Vertical grid lines */}
-        {columns.map((_, i) => (
-          <div
-            key={`line-${i}`}
-            className="absolute top-0 bottom-0 border-r border-surface-700/30"
-            style={{ left: `${(i + 1) * colWidth}px` }}
-          />
-        ))}
+        {columns.map((col, i) => {
+          const nextCol = columns[i + 1];
+          const isMonthBoundary = nextCol && !isSameMonth(col, nextCol);
+          return (
+            <div
+              key={`line-${i}`}
+              className="absolute top-0 bottom-0"
+              style={{
+                left: `${(i + 1) * colWidth}px`,
+                borderRight: isMonthBoundary
+                  ? '1px solid rgba(255,255,255,0.12)'
+                  : '1px solid rgba(255,255,255,0.04)',
+              }}
+            />
+          );
+        })}
 
         {/* Today marker */}
         {todayOffset >= 0 && todayOffset <= totalWidth && (
