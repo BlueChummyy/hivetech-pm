@@ -323,7 +323,6 @@ export class SsoService {
     if (!user) {
       user = await prisma.user.findFirst({
         where: { email: info.email, deletedAt: null },
-        omit: { passwordHash: false },
       });
 
       if (user) {
@@ -340,7 +339,7 @@ export class SsoService {
               avatarUrl: user.avatarUrl || info.avatarUrl || null,
             },
           });
-        } else if (user.authProvider === 'LOCAL' && user.passwordHash) {
+        } else if (user.authProvider === 'LOCAL') {
           // Local account with password — refuse auto-link
           throw ApiError.forbidden(
             'An account with this email already exists. Please sign in with your password first.',
