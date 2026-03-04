@@ -31,6 +31,7 @@ export function GanttChart({ tasks, isLoading, projectId }: GanttChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const isGrabbingRef = useRef(false);
+  const didDragRef = useRef(false);
   const grabStartRef = useRef({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
 
   const handleMouseDown = useCallback(() => {
@@ -53,61 +54,91 @@ export function GanttChart({ tasks, isLoading, projectId }: GanttChartProps) {
     document.addEventListener('mouseup', handleMouseUp);
   }, []);
 
-  // Left-click grab-to-scroll on empty areas + prevent middle-click auto-scroll circle
+  // Grab-to-scroll: left-click drag on empty areas scrolls the timeline.
+  // Also kills the browser's middle-click auto-scroll circle entirely.
   useEffect(() => {
     const el = timelineRef.current;
     if (!el) return;
 
-    function onMouseDown(e: MouseEvent) {
-      // Prevent middle-click auto-scroll circle
+    const DRAG_THRESHOLD = 4; // px — movement beyond this = drag, not click
+
+    function onPointerDown(e: PointerEvent) {
+      // Kill middle-click auto-scroll circle
       if (e.button === 1) {
         e.preventDefault();
+        e.stopPropagation();
         return;
       }
       if (e.button !== 0) return;
-      // Don't grab when clicking on interactive elements
+      // Don't grab when clicking interactive elements
       const target = e.target as HTMLElement;
-      if (target.closest('button') || target.closest('[data-gantt-bar]') || target.closest('input')) return;
+      if (target.closest('button') || target.closest('[data-gantt-bar]') || target.closest('input') || target.closest('[data-unscheduled-row]')) return;
 
+      didDragRef.current = false;
       isGrabbingRef.current = true;
-      setGrabCursor(true);
       grabStartRef.current = {
         x: e.clientX,
         y: e.clientY,
-        scrollLeft: el!.scrollLeft,
-        scrollTop: el!.scrollTop,
+        scrollLeft: el.scrollLeft,
+        scrollTop: el.scrollTop,
       };
     }
 
-    function onMouseMove(e: MouseEvent) {
+    function onPointerMove(e: PointerEvent) {
       if (!isGrabbingRef.current) return;
       const dx = e.clientX - grabStartRef.current.x;
       const dy = e.clientY - grabStartRef.current.y;
-      el!.scrollLeft = grabStartRef.current.scrollLeft - dx;
-      el!.scrollTop = grabStartRef.current.scrollTop - dy;
+
+      // Only start visual drag after threshold
+      if (!didDragRef.current && Math.abs(dx) + Math.abs(dy) >= DRAG_THRESHOLD) {
+        didDragRef.current = true;
+        setGrabCursor(true);
+      }
+
+      if (didDragRef.current) {
+        el.scrollLeft = grabStartRef.current.scrollLeft - dx;
+        el.scrollTop = grabStartRef.current.scrollTop - dy;
+      }
     }
 
-    function onMouseUp() {
+    function onPointerUp() {
       if (isGrabbingRef.current) {
         isGrabbingRef.current = false;
         setGrabCursor(false);
       }
     }
 
-    function onAuxClick(e: MouseEvent) {
-      if (e.button === 1) e.preventDefault();
+    // Suppress click events that follow a drag so popovers don't open
+    function onClickCapture(e: MouseEvent) {
+      if (didDragRef.current) {
+        e.stopPropagation();
+        e.preventDefault();
+        didDragRef.current = false;
+      }
     }
 
-    el.addEventListener('mousedown', onMouseDown);
+    // Prevent middle-click default at every level
+    function onAuxClick(e: MouseEvent) {
+      if (e.button === 1) { e.preventDefault(); e.stopPropagation(); }
+    }
+    function onMiddleDown(e: MouseEvent) {
+      if (e.button === 1) { e.preventDefault(); e.stopPropagation(); }
+    }
+
+    el.addEventListener('pointerdown', onPointerDown);
+    el.addEventListener('mousedown', onMiddleDown);
     el.addEventListener('auxclick', onAuxClick);
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mouseup', onMouseUp);
+    el.addEventListener('click', onClickCapture, true); // capture phase
+    document.addEventListener('pointermove', onPointerMove);
+    document.addEventListener('pointerup', onPointerUp);
 
     return () => {
-      el.removeEventListener('mousedown', onMouseDown);
+      el.removeEventListener('pointerdown', onPointerDown);
+      el.removeEventListener('mousedown', onMiddleDown);
       el.removeEventListener('auxclick', onAuxClick);
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onMouseUp);
+      el.removeEventListener('click', onClickCapture, true);
+      document.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('pointerup', onPointerUp);
     };
   }, []);
 
