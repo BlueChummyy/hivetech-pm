@@ -444,7 +444,7 @@ router.get(
         include: {
           workspace: { select: { id: true, name: true } },
           space: { select: { id: true, name: true } },
-          _count: { select: { tasks: true, members: true } },
+          _count: { select: { tasks: { where: { deletedAt: null, closedAt: null } }, members: true } },
         },
       });
 
@@ -482,7 +482,7 @@ router.patch(
         include: {
           workspace: { select: { id: true, name: true } },
           space: { select: { id: true, name: true } },
-          _count: { select: { tasks: true, members: true } },
+          _count: { select: { tasks: { where: { deletedAt: null, closedAt: null } }, members: true } },
         },
       });
 
@@ -700,7 +700,7 @@ router.get(
         include: {
           workspace: { select: { id: true, name: true } },
           space: { select: { id: true, name: true } },
-          _count: { select: { tasks: true, members: true } },
+          _count: { select: { tasks: { where: { deletedAt: null, closedAt: null } }, members: true } },
         },
       });
       res.json(successResponse(projects));

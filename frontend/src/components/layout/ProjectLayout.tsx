@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { NavLink, Outlet, useParams, useLocation } from 'react-router-dom';
-import { Columns3, List, GanttChart, Settings, Loader2, Clock, CalendarDays, Plus } from 'lucide-react';
+import { NavLink, Outlet, useParams, useLocation, useNavigate } from 'react-router-dom';
+import { Columns3, List, GanttChart, Settings, Loader2, Clock, CalendarDays, Plus, X } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useProject } from '@/hooks/useProjects';
 import { useProjectSocketEvents } from '@/hooks/useProjectSocketEvents';
@@ -46,6 +46,7 @@ function saveEnabledViews(projectId: string, views: string[]) {
 export function ProjectLayout() {
   const { projectId } = useParams<{ projectId: string }>();
   const location = useLocation();
+  const navigate = useNavigate();
   const { data: project, isLoading } = useProject(projectId ?? '');
   const permissions = useProjectPermissions(projectId);
 
@@ -56,14 +57,16 @@ export function ProjectLayout() {
   );
   const [showViewPicker, setShowViewPicker] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
 
   // Close picker on click outside
   useEffect(() => {
     if (!showViewPicker) return;
     function handleClick(e: MouseEvent) {
-      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
-        setShowViewPicker(false);
-      }
+      const target = e.target as Node;
+      if (pickerRef.current?.contains(target)) return;
+      if (dropdownRef.current?.contains(target)) return;
+      setShowViewPicker(false);
     }
     function handleKey(e: KeyboardEvent) {
       if (e.key === 'Escape') setShowViewPicker(false);
@@ -107,6 +110,11 @@ export function ProjectLayout() {
       // Don't allow removing the last view
       if (enabledViews.length <= 1) return;
       next = enabledViews.filter((v) => v !== path);
+      // If removing the currently active view, navigate to the first remaining view
+      const currentPath = location.pathname.split('/').pop();
+      if (currentPath === path) {
+        navigate(next[0]);
+      }
     } else {
       next = [...enabledViews, path];
     }
@@ -146,22 +154,37 @@ export function ProjectLayout() {
         <nav className="flex items-center gap-1 px-6 pt-3 overflow-x-auto scrollbar-hide" role="tablist" aria-label="Project views">
           {activeTabs.map((tab) => {
             const isActive = location.pathname.endsWith(`/${tab.path}`);
+            const canRemove = enabledViews.length > 1;
             return (
-              <NavLink
-                key={tab.path}
-                to={tab.path}
-                role="tab"
-                aria-selected={isActive}
-                className={cn(
-                  'flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition-colors',
-                  isActive
-                    ? 'border-primary-500 text-white'
-                    : 'border-transparent text-gray-400 hover:text-gray-200',
+              <div key={tab.path} className="group/tab relative flex shrink-0 items-center">
+                <NavLink
+                  to={tab.path}
+                  role="tab"
+                  aria-selected={isActive}
+                  className={cn(
+                    'flex shrink-0 items-center gap-1.5 border-b-2 pl-3 pr-7 py-2 text-sm font-medium transition-colors',
+                    isActive
+                      ? 'border-primary-500 text-white'
+                      : 'border-transparent text-gray-400 hover:text-gray-200',
+                  )}
+                >
+                  <tab.icon className="h-4 w-4" aria-hidden="true" />
+                  {tab.label}
+                </NavLink>
+                {canRemove && (
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      toggleView(tab.path);
+                    }}
+                    className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/tab:opacity-100 rounded p-0.5 text-gray-500 hover:text-gray-200 hover:bg-surface-700 transition-all"
+                    title={`Remove ${tab.label} view`}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
                 )}
-              >
-                <tab.icon className="h-4 w-4" aria-hidden="true" />
-                {tab.label}
-              </NavLink>
+              </div>
             );
           })}
 
@@ -204,6 +227,7 @@ export function ProjectLayout() {
         {showViewPicker && (
           <div
             ref={(el) => {
+              dropdownRef.current = el;
               if (!el || !pickerRef.current) return;
               const btn = pickerRef.current.getBoundingClientRect();
               el.style.position = 'fixed';

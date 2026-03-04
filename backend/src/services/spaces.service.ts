@@ -65,7 +65,7 @@ export class SpacesService {
           where: { deletedAt: null },
           orderBy: { name: 'asc' },
           include: {
-            _count: { select: { tasks: { where: { deletedAt: null } } } },
+            _count: { select: { tasks: { where: { deletedAt: null, closedAt: null } } } },
           },
         },
         _count: { select: { projects: { where: { deletedAt: null } } } },
@@ -81,7 +81,7 @@ export class SpacesService {
           where: { deletedAt: null },
           orderBy: { name: 'asc' },
           include: {
-            _count: { select: { tasks: { where: { deletedAt: null } } } },
+            _count: { select: { tasks: { where: { deletedAt: null, closedAt: null } } } },
           },
         },
         _count: { select: { projects: { where: { deletedAt: null } } } },
