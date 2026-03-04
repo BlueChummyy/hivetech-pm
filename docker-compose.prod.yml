@@ -47,6 +47,8 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost}
       UPLOAD_DIR: /app/uploads
       MAX_FILE_SIZE: ${MAX_FILE_SIZE:-10485760}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+      OAUTH_CALLBACK_BASE_URL: ${OAUTH_CALLBACK_BASE_URL:-http://localhost}
     volumes:
       - uploads:/app/uploads
     depends_on:

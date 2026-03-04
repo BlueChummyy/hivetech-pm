@@ -2124,21 +2124,52 @@ export function AdminDashboardPage() {
 
 type ProviderType = 'GOOGLE' | 'MICROSOFT' | 'OIDC';
 
-const PROVIDER_INFO: Record<ProviderType, { label: string; description: string; fields: string[] }> = {
+const PROVIDER_INFO: Record<ProviderType, { label: string; description: string; fields: string[]; callbackPath: string; steps: string[] }> = {
   GOOGLE: {
     label: 'Google',
     description: 'Allow users to sign in with their Google accounts.',
     fields: ['clientId', 'clientSecret'],
+    callbackPath: '/api/v1/auth/google/callback',
+    steps: [
+      'Go to the Google Cloud Console (console.cloud.google.com)',
+      'Create a new project or select an existing one',
+      'Navigate to APIs & Services > Credentials',
+      'Click "Create Credentials" > "OAuth client ID"',
+      'Select "Web application" as the application type',
+      'Add your app URL to "Authorized JavaScript origins"',
+      'Add the Redirect URI shown below to "Authorized redirect URIs"',
+      'Copy the Client ID and Client Secret into the fields below',
+    ],
   },
   MICROSOFT: {
     label: 'Microsoft',
     description: 'Allow users to sign in with Microsoft / Azure AD accounts.',
     fields: ['clientId', 'clientSecret', 'tenantId'],
+    callbackPath: '/api/v1/auth/microsoft/callback',
+    steps: [
+      'Go to the Azure Portal (portal.azure.com)',
+      'Navigate to Azure Active Directory > App registrations',
+      'Click "New registration"',
+      'Set "Supported account types" based on your needs (single tenant or multi-tenant)',
+      'Add the Redirect URI shown below as a "Web" platform redirect URI',
+      'Under "Certificates & secrets", create a new client secret',
+      'Copy the Application (client) ID and secret value into the fields below',
+      'Optionally enter your Directory (tenant) ID — leave blank for multi-tenant ("common")',
+    ],
   },
   OIDC: {
     label: 'OIDC (Okta, Auth0, etc.)',
     description: 'Allow users to sign in with any OpenID Connect provider.',
     fields: ['clientId', 'clientSecret', 'issuerUrl'],
+    callbackPath: '/api/v1/auth/oidc/callback',
+    steps: [
+      'Create a new "Web Application" in your OIDC provider (Okta, Auth0, Keycloak, etc.)',
+      'Set the sign-in redirect URI to the Redirect URI shown below',
+      'Copy the Client ID, Client Secret, and Issuer URL into the fields below',
+      'The Issuer URL must support OpenID Connect Discovery (/.well-known/openid-configuration)',
+      'For Okta: the issuer URL looks like https://your-org.okta.com/oauth2/default',
+      'For Auth0: the issuer URL looks like https://your-tenant.auth0.com',
+    ],
   },
 };
 
@@ -2270,6 +2301,35 @@ function AuthProviderCard({
 
         {expanded && (
           <div className="mt-4 space-y-3 border-t border-surface-700 pt-4">
+            {/* Setup instructions */}
+            <div className="rounded-lg border border-surface-600 bg-surface-800/50 p-3">
+              <h4 className="text-xs font-semibold text-surface-200 uppercase tracking-wider mb-2">Setup Instructions</h4>
+              <ol className="list-decimal list-inside space-y-1 text-xs text-surface-400">
+                {info.steps.map((step, i) => (
+                  <li key={i}>{step}</li>
+                ))}
+              </ol>
+            </div>
+
+            {/* Redirect URI */}
+            <div>
+              <label className="block text-xs font-medium text-surface-400 mb-1">Redirect URI (copy this into your provider)</label>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 rounded-lg border border-surface-600 bg-surface-900 px-3 py-2 text-sm text-primary-300 font-mono select-all overflow-x-auto">
+                  {window.location.origin}{info.callbackPath}
+                </code>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}${info.callbackPath}`);
+                  }}
+                  className="shrink-0 rounded-lg border border-surface-600 bg-surface-700 px-2.5 py-2 text-xs text-surface-300 hover:bg-surface-600 hover:text-surface-100 transition-colors"
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
+
             <label className="flex items-center gap-2 text-sm text-surface-200">
               <input
                 type="checkbox"
