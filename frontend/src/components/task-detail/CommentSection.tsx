@@ -71,6 +71,7 @@ export function CommentSection({ taskId, canComment = true, isProjectAdmin = fal
   const [mentionStartPos, setMentionStartPos] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const mentionsMapRef = useRef<Map<string, string>>(new Map()); // displayName → userId
 
   const memberSuggestions: MemberSuggestion[] = (workspaceMembers || []).map((m: any) => ({
     id: m.id,
@@ -98,18 +99,32 @@ export function CommentSection({ taskId, canComment = true, isProjectAdmin = fal
   function insertMention(member: MemberSuggestion) {
     const before = content.slice(0, mentionStartPos);
     const after = content.slice(textareaRef.current?.selectionStart ?? content.length);
-    // Remove the trailing partial @query text between mentionStartPos and cursor
-    const newContent = `${before}@[${member.name}](${member.userId}) ${after}`;
+    const displayText = `@${member.name}`;
+    // Store the mapping so we can convert to @[Name](userId) on submit
+    mentionsMapRef.current.set(member.name, member.userId);
+    const newContent = `${before}${displayText} ${after}`;
     setContent(newContent);
     closeMentionDropdown();
     // Restore focus
     setTimeout(() => {
       if (textareaRef.current) {
-        const cursorPos = before.length + `@[${member.name}](${member.userId}) `.length;
+        const cursorPos = before.length + displayText.length + 1;
         textareaRef.current.focus();
         textareaRef.current.setSelectionRange(cursorPos, cursorPos);
       }
     }, 0);
+  }
+
+  // Convert @Name display format to @[Name](userId) storage format
+  function convertMentionsForStorage(text: string): string {
+    let result = text;
+    mentionsMapRef.current.forEach((userId, name) => {
+      // Replace all @Name occurrences (word boundary after name or end of string)
+      const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`@${escaped}(?=\\s|$|[.,!?;:])`, 'g');
+      result = result.replace(regex, `@[${name}](${userId})`);
+    });
+    return result;
   }
 
   function handleTextareaChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
@@ -127,7 +142,7 @@ export function CommentSection({ taskId, canComment = true, isProjectAdmin = fal
       if (lastAtIndex === 0 || /\s/.test(charBeforeAt)) {
         const query = textUpToCursor.slice(lastAtIndex + 1);
         // Only show dropdown if query doesn't contain newlines or special bracket chars
-        if (!query.includes('\n') && !query.includes('[') && !query.includes(']')) {
+        if (!query.includes('\n')) {
           setMentionQuery(query);
           setMentionStartPos(lastAtIndex);
           return;
@@ -168,10 +183,14 @@ export function CommentSection({ taskId, canComment = true, isProjectAdmin = fal
   function handleSubmit() {
     if (!content.trim()) return;
     closeMentionDropdown();
+    const storageContent = convertMentionsForStorage(content.trim());
     createComment.mutate(
-      { taskId, data: { content: content.trim() } },
+      { taskId, data: { content: storageContent } },
       {
-        onSuccess: () => setContent(''),
+        onSuccess: () => {
+          setContent('');
+          mentionsMapRef.current.clear();
+        },
         onError: (err) => {
           toast({ type: 'error', title: 'Failed to post comment', description: (err as Error).message });
         },
