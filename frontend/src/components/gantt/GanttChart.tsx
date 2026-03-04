@@ -7,6 +7,7 @@ import { cn } from '@/utils/cn';
 interface GanttChartProps {
   tasks: Task[];
   isLoading?: boolean;
+  projectId?: string;
 }
 
 const ROW_HEIGHT = 40;
@@ -16,7 +17,7 @@ const SCALE_OPTIONS: { value: TimeScale; label: string }[] = [
   { value: 'month', label: 'Month' },
 ];
 
-export function GanttChart({ tasks, isLoading }: GanttChartProps) {
+export function GanttChart({ tasks, isLoading, projectId }: GanttChartProps) {
   const [scale, setScale] = useState<TimeScale>('week');
   const [listWidth, setListWidth] = useState(
     typeof window !== 'undefined' && window.innerWidth < 768 ? 160 : 340,
@@ -119,7 +120,7 @@ export function GanttChart({ tasks, isLoading }: GanttChartProps) {
 
         {/* Right panel: Timeline */}
         <div className="flex-1 overflow-auto">
-          <GanttTimeline tasks={sortedTasks} scale={scale} rowHeight={ROW_HEIGHT} />
+          <GanttTimeline tasks={sortedTasks} scale={scale} rowHeight={ROW_HEIGHT} projectId={projectId} />
         </div>
       </div>
     </div>

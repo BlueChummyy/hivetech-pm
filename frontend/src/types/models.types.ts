@@ -101,6 +101,8 @@ export interface Project {
   name: string;
   key: string;
   description: string | null;
+  autoArchive?: boolean;
+  autoArchiveDelay?: number;
   createdAt: string;
   updatedAt: string;
   workspace?: Workspace;

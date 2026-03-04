@@ -502,7 +502,12 @@ function ColorPicker({
   const handleToggle = () => {
     if (!open && triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
-      setPos({ top: rect.bottom + 4, left: rect.left });
+      const pickerHeight = 200;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const top = spaceBelow < pickerHeight
+        ? rect.top - pickerHeight
+        : rect.bottom + 4;
+      setPos({ top: Math.max(8, top), left: rect.left });
     }
     setOpen(!open);
   };

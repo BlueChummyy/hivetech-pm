@@ -7,6 +7,7 @@ import { useUIStore } from '@/store/ui.store';
 import { useWorkspaceStore } from '@/store/workspace.store';
 import { useNotificationSocket } from '@/hooks/useNotificationSocket';
 import { useWorkspaceSocketEvents } from '@/hooks/useWorkspaceSocketEvents';
+import { useBrandingEffect } from '@/hooks/useBrandingEffect';
 
 export function AppLayout() {
   const { sidebarOpen } = useUIStore();
@@ -14,6 +15,7 @@ export function AppLayout() {
 
   useNotificationSocket();
   useWorkspaceSocketEvents(activeWorkspaceId ?? undefined);
+  useBrandingEffect(activeWorkspaceId ?? '');
 
   return (
     <div className="flex h-screen bg-surface-950 text-surface-100">

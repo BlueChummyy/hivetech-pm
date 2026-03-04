@@ -264,11 +264,13 @@ export class TasksService {
     if (!existing) throw ApiError.notFound('Task not found');
 
     // If statusId is changing, verify new status belongs to same project
+    let newStatus: { id: string; category: string } | null = null;
     if (data.statusId && data.statusId !== existing.statusId) {
       const status = await prisma.projectStatus.findFirst({
         where: { id: data.statusId, projectId: existing.projectId },
       });
       if (!status) throw ApiError.badRequest('Status does not belong to this project');
+      newStatus = status;
     }
 
     // Determine assigneeId for backward compat
@@ -288,6 +290,18 @@ export class TasksService {
       updateData.assigneeId = data.assigneeIds.length > 0 ? data.assigneeIds[0] : null;
     } else if (data.assigneeId !== undefined) {
       updateData.assigneeId = data.assigneeId;
+    }
+
+    // Auto-archive: if status changed to DONE/CANCELLED and project has autoArchive enabled
+    if (newStatus && ['DONE', 'CANCELLED'].includes(newStatus.category) && !existing.closedAt) {
+      const project = await prisma.project.findUnique({
+        where: { id: existing.projectId },
+        select: { autoArchive: true, autoArchiveDelay: true },
+      });
+      if (project?.autoArchive && project.autoArchiveDelay === 0) {
+        updateData.closedAt = new Date();
+        updateData.closedById = updatedByUserId || null;
+      }
     }
 
     const task = await prisma.task.update({

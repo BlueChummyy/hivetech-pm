@@ -21,6 +21,7 @@ import { useUIStore } from '@/store/ui.store';
 import { useAuthStore } from '@/store/auth.store';
 import { useWorkspaceStore } from '@/store/workspace.store';
 import { useWorkspaces } from '@/hooks/useWorkspaces';
+import { useBranding } from '@/hooks/useBranding';
 import { useSpaces, useCreateSpace, useUpdateSpace, useDeleteSpace } from '@/hooks/useSpaces';
 import { useProjects, useCreateProject } from '@/hooks/useProjects';
 import { useMoveTaskToProject } from '@/hooks/useTasks';
@@ -36,6 +37,7 @@ export function Sidebar() {
   const user = useAuthStore((s) => s.user);
   const { activeWorkspaceId, setActiveWorkspace } = useWorkspaceStore();
   const { data: workspaces } = useWorkspaces();
+  const { data: branding } = useBranding(activeWorkspaceId ?? '');
 
   // Auto-select first workspace if none selected
   useEffect(() => {
@@ -87,10 +89,16 @@ export function Sidebar() {
           'flex items-center',
           sidebarCollapsed ? 'flex-col gap-1' : 'gap-3 px-2',
         )}>
-          <img src="/logo.png" alt="HiveTech" className="h-8 w-8 shrink-0" />
+          <img
+            src={branding?.logoUrl
+              ? `${import.meta.env.VITE_API_URL?.replace('/api/v1', '') || ''}${branding.logoUrl}`
+              : '/logo.png'}
+            alt={branding?.orgName || 'HiveTech'}
+            className="h-8 w-8 shrink-0 rounded object-cover"
+          />
           {!sidebarCollapsed && (
             <span className="min-w-0 flex-1 text-sm font-bold leading-tight text-surface-100">
-              HiveTech Project Management
+              {branding?.orgName || 'HiveTech Project Management'}
             </span>
           )}
           <button

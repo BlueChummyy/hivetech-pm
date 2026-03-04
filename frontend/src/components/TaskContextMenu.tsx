@@ -31,9 +31,14 @@ export function TaskContextMenu({ task, className }: TaskContextMenuProps) {
         const rect = triggerRef.current.getBoundingClientRect();
         // Position menu below-right of trigger, but ensure it stays in viewport
         const menuWidth = 180;
+        const menuHeight = 200;
         let left = rect.right - menuWidth;
         if (left < 8) left = rect.left;
-        setPos({ top: rect.bottom + 4, left });
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const top = spaceBelow < menuHeight
+          ? rect.top - menuHeight
+          : rect.bottom + 4;
+        setPos({ top: Math.max(8, top), left });
       }
       return !prev;
     });

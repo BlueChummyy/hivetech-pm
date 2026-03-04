@@ -43,8 +43,13 @@ export function DropdownMenu({ trigger, children, align = 'right', className, po
   useEffect(() => {
     if (!open || !portal || !ref.current) return;
     const rect = ref.current.getBoundingClientRect();
+    const menuHeight = 200;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const top = spaceBelow < menuHeight
+      ? rect.top - menuHeight
+      : rect.bottom + 4;
     setMenuPos({
-      top: rect.bottom + 4,
+      top: Math.max(8, top),
       left: align === 'right' ? rect.right : rect.left,
     });
   }, [open, portal, align]);

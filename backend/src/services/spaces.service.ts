@@ -62,12 +62,13 @@ export class SpacesService {
       orderBy: { position: 'asc' },
       include: {
         projects: {
+          where: { deletedAt: null },
           orderBy: { name: 'asc' },
           include: {
             _count: { select: { tasks: { where: { deletedAt: null } } } },
           },
         },
-        _count: { select: { projects: true } },
+        _count: { select: { projects: { where: { deletedAt: null } } } },
       },
     });
   }
@@ -77,12 +78,13 @@ export class SpacesService {
       where: { id },
       include: {
         projects: {
+          where: { deletedAt: null },
           orderBy: { name: 'asc' },
           include: {
             _count: { select: { tasks: { where: { deletedAt: null } } } },
           },
         },
-        _count: { select: { projects: true } },
+        _count: { select: { projects: { where: { deletedAt: null } } } },
       },
     });
     if (!space) throw ApiError.notFound('Space not found');

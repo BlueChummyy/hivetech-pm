@@ -12,6 +12,8 @@ export interface CreateProjectData {
 export interface UpdateProjectData {
   name?: string;
   description?: string;
+  autoArchive?: boolean;
+  autoArchiveDelay?: number;
 }
 
 export interface CreateStatusData {

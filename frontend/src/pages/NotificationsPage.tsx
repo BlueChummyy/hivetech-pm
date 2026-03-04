@@ -147,7 +147,7 @@ export function NotificationsPage() {
                 if (!notification.isRead) {
                   markAsRead.mutate(notification.id);
                 }
-                if (notification.resourceType === 'TASK' && notification.resourceId) {
+                if (notification.resourceType?.toLowerCase() === 'task' && notification.resourceId) {
                   useUIStore.getState().openTaskPanel(notification.resourceId);
                 }
               }}

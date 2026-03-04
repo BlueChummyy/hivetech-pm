@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import {
   addDays,
   addWeeks,
@@ -13,6 +13,7 @@ import {
 } from 'date-fns';
 import type { Task } from '@/types/models.types';
 import { GanttBar } from './GanttBar';
+import { GanttCreatePopover } from './GanttCreatePopover';
 
 export type TimeScale = 'day' | 'week' | 'month';
 
@@ -20,6 +21,7 @@ interface GanttTimelineProps {
   tasks: Task[];
   scale: TimeScale;
   rowHeight: number;
+  projectId?: string;
 }
 
 function getColumnWidth(scale: TimeScale): number {
@@ -116,7 +118,7 @@ function formatTopHeader(date: Date, scale: TimeScale): string | null {
   }
 }
 
-export function GanttTimeline({ tasks, scale, rowHeight }: GanttTimelineProps) {
+export function GanttTimeline({ tasks, scale, rowHeight, projectId }: GanttTimelineProps) {
   const colWidth = getColumnWidth(scale);
   const dateRange = useMemo(() => getDateRange(tasks, scale), [tasks, scale]);
   const columns = useMemo(
@@ -125,16 +127,22 @@ export function GanttTimeline({ tasks, scale, rowHeight }: GanttTimelineProps) {
   );
 
   const totalWidth = columns.length * colWidth;
+  const dayWidth = scale === 'day' ? colWidth : scale === 'week' ? colWidth / 7 : colWidth / 30;
 
   // Today marker position
   const todayOffset = differenceInDays(startOfDay(new Date()), dateRange.start) * (scale === 'day' ? colWidth : colWidth / 7);
+
+  // Click-to-create state
+  const [createPopover, setCreatePopover] = useState<{
+    startDate: Date;
+    position: { x: number; y: number };
+  } | null>(null);
 
   function getTaskPosition(task: Task) {
     if (!task.dueDate) return null;
 
     const dueDate = new Date(task.dueDate);
     const taskStart = task.startDate ? new Date(task.startDate) : addDays(dueDate, -3);
-    const dayWidth = scale === 'day' ? colWidth : scale === 'week' ? colWidth / 7 : colWidth / 30;
 
     const left = differenceInDays(startOfDay(taskStart), dateRange.start) * dayWidth;
     const duration = Math.max(differenceInDays(startOfDay(dueDate), startOfDay(taskStart)), 1);
@@ -143,11 +151,38 @@ export function GanttTimeline({ tasks, scale, rowHeight }: GanttTimelineProps) {
     return { left, width };
   }
 
+  const handleTimelineClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!projectId) return;
+
+      // Only trigger on clicks directly on the timeline area (not on bars)
+      const target = e.target as HTMLElement;
+      if (target.closest('button') || target.closest('[data-gantt-bar]')) return;
+
+      const rect = e.currentTarget.getBoundingClientRect();
+      const clickX = e.clientX - rect.left + e.currentTarget.scrollLeft;
+
+      // Calculate date from click position
+      const daysFromStart = Math.floor(clickX / dayWidth);
+      const clickDate = addDays(dateRange.start, daysFromStart);
+
+      setCreatePopover({
+        startDate: startOfDay(clickDate),
+        position: { x: e.clientX, y: e.clientY },
+      });
+    },
+    [projectId, dayWidth, dateRange.start],
+  );
+
   const scheduledTasks = tasks.filter((t) => t.dueDate);
   const unscheduledTasks = tasks.filter((t) => !t.dueDate);
 
   return (
-    <div className="relative min-h-full" style={{ width: `${totalWidth}px` }}>
+    <div
+      className="relative min-h-full"
+      style={{ width: `${totalWidth}px` }}
+      onClick={handleTimelineClick}
+    >
       {/* Top header row (month/year grouping) */}
       {scale === 'day' && (
         <div
@@ -227,6 +262,8 @@ export function GanttTimeline({ tasks, scale, rowHeight }: GanttTimelineProps) {
                 left={pos.left}
                 width={pos.width}
                 rowHeight={rowHeight}
+                dayWidth={dayWidth}
+                dateRangeStart={dateRange.start}
               />
             </div>
           );
@@ -257,7 +294,27 @@ export function GanttTimeline({ tasks, scale, rowHeight }: GanttTimelineProps) {
             ))}
           </>
         )}
+
+        {/* Empty area hint for click-to-create */}
+        {projectId && tasks.length === 0 && (
+          <div
+            className="flex items-center justify-center text-xs text-surface-500"
+            style={{ height: `${rowHeight * 3}px` }}
+          >
+            Click anywhere on the timeline to create a task
+          </div>
+        )}
       </div>
+
+      {/* Create popover */}
+      {createPopover && projectId && (
+        <GanttCreatePopover
+          projectId={projectId}
+          startDate={createPopover.startDate}
+          position={createPopover.position}
+          onClose={() => setCreatePopover(null)}
+        />
+      )}
     </div>
   );
 }

@@ -183,6 +183,7 @@ export function BoardPage() {
           tasks={filteredTasks}
           statuses={statuses}
           projectId={projectId ?? ''}
+          groupBy={filters.groupBy}
         />
       </div>
     </div>

@@ -121,7 +121,7 @@ export function GanttPage() {
         members={members}
         labels={labels}
       />
-      <GanttChart tasks={filteredTasks} isLoading={isLoading} />
+      <GanttChart tasks={filteredTasks} isLoading={isLoading} projectId={projectId} />
     </div>
   );
 }

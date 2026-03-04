@@ -46,6 +46,8 @@ router.patch(
     body: z.object({
       name: z.string().min(1).max(100).optional(),
       description: z.string().optional(),
+      autoArchive: z.boolean().optional(),
+      autoArchiveDelay: z.number().int().min(0).optional(),
     }),
   }),
   controller.update,

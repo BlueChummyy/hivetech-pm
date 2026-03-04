@@ -62,8 +62,13 @@ export function AssigneeSelector({
   const updatePos = useCallback(() => {
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
+    const dropdownHeight = 300;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const top = spaceBelow < dropdownHeight
+      ? rect.top - dropdownHeight
+      : rect.bottom + 4;
     setPos({
-      top: rect.bottom + 4,
+      top: Math.max(8, top),
       left: rect.left,
       width: Math.max(rect.width, 260),
     });

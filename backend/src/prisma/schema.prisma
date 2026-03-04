@@ -113,8 +113,23 @@ model Workspace {
   spaces       Space[]
   projects     Project[]
   activityLogs ActivityLog[]
+  branding     Branding?
 
   @@map("workspaces")
+}
+
+model Branding {
+  id           String   @id @default(cuid())
+  workspaceId  String   @unique @map("workspace_id")
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  logoUrl      String?  @map("logo_url")
+  faviconUrl   String?  @map("favicon_url")
+  orgName      String?  @map("org_name")
+  primaryColor String?  @map("primary_color")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("brandings")
 }
 
 model Space {
@@ -155,15 +170,17 @@ model WorkspaceMember {
 }
 
 model Project {
-  id          String    @id @default(cuid())
-  workspaceId String    @map("workspace_id")
-  spaceId     String?   @map("space_id")
-  name        String
-  key         String
-  description String?
-  taskCounter Int       @default(0) @map("task_counter")
-  deletedAt   DateTime? @map("deleted_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
+  id               String    @id @default(cuid())
+  workspaceId      String    @map("workspace_id")
+  spaceId          String?   @map("space_id")
+  name             String
+  key              String
+  description      String?
+  taskCounter      Int       @default(0) @map("task_counter")
+  autoArchive      Boolean   @default(false) @map("auto_archive")
+  autoArchiveDelay Int       @default(0) @map("auto_archive_delay")
+  deletedAt        DateTime? @map("deleted_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
   workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)

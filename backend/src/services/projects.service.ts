@@ -108,7 +108,7 @@ export class ProjectsService {
     return project;
   }
 
-  async update(id: string, data: { name?: string; description?: string }, userId: string) {
+  async update(id: string, data: { name?: string; description?: string; autoArchive?: boolean; autoArchiveDelay?: number }, userId: string) {
     const project = await prisma.project.findUnique({ where: { id } });
     if (!project) throw ApiError.notFound('Project not found');
 
