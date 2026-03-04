@@ -4,7 +4,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { format } from 'date-fns';
 import { useParams } from 'react-router-dom';
-import { GripVertical, ChevronRight, ChevronDown, MessageSquare, Paperclip, Flag } from 'lucide-react';
+import { GripVertical, ChevronRight, ChevronDown, Clock, MessageSquare, Paperclip, Flag, Repeat } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useUIStore } from '@/store/ui.store';
 import { useUpdateTask } from '@/hooks/useTasks';
@@ -579,9 +579,11 @@ interface TaskTableRowProps {
   isExpanded?: boolean;
   onToggleExpand?: () => void;
   subtaskCount?: number;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 }
 
-export function TaskTableRow({ task, statuses, dragEnabled, overlay, depth = 0, hasChildren, isExpanded, onToggleExpand, subtaskCount }: TaskTableRowProps) {
+export function TaskTableRow({ task, statuses, dragEnabled, overlay, depth = 0, hasChildren, isExpanded, onToggleExpand, subtaskCount, isSelected, onToggleSelect }: TaskTableRowProps) {
   const {
     attributes,
     listeners,
@@ -615,6 +617,7 @@ export function TaskTableRow({ task, statuses, dragEnabled, overlay, depth = 0, 
         isDragging && 'opacity-50',
         overlay && 'bg-[#1E1E26] shadow-xl shadow-black/40 border border-white/[0.08]',
         task.closedAt && 'opacity-50',
+        isSelected && 'bg-primary-500/[0.08]',
       )}
     >
       {/* Drag handle */}
@@ -630,6 +633,30 @@ export function TaskTableRow({ task, statuses, dragEnabled, overlay, depth = 0, 
             <GripVertical className="h-4 w-4" />
           </button>
         ) : null}
+      </td>
+
+      {/* Checkbox */}
+      <td className="w-8 px-1 py-2.5" onClick={(e) => e.stopPropagation()}>
+        {!overlay && onToggleSelect && (
+          <button
+            onClick={onToggleSelect}
+            className="flex items-center justify-center"
+            aria-label={isSelected ? 'Deselect task' : 'Select task'}
+          >
+            <span
+              className={cn(
+                'flex h-4 w-4 items-center justify-center rounded border shrink-0',
+                isSelected ? 'border-primary-500 bg-primary-500' : 'border-white/[0.15]',
+              )}
+            >
+              {isSelected && (
+                <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </span>
+          </button>
+        )}
       </td>
 
       {/* Task number */}
@@ -683,6 +710,17 @@ export function TaskTableRow({ task, statuses, dragEnabled, overlay, depth = 0, 
                 <span className="flex shrink-0 items-center gap-0.5 text-gray-400" title={`${task._count!.attachments} attachment${task._count!.attachments !== 1 ? 's' : ''}`}>
                   <Paperclip className="h-3 w-3" />
                   <span className="text-[10px]">{task._count!.attachments}</span>
+                </span>
+              )}
+              {(task._count?.timeEntries ?? 0) > 0 && (
+                <span className="flex shrink-0 items-center gap-0.5 text-gray-400" title={`${task._count!.timeEntries} time entr${task._count!.timeEntries !== 1 ? 'ies' : 'y'}`}>
+                  <Clock className="h-3 w-3" />
+                  <span className="text-[10px]">{task._count!.timeEntries}</span>
+                </span>
+              )}
+              {task.recurrenceRule && (
+                <span className="flex shrink-0 items-center gap-0.5 text-primary-400" title="Recurring task">
+                  <Repeat className="h-3 w-3" />
                 </span>
               )}
             </div>

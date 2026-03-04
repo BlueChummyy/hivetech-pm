@@ -1,21 +1,28 @@
+import { useState, useCallback } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { TaskDetailPanel } from '@/components/task-detail/TaskDetailPanel';
 import { ToastContainer } from './ToastContainer';
+import { KeyboardShortcutsModal } from '@/components/KeyboardShortcutsModal';
 import { useUIStore } from '@/store/ui.store';
 import { useWorkspaceStore } from '@/store/workspace.store';
 import { useNotificationSocket } from '@/hooks/useNotificationSocket';
 import { useWorkspaceSocketEvents } from '@/hooks/useWorkspaceSocketEvents';
 import { useBrandingEffect } from '@/hooks/useBrandingEffect';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 
 export function AppLayout() {
   const { sidebarOpen } = useUIStore();
   const { activeWorkspaceId } = useWorkspaceStore();
+  const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
+
+  const openShortcutsModal = useCallback(() => setShortcutsModalOpen(true), []);
 
   useNotificationSocket();
   useWorkspaceSocketEvents(activeWorkspaceId ?? undefined);
   useBrandingEffect();
+  useKeyboardShortcuts(openShortcutsModal);
 
   return (
     <div className="flex h-screen bg-surface-950 text-surface-100">
@@ -65,6 +72,10 @@ export function AppLayout() {
 
       <TaskDetailPanel />
       <ToastContainer />
+      <KeyboardShortcutsModal
+        open={shortcutsModalOpen}
+        onClose={() => setShortcutsModalOpen(false)}
+      />
     </div>
   );
 }

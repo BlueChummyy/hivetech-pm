@@ -55,19 +55,29 @@ enum NotificationType {
   STATUS_CHANGED
 }
 
+enum AuthProvider {
+  LOCAL
+  GOOGLE
+  MICROSOFT
+  OIDC
+}
+
 // ─── Models ──────────────────────────────────────────────────────────
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  firstName    String   @map("first_name")
-  lastName     String   @map("last_name")
-  avatarUrl    String?  @map("avatar_url")
-  isActive     Boolean  @default(true) @map("is_active")
-  deletedAt    DateTime? @map("deleted_at")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id            String       @id @default(cuid())
+  email         String       @unique
+  passwordHash  String?      @map("password_hash")
+  firstName     String       @map("first_name")
+  lastName      String       @map("last_name")
+  avatarUrl     String?      @map("avatar_url")
+  authProvider  AuthProvider @default(LOCAL) @map("auth_provider")
+  providerId    String?      @map("provider_id")
+  providerEmail String?      @map("provider_email")
+  isActive      Boolean      @default(true) @map("is_active")
+  deletedAt     DateTime?    @map("deleted_at")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
 
   refreshTokens    RefreshToken[]
   workspaceMembers WorkspaceMember[]
@@ -81,7 +91,9 @@ model User {
   notifications    Notification[]
   activityLogs     ActivityLog[]
   taskTemplates    TaskTemplate[]
+  timeEntries      TimeEntry[]     @relation("TimeEntryUser")
 
+  @@index([providerId])
   @@map("users")
 }
 
@@ -245,9 +257,14 @@ model Task {
   startDate      DateTime? @map("start_date")
   dueDate        DateTime? @map("due_date")
   estimatedHours Float?    @map("estimated_hours")
-  closedAt       DateTime? @map("closed_at")
-  closedById     String?   @map("closed_by_id")
-  deletedAt      DateTime? @map("deleted_at")
+  closedAt           DateTime? @map("closed_at")
+  closedById         String?   @map("closed_by_id")
+  recurrenceRule     String?   @map("recurrence_rule")
+  recurrenceInterval Int       @default(1) @map("recurrence_interval")
+  recurrenceDays     String[]  @map("recurrence_days")
+  nextRecurrence     DateTime? @map("next_recurrence")
+  recurrenceEndDate  DateTime? @map("recurrence_end_date")
+  deletedAt          DateTime? @map("deleted_at")
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
@@ -265,6 +282,7 @@ model Task {
   comments       Comment[]
   attachments    Attachment[]
   assignees      TaskAssignee[]
+  timeEntries    TimeEntry[]
 
   @@unique([projectId, taskNumber])
   @@index([projectId])
@@ -274,6 +292,7 @@ model Task {
   @@index([parentId])
   @@index([deletedAt])
   @@index([closedAt])
+  @@index([nextRecurrence])
   @@map("tasks")
 }
 
@@ -405,6 +424,24 @@ model TaskTemplate {
   @@map("task_templates")
 }
 
+model TimeEntry {
+  id          String   @id @default(cuid())
+  taskId      String   @map("task_id")
+  userId      String   @map("user_id")
+  hours       Decimal  @db.Decimal(6, 2)
+  description String?
+  date        DateTime @db.Date
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation("TimeEntryUser", fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([taskId])
+  @@index([userId])
+  @@map("time_entries")
+}
+
 model ActivityLog {
   id          String   @id @default(cuid())
   workspaceId String   @map("workspace_id")
@@ -422,4 +459,18 @@ model ActivityLog {
   @@index([entityType, entityId])
   @@index([userId])
   @@map("activity_logs")
+}
+
+model OAuthProvider {
+  id           String       @id @default(cuid())
+  provider     AuthProvider  @unique
+  clientId     String       @map("client_id")
+  clientSecret String       @map("client_secret")
+  tenantId     String?      @map("tenant_id")
+  issuerUrl    String?      @map("issuer_url")
+  enabled      Boolean      @default(false)
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  @@map("oauth_providers")
 }

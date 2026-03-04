@@ -1,11 +1,12 @@
 import { useNavigate } from 'react-router-dom';
-import { Menu, Search, Settings, LogOut, User } from 'lucide-react';
+import { Menu, Settings, LogOut, User } from 'lucide-react';
 import { useUIStore } from '@/store/ui.store';
 import { useAuthStore } from '@/store/auth.store';
 import { useWorkspaceStore } from '@/store/workspace.store';
 import { Avatar } from '@/components/ui/Avatar';
 import { DropdownMenu, DropdownItem, DropdownSeparator } from '@/components/ui/DropdownMenu';
 import { NotificationDropdown } from './NotificationDropdown';
+import { SearchDropdown } from './SearchDropdown';
 import { authApi } from '@/api/auth';
 
 export function Header() {
@@ -33,15 +34,7 @@ export function Header() {
       </button>
 
       <div className="flex-1 flex justify-center min-w-0">
-        <div className="relative w-full max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-500" aria-hidden="true" />
-          <input
-            type="text"
-            placeholder="Search..."
-            aria-label="Search"
-            className="w-full rounded-lg border border-surface-700 bg-surface-800 py-1.5 pl-9 pr-3 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-          />
-        </div>
+        <SearchDropdown />
       </div>
 
       <div className="flex items-center gap-1 sm:gap-2">

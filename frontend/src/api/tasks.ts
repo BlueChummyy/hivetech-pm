@@ -1,4 +1,4 @@
-import { get, post, patch, del } from './client';
+import { get, post, patch, del, put } from './client';
 import type { Task, TaskDependency } from '@/types/models.types';
 
 export interface TaskFilters {
@@ -40,6 +40,32 @@ export interface UpdateTaskData {
 export interface UpdatePositionData {
   statusId: string;
   position: number;
+}
+
+export interface UpdateRecurrenceData {
+  recurrenceRule: string | null;
+  recurrenceInterval?: number;
+  recurrenceDays?: string[];
+  recurrenceEndDate?: string | null;
+}
+
+export interface BulkUpdateData {
+  taskIds: string[];
+  updates: {
+    statusId?: string;
+    priority?: string;
+    assigneeIds?: string[];
+  };
+}
+
+export interface BulkDeleteData {
+  taskIds: string[];
+}
+
+export interface BulkResult {
+  taskId: string;
+  success: boolean;
+  error?: string;
 }
 
 export const tasksApi = {
@@ -100,6 +126,17 @@ export const tasksApi = {
 
   moveToProject: (id: string, targetProjectId: string) =>
     post<Task>(`/tasks/${id}/move`, { targetProjectId }).then((r) => r.data),
+
+  // Bulk operations
+  bulkUpdate: (data: BulkUpdateData) =>
+    post<BulkResult[]>('/tasks/bulk-update', data).then((r) => r.data),
+
+  bulkDelete: (data: BulkDeleteData) =>
+    post<BulkResult[]>('/tasks/bulk-delete', data).then((r) => r.data),
+
+  // Recurrence
+  updateRecurrence: (id: string, data: UpdateRecurrenceData) =>
+    put<Task>(`/tasks/${id}/recurrence`, data).then((r) => r.data),
 
   // Dependencies
   listDependencies: (id: string) =>

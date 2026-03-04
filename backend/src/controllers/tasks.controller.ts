@@ -1,9 +1,11 @@
 import type { Request, Response, NextFunction } from 'express';
 import { TasksService } from '../services/tasks.service.js';
+import { updateTaskRecurrence, type RecurrenceData } from '../services/recurrence.service.js';
 import { requireProjectMember } from '../utils/authorization.js';
 import { ApiError } from '../utils/api-error.js';
 import { successResponse, paginatedResponse } from '../utils/api-response.js';
 import { prisma } from '../prisma/client.js';
+import { queryAuditLogs } from '../services/audit.service.js';
 
 const tasksService = new TasksService();
 
@@ -205,6 +207,50 @@ export class TasksController {
     }
   }
 
+  async bulkUpdate(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { taskIds, updates } = req.body;
+
+      // Validate that user has access to all tasks by checking their projects
+      for (const taskId of taskIds) {
+        const task = await prisma.task.findFirst({
+          where: { id: taskId, deletedAt: null },
+          select: { projectId: true },
+        });
+        if (task) {
+          await requireProjectMember(task.projectId, req.user!.id);
+        }
+      }
+
+      const results = await tasksService.bulkUpdate(taskIds, updates, req.user!.id);
+      res.json(successResponse(results));
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async bulkDelete(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { taskIds } = req.body;
+
+      // Validate that user has access to all tasks by checking their projects
+      for (const taskId of taskIds) {
+        const task = await prisma.task.findFirst({
+          where: { id: taskId, deletedAt: null },
+          select: { projectId: true },
+        });
+        if (task) {
+          await requireProjectMember(task.projectId, req.user!.id);
+        }
+      }
+
+      const results = await tasksService.bulkDelete(taskIds, req.user!.id);
+      res.json(successResponse(results));
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async close(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = req.params.id as string;
@@ -226,6 +272,46 @@ export class TasksController {
 
       const task = await tasksService.reopenTask(id, req.user!.id);
       res.json(successResponse(task));
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async updateRecurrence(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const id = req.params.id as string;
+      const existing = await tasksService.getById(id);
+      await requireProjectMember(existing.project.id, req.user!.id);
+
+      const { recurrenceRule, recurrenceInterval, recurrenceDays, recurrenceEndDate } = req.body;
+      const task = await updateTaskRecurrence(id, {
+        recurrenceRule,
+        recurrenceInterval,
+        recurrenceDays,
+        recurrenceEndDate,
+      });
+
+      res.json(successResponse(task));
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getActivity(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const id = req.params.id as string;
+      const existing = await tasksService.getById(id);
+      await requireProjectMember(existing.project.id, req.user!.id);
+
+      const { page, limit } = req.query as any;
+      const result = await queryAuditLogs({
+        entityType: 'task',
+        entityId: id,
+        page: page ? Number(page) : 1,
+        limit: limit ? Number(limit) : 50,
+      });
+
+      res.json(paginatedResponse(result.logs, result.pagination));
     } catch (err) {
       next(err);
     }

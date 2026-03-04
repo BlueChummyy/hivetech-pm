@@ -6,6 +6,7 @@ import { FilterBar, type TaskFilterState } from '@/components/list/FilterBar';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageError } from '@/components/ui/PageError';
 import { CreateTaskModal } from '@/components/CreateTaskModal';
+import { BulkActionBar } from '@/components/BulkActionBar';
 import { useTasks } from '@/hooks/useTasks';
 import { useStatuses } from '@/hooks/useStatuses';
 import { useProjectMembers } from '@/hooks/useMembers';
@@ -191,6 +192,8 @@ export function ListPage() {
           groupBy={filters.groupBy}
         />
       )}
+
+      <BulkActionBar />
 
       {showCreateModal && projectId && defaultStatus && (
         <CreateTaskModal

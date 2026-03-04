@@ -15,6 +15,7 @@ import {
   Pencil,
   Trash2,
   Circle,
+  Keyboard,
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useUIStore } from '@/store/ui.store';
@@ -208,6 +209,16 @@ export function Sidebar() {
             <Shield className="h-5 w-5 shrink-0" />
             {!sidebarCollapsed && <span>Admin</span>}
           </Link>
+        </div>
+      )}
+
+      {/* Keyboard shortcuts hint */}
+      {!sidebarCollapsed && (
+        <div className="border-t border-surface-700 px-4 py-2">
+          <span className="flex items-center gap-2 text-[11px] text-surface-600">
+            <Keyboard className="h-3 w-3" />
+            Press <kbd className="rounded border border-surface-700 bg-surface-800 px-1 text-[10px] font-medium text-surface-400">?</kbd> for shortcuts
+          </span>
         </div>
       )}
 

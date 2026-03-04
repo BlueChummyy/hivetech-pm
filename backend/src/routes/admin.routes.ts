@@ -911,4 +911,103 @@ router.post(
   },
 );
 
+// ── GET /api/v1/admin/auth-providers — List all OAuth provider configs ───
+router.get(
+  '/auth-providers',
+  async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const providers = await prisma.oAuthProvider.findMany({
+        orderBy: { provider: 'asc' },
+      });
+
+      // Mask client secrets in response
+      const masked = providers.map((p: any) => ({
+        ...p,
+        clientSecret: p.clientSecret ? '********' : '',
+      }));
+
+      res.json(successResponse(masked));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ── PUT /api/v1/admin/auth-providers — Upsert an OAuth provider config ──
+const upsertAuthProviderSchema = z.object({
+  provider: z.enum(['GOOGLE', 'MICROSOFT', 'OIDC']),
+  clientId: z.string().min(1),
+  clientSecret: z.string().min(1),
+  tenantId: z.string().optional().nullable(),
+  issuerUrl: z.string().optional().nullable(),
+  enabled: z.boolean(),
+});
+
+router.put(
+  '/auth-providers',
+  validate({ body: upsertAuthProviderSchema }),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { provider, clientId, clientSecret, tenantId, issuerUrl, enabled } = req.body;
+
+      // If secret is masked, keep existing secret
+      let finalSecret = clientSecret;
+      if (clientSecret === '********') {
+        const existing = await prisma.oAuthProvider.findUnique({ where: { provider } });
+        if (existing) {
+          finalSecret = existing.clientSecret;
+        } else {
+          return next(ApiError.badRequest('Client secret is required for new provider'));
+        }
+      }
+
+      const result = await prisma.oAuthProvider.upsert({
+        where: { provider },
+        create: {
+          provider,
+          clientId,
+          clientSecret: finalSecret,
+          tenantId: tenantId || null,
+          issuerUrl: issuerUrl || null,
+          enabled,
+        },
+        update: {
+          clientId,
+          clientSecret: finalSecret,
+          tenantId: tenantId || null,
+          issuerUrl: issuerUrl || null,
+          enabled,
+        },
+      });
+
+      res.json(successResponse({
+        ...result,
+        clientSecret: '********',
+      }));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ── DELETE /api/v1/admin/auth-providers/:provider — Remove an OAuth provider ──
+router.delete(
+  '/auth-providers/:provider',
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const provider = req.params.provider as string;
+      const validProviders = ['GOOGLE', 'MICROSOFT', 'OIDC'];
+      if (!validProviders.includes(provider)) {
+        return next(ApiError.badRequest('Invalid provider'));
+      }
+
+      await prisma.oAuthProvider.deleteMany({ where: { provider: provider as any } });
+
+      res.json(successResponse({ message: `${provider} provider removed` }));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 export { router as adminRoutes };

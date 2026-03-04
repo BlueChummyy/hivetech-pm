@@ -1,9 +1,10 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Calendar, MessageSquare, Paperclip, ListChecks, Flag } from 'lucide-react';
+import { Calendar, Clock, MessageSquare, Paperclip, ListChecks, Flag, Repeat } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/utils/cn';
 import { useUIStore } from '@/store/ui.store';
+import { useSelectionStore } from '@/store/selection.store';
 import { Avatar } from '@/components/ui/Avatar';
 import { TaskContextMenu } from '@/components/TaskContextMenu';
 import type { Task, Priority } from '@/types/models.types';
@@ -27,9 +28,10 @@ const PRIORITY_LABELS: Record<Priority, string> = {
 interface KanbanCardProps {
   task: Task;
   overlay?: boolean;
+  selectionMode?: boolean;
 }
 
-export function KanbanCard({ task, overlay }: KanbanCardProps) {
+export function KanbanCard({ task, overlay, selectionMode }: KanbanCardProps) {
   const {
     attributes,
     listeners,
@@ -48,8 +50,16 @@ export function KanbanCard({ task, overlay }: KanbanCardProps) {
   const completedSubtasks = subtasks.filter((s) => s.status?.category === 'DONE').length;
   const commentCount = task.comments?.length ?? task._count?.comments ?? 0;
   const attachmentCount = task.attachments?.length ?? task._count?.attachments ?? 0;
+  const timeEntryCount = task._count?.timeEntries ?? 0;
+
+  const isSelected = useSelectionStore((s) => s.selectedTaskIds.has(task.id));
+  const toggleTask = useSelectionStore((s) => s.toggleTask);
 
   const handleClick = () => {
+    if (selectionMode) {
+      toggleTask(task.id);
+      return;
+    }
     useUIStore.getState().openTaskPanel(task.id);
   };
 
@@ -79,8 +89,27 @@ export function KanbanCard({ task, overlay }: KanbanCardProps) {
         isDragging && 'opacity-50',
         overlay && 'shadow-xl shadow-black/40 rotate-2',
         task.closedAt && 'opacity-50',
+        isSelected && 'border-primary-500/50 bg-primary-500/[0.08]',
       )}
     >
+      {/* Selection checkbox */}
+      {selectionMode && !overlay && (
+        <div className="absolute top-2 left-2 z-10">
+          <span
+            className={cn(
+              'flex h-4 w-4 items-center justify-center rounded border shrink-0',
+              isSelected ? 'border-primary-500 bg-primary-500' : 'border-white/[0.25] bg-[#14141A]',
+            )}
+          >
+            {isSelected && (
+              <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+          </span>
+        </div>
+      )}
+
       {/* Context menu - top right, visible on hover */}
       {!overlay && (
         <div className="absolute top-2 right-2 opacity-0 group-hover/card:opacity-100 transition-opacity">
@@ -160,6 +189,21 @@ export function KanbanCard({ task, overlay }: KanbanCardProps) {
           <div className="flex items-center gap-1 text-gray-400">
             <Paperclip className="h-3 w-3" />
             <span className="text-[10px]">{attachmentCount}</span>
+          </div>
+        )}
+
+        {/* Recurring indicator */}
+        {task.recurrenceRule && (
+          <div className="flex items-center gap-1 text-primary-400" title="Recurring task">
+            <Repeat className="h-3 w-3" />
+          </div>
+        )}
+
+        {/* Time entries */}
+        {timeEntryCount > 0 && (
+          <div className="flex items-center gap-1 text-gray-400">
+            <Clock className="h-3 w-3" />
+            <span className="text-[10px]">{timeEntryCount}</span>
           </div>
         )}
 

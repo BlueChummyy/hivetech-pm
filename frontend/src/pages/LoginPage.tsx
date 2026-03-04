@@ -1,11 +1,12 @@
-import { useState, type FormEvent } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { useState, useEffect, type FormEvent } from 'react';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardBody } from '@/components/ui/Card';
 import { authApi } from '@/api/auth';
 import { useAuthStore } from '@/store/auth.store';
 import { isAxiosError } from 'axios';
+import { SsoButtons } from '@/components/SsoButtons';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
@@ -13,8 +14,17 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const login = useAuthStore((s) => s.login);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
+  // Show error from SSO redirect
+  useEffect(() => {
+    const ssoError = searchParams.get('error');
+    if (ssoError) {
+      setError(ssoError);
+    }
+  }, [searchParams]);
 
   // Redirect to dashboard if already logged in
   if (isAuthenticated) {
@@ -92,6 +102,8 @@ export function LoginPage() {
                 Sign in
               </Button>
             </form>
+
+            <SsoButtons mode="signin" />
           </CardBody>
         </Card>
 

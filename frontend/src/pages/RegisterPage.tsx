@@ -6,6 +6,7 @@ import { Card, CardBody } from '@/components/ui/Card';
 import { authApi } from '@/api/auth';
 import { useAuthStore } from '@/store/auth.store';
 import { isAxiosError } from 'axios';
+import { SsoButtons } from '@/components/SsoButtons';
 
 export function RegisterPage() {
   const [firstName, setFirstName] = useState('');
@@ -135,6 +136,8 @@ export function RegisterPage() {
                 Create account
               </Button>
             </form>
+
+            <SsoButtons mode="signup" />
           </CardBody>
         </Card>
 

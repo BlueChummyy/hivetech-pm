@@ -2,6 +2,7 @@ import { prisma } from '../prisma/client.js';
 import { ApiError } from '../utils/api-error.js';
 import { emitToProject, emitToUser } from '../utils/socket.js';
 import { logAudit } from './audit.service.js';
+import { calculateNextRecurrence } from './recurrence.service.js';
 
 export class TasksService {
   async create(data: {
@@ -168,7 +169,7 @@ export class TasksService {
           assignee: true,
           assignees: { include: { user: true } },
           labels: { include: { label: true } },
-          _count: { select: { subtasks: { where: { deletedAt: null } }, comments: { where: { deletedAt: null } }, attachments: true } },
+          _count: { select: { subtasks: { where: { deletedAt: null } }, comments: { where: { deletedAt: null } }, attachments: true, timeEntries: true } },
         },
       }),
       prisma.task.count({ where }),
@@ -194,7 +195,7 @@ export class TasksService {
         assignees: { include: { user: true } },
         project: { select: { id: true, key: true, name: true, workspaceId: true } },
         labels: { include: { label: true } },
-        _count: { select: { subtasks: { where: { deletedAt: null } }, comments: { where: { deletedAt: null } }, attachments: true } },
+        _count: { select: { subtasks: { where: { deletedAt: null } }, comments: { where: { deletedAt: null } }, attachments: true, timeEntries: true } },
       },
     });
     return tasks;
@@ -237,11 +238,19 @@ export class TasksService {
           },
         },
         attachments: { orderBy: { createdAt: 'desc' } },
+        timeEntries: {
+          orderBy: { date: 'desc' },
+          include: { user: true },
+        },
         project: { select: { id: true, key: true, name: true, workspaceId: true } },
       },
     });
     if (!task) throw ApiError.notFound('Task not found');
-    return task;
+
+    // Calculate total logged hours
+    const totalLoggedHours = task.timeEntries.reduce((sum: number, e: { hours: unknown }) => sum + Number(e.hours), 0);
+
+    return { ...task, totalLoggedHours };
   }
 
   async update(id: string, data: {
@@ -765,14 +774,32 @@ export class TasksService {
   async closeTask(id: string, closedByUserId: string) {
     const task = await prisma.task.findFirst({
       where: { id, deletedAt: null },
-      select: { id: true, projectId: true, title: true, taskNumber: true, closedAt: true },
+      select: {
+        id: true, projectId: true, title: true, taskNumber: true, closedAt: true,
+        recurrenceRule: true, recurrenceInterval: true, recurrenceDays: true,
+        nextRecurrence: true, recurrenceEndDate: true,
+      },
     });
     if (!task) throw ApiError.notFound('Task not found');
     if (task.closedAt) throw ApiError.badRequest('Task is already closed');
 
+    // If task is recurring, calculate next recurrence date
+    const updateData: any = { closedAt: new Date(), closedById: closedByUserId };
+    if (task.recurrenceRule) {
+      const baseDate = task.nextRecurrence || new Date();
+      const nextDate = calculateNextRecurrence(
+        baseDate, task.recurrenceRule, task.recurrenceInterval, task.recurrenceDays,
+      );
+      if (task.recurrenceEndDate && nextDate > task.recurrenceEndDate) {
+        updateData.nextRecurrence = null;
+      } else {
+        updateData.nextRecurrence = nextDate;
+      }
+    }
+
     const updated = await prisma.task.update({
       where: { id },
-      data: { closedAt: new Date(), closedById: closedByUserId },
+      data: updateData,
       include: {
         status: true,
         assignee: true,
@@ -791,6 +818,118 @@ export class TasksService {
     }
 
     return updated;
+  }
+
+  async bulkUpdate(
+    taskIds: string[],
+    updates: {
+      statusId?: string;
+      priority?: string;
+      assigneeIds?: string[];
+    },
+    userId: string,
+  ) {
+    const results: { taskId: string; success: boolean; error?: string }[] = [];
+
+    for (const taskId of taskIds) {
+      try {
+        const task = await prisma.task.findFirst({
+          where: { id: taskId, deletedAt: null },
+          select: { id: true, projectId: true },
+        });
+        if (!task) {
+          results.push({ taskId, success: false, error: 'Task not found' });
+          continue;
+        }
+
+        const updateData: any = {};
+        if (updates.statusId) {
+          const status = await prisma.projectStatus.findFirst({
+            where: { id: updates.statusId, projectId: task.projectId },
+          });
+          if (!status) {
+            results.push({ taskId, success: false, error: 'Status does not belong to this project' });
+            continue;
+          }
+          updateData.statusId = updates.statusId;
+        }
+        if (updates.priority) {
+          updateData.priority = updates.priority;
+        }
+        if (updates.assigneeIds !== undefined) {
+          updateData.assigneeId = updates.assigneeIds.length > 0 ? updates.assigneeIds[0] : null;
+        }
+
+        await prisma.task.update({
+          where: { id: taskId },
+          data: updateData,
+        });
+
+        // Sync TaskAssignee junction table if assigneeIds provided
+        if (updates.assigneeIds !== undefined) {
+          await prisma.taskAssignee.deleteMany({ where: { taskId } });
+          if (updates.assigneeIds.length > 0) {
+            await prisma.taskAssignee.createMany({
+              data: updates.assigneeIds.map((uid: string) => ({ taskId, userId: uid })),
+            });
+          }
+        }
+
+        const fullTask = await prisma.task.findUnique({
+          where: { id: taskId },
+          include: {
+            status: true,
+            assignee: true,
+            reporter: true,
+            labels: { include: { label: true } },
+            assignees: { include: { user: true } },
+          },
+        });
+        emitToProject(task.projectId, 'task:updated', fullTask);
+
+        results.push({ taskId, success: true });
+      } catch (err: any) {
+        results.push({ taskId, success: false, error: err.message || 'Unknown error' });
+      }
+    }
+
+    return results;
+  }
+
+  async bulkDelete(taskIds: string[], userId: string) {
+    const results: { taskId: string; success: boolean; error?: string }[] = [];
+    const now = new Date();
+
+    for (const taskId of taskIds) {
+      try {
+        const task = await prisma.task.findFirst({
+          where: { id: taskId, deletedAt: null },
+          select: { id: true, projectId: true, title: true, taskNumber: true },
+        });
+        if (!task) {
+          results.push({ taskId, success: false, error: 'Task not found' });
+          continue;
+        }
+
+        await prisma.$transaction(async (tx: any) => {
+          await tx.task.update({
+            where: { id: taskId },
+            data: { deletedAt: now },
+          });
+          await tx.task.updateMany({
+            where: { parentId: taskId, deletedAt: null },
+            data: { deletedAt: now },
+          });
+        });
+
+        emitToProject(task.projectId, 'task:deleted', { id: task.id });
+        results.push({ taskId, success: true });
+      } catch (err: any) {
+        results.push({ taskId, success: false, error: err.message || 'Unknown error' });
+      }
+    }
+
+    return results;
   }
 
   async reopenTask(id: string, reopenedByUserId: string) {

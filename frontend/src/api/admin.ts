@@ -81,6 +81,27 @@ export interface SmtpSettingsResponse {
   fromEmail: string;
 }
 
+export interface OAuthProviderConfig {
+  id: string;
+  provider: 'GOOGLE' | 'MICROSOFT' | 'OIDC';
+  clientId: string;
+  clientSecret: string;
+  tenantId: string | null;
+  issuerUrl: string | null;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpsertAuthProviderData {
+  provider: 'GOOGLE' | 'MICROSOFT' | 'OIDC';
+  clientId: string;
+  clientSecret: string;
+  tenantId?: string | null;
+  issuerUrl?: string | null;
+  enabled: boolean;
+}
+
 export const adminApi = {
   // Users
   listUsers: (params?: { search?: string; page?: number; limit?: number }) =>
@@ -178,4 +199,14 @@ export const adminApi = {
 
   testSmtpConnection: () =>
     post<{ message: string }>('/admin/settings/smtp/test').then((r) => r.data),
+
+  // OAuth/SSO providers
+  listAuthProviders: () =>
+    get<OAuthProviderConfig[]>('/admin/auth-providers').then((r) => r.data),
+
+  upsertAuthProvider: (data: UpsertAuthProviderData) =>
+    put<OAuthProviderConfig>('/admin/auth-providers', data).then((r) => r.data),
+
+  deleteAuthProvider: (provider: string) =>
+    del<{ message: string }>(`/admin/auth-providers/${provider}`).then((r) => r.data),
 };

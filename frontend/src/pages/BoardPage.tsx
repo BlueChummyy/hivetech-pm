@@ -1,8 +1,12 @@
 import { useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
+import { CheckSquare } from 'lucide-react';
 import { KanbanBoard } from '@/components/board/KanbanBoard';
 import { FilterBar, type TaskFilterState } from '@/components/list/FilterBar';
+import { BulkActionBar } from '@/components/BulkActionBar';
 import { PageError } from '@/components/ui/PageError';
+import { useSelectionStore } from '@/store/selection.store';
+import { cn } from '@/utils/cn';
 import { useTasks } from '@/hooks/useTasks';
 import { useStatuses } from '@/hooks/useStatuses';
 import { useProjectMembers } from '@/hooks/useMembers';
@@ -169,15 +173,39 @@ export function BoardPage() {
     );
   }
 
+  const { selectionMode, setSelectionMode, clearSelection } = useSelectionStore();
+
   return (
     <div className="flex h-full flex-col gap-3 p-2 sm:p-4">
-      <FilterBar
-        filters={filters}
-        onFiltersChange={setFilters}
-        statuses={statuses}
-        members={members}
-        labels={labels}
-      />
+      <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0">
+          <FilterBar
+            filters={filters}
+            onFiltersChange={setFilters}
+            statuses={statuses}
+            members={members}
+            labels={labels}
+          />
+        </div>
+        <button
+          onClick={() => {
+            if (selectionMode) {
+              clearSelection();
+            } else {
+              setSelectionMode(true);
+            }
+          }}
+          className={cn(
+            'flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm transition-colors shrink-0',
+            selectionMode
+              ? 'border-primary-500/50 bg-primary-500/10 text-primary-400'
+              : 'border-white/[0.08] text-gray-400 hover:border-white/[0.15] hover:text-gray-300',
+          )}
+        >
+          <CheckSquare className="h-3.5 w-3.5" />
+          Select
+        </button>
+      </div>
       <div className="flex-1 min-h-0">
         <KanbanBoard
           tasks={filteredTasks}
@@ -186,6 +214,7 @@ export function BoardPage() {
           groupBy={filters.groupBy}
         />
       </div>
+      <BulkActionBar />
     </div>
   );
 }

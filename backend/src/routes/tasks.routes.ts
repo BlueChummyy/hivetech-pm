@@ -58,6 +58,45 @@ router.get(
   controller.list,
 );
 
+// POST /api/v1/tasks/bulk-update — Bulk update tasks
+router.post(
+  '/bulk-update',
+  validate({
+    body: z.object({
+      taskIds: z.array(z.string()).min(1),
+      updates: z.object({
+        statusId: z.string().optional(),
+        priority: z.enum(['URGENT', 'HIGH', 'MEDIUM', 'LOW', 'NONE']).optional(),
+        assigneeIds: z.array(z.string()).optional(),
+      }),
+    }),
+  }),
+  controller.bulkUpdate,
+);
+
+// POST /api/v1/tasks/bulk-delete — Bulk delete tasks
+router.post(
+  '/bulk-delete',
+  validate({
+    body: z.object({
+      taskIds: z.array(z.string()).min(1),
+    }),
+  }),
+  controller.bulkDelete,
+);
+
+// GET /api/v1/tasks/:id/activity — Get activity log for a task
+router.get(
+  '/:id/activity',
+  validate({
+    query: z.object({
+      page: z.coerce.number().optional(),
+      limit: z.coerce.number().optional(),
+    }),
+  }),
+  controller.getActivity,
+);
+
 // GET /api/v1/tasks/:id — Get task by ID
 router.get('/:id', controller.getById);
 
@@ -143,6 +182,22 @@ router.patch(
   requireProjectPermission('CHANGE_TASK_STATUS'),
   requireOwnTaskOrManager(),
   controller.updatePosition,
+);
+
+// PUT /api/v1/tasks/:id/recurrence — Set/update/remove recurrence
+router.put(
+  '/:id/recurrence',
+  validate({
+    body: z.object({
+      recurrenceRule: z.enum(['DAILY', 'WEEKLY', 'MONTHLY', 'CUSTOM']).nullable(),
+      recurrenceInterval: z.number().int().min(1).optional(),
+      recurrenceDays: z.array(z.enum(['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'])).optional(),
+      recurrenceEndDate: flexibleDateSchema.nullable().optional(),
+    }),
+  }),
+  requireProjectPermission('EDIT_TASK'),
+  requireOwnTaskOrManager(),
+  controller.updateRecurrence,
 );
 
 // PATCH /api/v1/tasks/:id/close — Close/archive a task

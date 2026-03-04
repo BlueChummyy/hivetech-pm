@@ -5,6 +5,9 @@ import {
   type CreateTaskData,
   type UpdateTaskData,
   type UpdatePositionData,
+  type UpdateRecurrenceData,
+  type BulkUpdateData,
+  type BulkDeleteData,
 } from '@/api/tasks';
 
 export function useTasks(filters: TaskFilters = {}) {
@@ -94,6 +97,38 @@ export function useUpdateTaskPosition() {
       tasksApi.updatePosition(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tasks'] });
+    },
+  });
+}
+
+export function useBulkUpdateTasks() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: BulkUpdateData) => tasksApi.bulkUpdate(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+    },
+  });
+}
+
+export function useBulkDeleteTasks() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: BulkDeleteData) => tasksApi.bulkDelete(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+    },
+  });
+}
+
+export function useUpdateRecurrence() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateRecurrenceData }) =>
+      tasksApi.updateRecurrence(id, data),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+      qc.invalidateQueries({ queryKey: ['tasks', variables.id] });
     },
   });
 }

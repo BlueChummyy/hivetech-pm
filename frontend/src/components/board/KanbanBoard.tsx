@@ -15,6 +15,7 @@ import { arrayMove } from '@dnd-kit/sortable';
 import { KanbanColumn, type ColumnConfig } from './KanbanColumn';
 import { KanbanCard } from './KanbanCard';
 import { useUpdateTaskPosition } from '@/hooks/useTasks';
+import { useSelectionStore } from '@/store/selection.store';
 import type { Task, ProjectStatus } from '@/types/models.types';
 import type { GroupByConfig } from '@/components/list/FilterBar';
 
@@ -129,6 +130,7 @@ export function KanbanBoard({ tasks, statuses, projectId, groupBy }: KanbanBoard
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [localTasks, setLocalTasks] = useState<Task[]>(tasks);
   const updatePosition = useUpdateTaskPosition();
+  const selectionMode = useSelectionStore((s) => s.selectionMode);
 
   const isStatusGrouping = !groupBy || !groupBy.enabled || groupBy.field === 'status' || groupBy.field === 'none';
 
@@ -304,6 +306,7 @@ export function KanbanBoard({ tasks, statuses, projectId, groupBy }: KanbanBoard
             tasks={tasksByColumn[col.id] ?? []}
             projectId={projectId}
             status={isStatusGrouping ? statusById[col.id] : undefined}
+            selectionMode={selectionMode}
           />
         ))}
       </div>

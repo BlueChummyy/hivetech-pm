@@ -153,6 +153,11 @@ export interface Task {
   estimatedHours: number | null;
   closedAt: string | null;
   closedById: string | null;
+  recurrenceRule: string | null;
+  recurrenceInterval: number;
+  recurrenceDays: string[];
+  nextRecurrence: string | null;
+  recurrenceEndDate: string | null;
   deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -167,10 +172,13 @@ export interface Task {
   labels?: TaskLabel[];
   comments?: Comment[];
   attachments?: Attachment[];
+  timeEntries?: TimeEntry[];
+  totalLoggedHours?: number;
   _count?: {
     subtasks: number;
     comments: number;
     attachments: number;
+    timeEntries: number;
   };
 }
 
@@ -233,6 +241,18 @@ export interface Attachment {
   uploadedBy?: User;
   task?: Task;
   createdAt: string;
+}
+
+export interface TimeEntry {
+  id: string;
+  taskId: string;
+  userId: string;
+  hours: number;
+  description: string | null;
+  date: string;
+  user?: User;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Notification {

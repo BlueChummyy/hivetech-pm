@@ -22,9 +22,10 @@ interface KanbanColumnProps {
   projectId: string;
   /** When grouping by status, pass the status so "Add task" can pre-fill it */
   status?: ProjectStatus;
+  selectionMode?: boolean;
 }
 
-export function KanbanColumn({ column, tasks, projectId, status }: KanbanColumnProps) {
+export function KanbanColumn({ column, tasks, projectId, status, selectionMode }: KanbanColumnProps) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const permissions = useProjectPermissions(projectId);
 
@@ -61,7 +62,7 @@ export function KanbanColumn({ column, tasks, projectId, status }: KanbanColumnP
       <div ref={setNodeRef} className="flex-1 space-y-2 overflow-y-auto px-2 pb-2">
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
           {tasks.map((task) => (
-            <KanbanCard key={task.id} task={task} />
+            <KanbanCard key={task.id} task={task} selectionMode={selectionMode} />
           ))}
         </SortableContext>
       </div>

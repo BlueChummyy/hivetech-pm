@@ -3,6 +3,17 @@ import { ApiError } from '../utils/api-error.js';
 import { emitToProject, emitToUser } from '../utils/socket.js';
 import { logAudit } from './audit.service.js';
 
+// Parse @[User Name](userId) patterns from comment text
+function parseMentions(content: string): string[] {
+  const mentionRegex = /@\[([^\]]+)\]\(([^)]+)\)/g;
+  const userIds: string[] = [];
+  let match;
+  while ((match = mentionRegex.exec(content)) !== null) {
+    userIds.push(match[2]);
+  }
+  return [...new Set(userIds)];
+}
+
 export class CommentsService {
   async create(data: { taskId: string; authorId: string; content: string }) {
     const task = await prisma.task.findFirst({
@@ -30,8 +41,32 @@ export class CommentsService {
       logAudit({ workspaceId: proj.workspaceId, userId: data.authorId, action: 'commented', entityType: 'comment', entityId: comment.id, metadata: { taskId: data.taskId, taskTitle: task.title } });
     }
 
-    // Notify task assignee about new comment (if commenter is different)
-    if (task.assigneeId && task.assigneeId !== data.authorId) {
+    // Parse @mentions and create MENTIONED notifications
+    const mentionedUserIds = parseMentions(data.content);
+    const notifiedUserIds = new Set<string>();
+
+    const authorName = comment.author
+      ? `${comment.author.firstName} ${comment.author.lastName}`.trim()
+      : 'Someone';
+
+    for (const mentionedUserId of mentionedUserIds) {
+      if (mentionedUserId === data.authorId) continue; // Don't notify self
+      notifiedUserIds.add(mentionedUserId);
+      const notification = await prisma.notification.create({
+        data: {
+          userId: mentionedUserId,
+          type: 'MENTIONED',
+          title: 'You were mentioned',
+          message: `${authorName} mentioned you in a comment on "${task.title}"`,
+          resourceType: 'task',
+          resourceId: task.id,
+        },
+      });
+      emitToUser(mentionedUserId, 'notification:new', notification);
+    }
+
+    // Notify task assignee about new comment (if commenter is different and not already notified via mention)
+    if (task.assigneeId && task.assigneeId !== data.authorId && !notifiedUserIds.has(task.assigneeId)) {
       const notification = await prisma.notification.create({
         data: {
           userId: task.assigneeId,
@@ -43,10 +78,11 @@ export class CommentsService {
         },
       });
       emitToUser(task.assigneeId, 'notification:new', notification);
+      notifiedUserIds.add(task.assigneeId);
     }
 
-    // Notify task reporter about new comment (if different from commenter and assignee)
-    if (task.reporterId && task.reporterId !== data.authorId && task.reporterId !== task.assigneeId) {
+    // Notify task reporter about new comment (if different from commenter and assignee, and not already notified)
+    if (task.reporterId && task.reporterId !== data.authorId && !notifiedUserIds.has(task.reporterId)) {
       const notification = await prisma.notification.create({
         data: {
           userId: task.reporterId,
@@ -93,6 +129,10 @@ export class CommentsService {
     if (!comment) throw ApiError.notFound('Comment not found');
     if (comment.authorId !== userId) throw ApiError.forbidden('You can only edit your own comments');
 
+    // Find new mentions that weren't in the old content
+    const oldMentions = new Set(parseMentions(comment.content));
+    const newMentions = parseMentions(content).filter((uid) => !oldMentions.has(uid));
+
     const updated = await prisma.comment.update({
       where: { id },
       data: { content },
@@ -101,13 +141,32 @@ export class CommentsService {
       },
     });
 
-    // Get task for project room
+    // Get task for project room and mention notifications
     const task = await prisma.task.findUnique({
       where: { id: comment.taskId },
-      select: { projectId: true },
+      select: { projectId: true, title: true },
     });
     if (task) {
       emitToProject(task.projectId, 'comment:updated', { ...updated, taskId: comment.taskId });
+
+      // Notify newly mentioned users
+      const authorName = updated.author
+        ? `${updated.author.firstName} ${updated.author.lastName}`.trim()
+        : 'Someone';
+      for (const mentionedUserId of newMentions) {
+        if (mentionedUserId === userId) continue;
+        const notification = await prisma.notification.create({
+          data: {
+            userId: mentionedUserId,
+            type: 'MENTIONED',
+            title: 'You were mentioned',
+            message: `${authorName} mentioned you in a comment on "${task.title}"`,
+            resourceType: 'task',
+            resourceId: comment.taskId,
+          },
+        });
+        emitToUser(mentionedUserId, 'notification:new', notification);
+      }
     }
 
     return updated;

@@ -10,7 +10,7 @@ import {
   Eye,
   Trash2,
   Loader2,
-  Activity,
+  Repeat,
   ArrowRightLeft,
   Archive,
   ArchiveRestore,
@@ -31,6 +31,9 @@ import { PrioritySelector } from './PrioritySelector';
 import { AssigneeSelector } from './AssigneeSelector';
 import { SubtaskList } from './SubtaskList';
 import { CommentSection } from './CommentSection';
+import { RecurrenceSelector } from './RecurrenceSelector';
+import { TimeTrackingSection } from './TimeTrackingSection';
+import { ActivitySection } from './ActivitySection';
 import { useToast } from '@/components/ui/Toast';
 import { cn } from '@/utils/cn';
 import { StatusCategory } from '@/types/models.types';
@@ -611,6 +614,25 @@ export function TaskDetailPanel() {
                     </div>
                   </div>
 
+                  {/* Recurrence */}
+                  <div className="flex items-center gap-3 px-4 py-2.5">
+                    <div className="flex items-center gap-2 w-28 shrink-0">
+                      <Repeat className="h-3.5 w-3.5 text-surface-500" />
+                      <span className="text-xs font-medium text-surface-400">Recurrence</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <RecurrenceSelector
+                        taskId={task.id}
+                        recurrenceRule={task.recurrenceRule}
+                        recurrenceInterval={task.recurrenceInterval}
+                        recurrenceDays={task.recurrenceDays}
+                        recurrenceEndDate={task.recurrenceEndDate}
+                        nextRecurrence={task.nextRecurrence}
+                        canEdit={permissions.canEditTasks}
+                      />
+                    </div>
+                  </div>
+
                   {/* Labels/Tags */}
                   <div className="flex items-start gap-3 px-4 py-2.5">
                     <div className="flex items-center gap-2 w-28 shrink-0 pt-0.5">
@@ -746,6 +768,15 @@ export function TaskDetailPanel() {
                   </div>
                 )}
 
+                {/* Time Tracking */}
+                <div className="border-t border-surface-700 pt-3">
+                  <TimeTrackingSection
+                    taskId={task.id}
+                    estimatedHours={task.estimatedHours}
+                    canEdit={permissions.canEditTasks}
+                  />
+                </div>
+
                 {/* Comments */}
                 <div className="border-t border-surface-700 pt-3">
                   <CommentSection taskId={task.id} canComment={permissions.canComment} isProjectAdmin={permissions.canManageProject} />
@@ -845,28 +876,9 @@ export function TaskDetailPanel() {
                   )}
                 </div>
 
-                {/* Activity placeholder */}
-                <div className="border-t border-surface-700 pt-3 space-y-2">
-                  <h4 className="text-sm font-medium text-surface-300 flex items-center gap-1.5">
-                    <Activity className="h-3.5 w-3.5" />
-                    Activity
-                  </h4>
-                  <div className="space-y-2">
-                    <p className="text-xs text-surface-500">
-                      Created {formatDistanceToNow(new Date(task.createdAt), { addSuffix: true })}
-                      {task.reporter && ` by ${task.reporter.name || task.reporter.displayName}`}
-                    </p>
-                    {task.updatedAt !== task.createdAt && (
-                      <p className="text-xs text-surface-500">
-                        Updated {formatDistanceToNow(new Date(task.updatedAt), { addSuffix: true })}
-                      </p>
-                    )}
-                    {task.status?.category === 'DONE' && (
-                      <p className="text-xs text-surface-500">
-                        Status: Done
-                      </p>
-                    )}
-                  </div>
+                {/* Activity */}
+                <div className="border-t border-surface-700 pt-3">
+                  <ActivitySection taskId={task.id} />
                 </div>
               </div>
             </div>

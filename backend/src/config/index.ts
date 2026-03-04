@@ -21,6 +21,9 @@ const envSchema = z.object({
   SMTP_PASS: z.string().optional(),
   SMTP_FROM_NAME: z.string().default('Project Management'),
   SMTP_FROM_EMAIL: z.string().optional(),
+  // OAuth/SSO (optional – configured via admin UI, env vars provide defaults)
+  OAUTH_CALLBACK_BASE_URL: z.string().optional(),
+  FRONTEND_URL: z.string().default('http://localhost:5173'),
 });
 
 export const env = envSchema.parse(process.env);

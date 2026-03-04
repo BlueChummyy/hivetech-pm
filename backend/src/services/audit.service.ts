@@ -16,9 +16,11 @@ export type AuditAction =
   | 'unassigned'
   | 'cloned'
   | 'closed'
-  | 'reopened';
+  | 'reopened'
+  | 'logged_time'
+  | 'deleted_time_entry';
 
-export type AuditEntityType = 'project' | 'task' | 'space' | 'comment' | 'workspace';
+export type AuditEntityType = 'project' | 'task' | 'space' | 'comment' | 'workspace' | 'time_entry';
 
 interface AuditEntry {
   workspaceId: string;

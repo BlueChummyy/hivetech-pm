@@ -29,6 +29,7 @@ import { cn } from '@/utils/cn';
 import { TaskTableRow } from './TaskTableRow';
 import { useUpdateTaskPosition } from '@/hooks/useTasks';
 import { useUIStore } from '@/store/ui.store';
+import { useSelectionStore } from '@/store/selection.store';
 import type { Task, ProjectStatus, Priority } from '@/types/models.types';
 import type { GroupByConfig } from './FilterBar';
 
@@ -404,7 +405,7 @@ const columns: { key: SortField; label: string; sortable: boolean }[] = [
   { key: 'dueDate', label: 'Due Date', sortable: true },
 ];
 
-const TOTAL_COLUMNS = columns.length + 2; // +1 for drag handle, +1 for actions
+const TOTAL_COLUMNS = columns.length + 3; // +1 for drag handle, +1 for checkbox, +1 for actions
 
 /* ------------------------------------------------------------------ */
 /*  TaskTable                                                          */
@@ -421,9 +422,22 @@ export function TaskTable({ tasks, statuses, groupBy }: TaskTableProps) {
     Record<string, boolean>
   >({});
   const updatePosition = useUpdateTaskPosition();
+  const { selectedTaskIds, toggleTask, selectAll, deselectAll } = useSelectionStore();
 
   const isGrouped =
     !!groupBy && groupBy.enabled && groupBy.field !== 'none';
+
+  const selectableTaskIds = useMemo(() => tasks.map((t) => t.id), [tasks]);
+  const allSelected = selectableTaskIds.length > 0 && selectableTaskIds.every((id) => selectedTaskIds.has(id));
+  const someSelected = selectableTaskIds.some((id) => selectedTaskIds.has(id));
+
+  const handleSelectAll = useCallback(() => {
+    if (allSelected) {
+      deselectAll();
+    } else {
+      selectAll(selectableTaskIds);
+    }
+  }, [allSelected, selectableTaskIds, selectAll, deselectAll]);
 
   const toggleExpand = useCallback((taskId: string) => {
     setExpandedTasks((prev) => ({ ...prev, [taskId]: !prev[taskId] }));
@@ -630,6 +644,8 @@ export function TaskTable({ tasks, statuses, groupBy }: TaskTableProps) {
           isExpanded={!!expandedTasks[task.id]}
           onToggleExpand={() => toggleExpand(task.id)}
           subtaskCount={hasChildren ? kids!.length : undefined}
+          isSelected={selectedTaskIds.has(task.id)}
+          onToggleSelect={() => toggleTask(task.id)}
         />
       );
     });
@@ -682,6 +698,35 @@ export function TaskTable({ tasks, statuses, groupBy }: TaskTableProps) {
           <thead>
             <tr className="border-b border-white/[0.08] bg-[#14141A]">
               <th scope="col" className="w-8 px-1 py-2.5" />
+              {/* Select all checkbox */}
+              <th scope="col" className="w-8 px-1 py-2.5">
+                <button
+                  onClick={handleSelectAll}
+                  className="flex items-center justify-center"
+                  aria-label={allSelected ? 'Deselect all' : 'Select all'}
+                >
+                  <span
+                    className={cn(
+                      'flex h-4 w-4 items-center justify-center rounded border shrink-0',
+                      allSelected
+                        ? 'border-primary-500 bg-primary-500'
+                        : someSelected
+                          ? 'border-primary-500 bg-primary-500/50'
+                          : 'border-white/[0.15]',
+                    )}
+                  >
+                    {(allSelected || someSelected) && (
+                      <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        {allSelected ? (
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        ) : (
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14" />
+                        )}
+                      </svg>
+                    )}
+                  </span>
+                </button>
+              </th>
               {columns.map((col) => (
                 <th
                   key={col.key}
@@ -788,6 +833,8 @@ export function TaskTable({ tasks, statuses, groupBy }: TaskTableProps) {
                         subtaskCount={
                           hasChildren ? kids!.length : undefined
                         }
+                        isSelected={selectedTaskIds.has(task.id)}
+                        onToggleSelect={() => toggleTask(task.id)}
                       />
                     );
                   })}

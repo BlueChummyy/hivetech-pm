@@ -15,4 +15,7 @@ export const authApi = {
   logout: () => post('/auth/logout'),
 
   me: () => get<User>('/auth/me'),
+
+  getSsoProviders: () =>
+    get<string[]>('/auth/providers').then((r) => r.data),
 };

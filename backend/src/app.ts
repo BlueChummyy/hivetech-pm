@@ -23,6 +23,9 @@ import { adminRoutes } from './routes/admin.routes.js';
 import { dashboardRoutes } from './routes/dashboard.routes.js';
 import { taskTemplatesRoutes } from './routes/task-templates.routes.js';
 import { brandingRoutes } from './routes/branding.routes.js';
+import { searchRoutes } from './routes/search.routes.js';
+import { taskTimeEntriesRoutes, timeEntriesRoutes } from './routes/time-entries.routes.js';
+import { ssoRoutes } from './routes/sso.routes.js';
 
 export function createApp() {
   const app = express();
@@ -61,6 +64,10 @@ export function createApp() {
   app.use('/api/v1/dashboard', dashboardRoutes);
   app.use('/api/v1/task-templates', taskTemplatesRoutes);
   app.use('/api/v1/admin/branding', brandingRoutes);
+  app.use('/api/v1/search', searchRoutes);
+  app.use('/api/v1/tasks/:taskId/time-entries', taskTimeEntriesRoutes);
+  app.use('/api/v1/time-entries', timeEntriesRoutes);
+  app.use('/api/v1/auth', ssoRoutes);
 
   // 404 handler for undefined routes
   app.use((_req, res) => {

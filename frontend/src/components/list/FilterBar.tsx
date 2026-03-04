@@ -130,7 +130,7 @@ function useDropdown() {
 
   useEffect(() => {
     if (!open) return;
-    const handler = (e: MouseEvent) => {
+    const handler = (e: MouseEvent | TouchEvent) => {
       const target = e.target as Node;
       if (ref.current?.contains(target)) return;
       if (menuRef.current?.contains(target)) return;

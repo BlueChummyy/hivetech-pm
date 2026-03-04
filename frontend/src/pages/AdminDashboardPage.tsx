@@ -27,8 +27,9 @@ import {
   Mail,
   Paintbrush,
   Upload,
+  Lock,
 } from 'lucide-react';
-import { adminApi, type AdminUser, type SmtpSettingsData } from '@/api/admin';
+import { adminApi, type AdminUser, type SmtpSettingsData, type OAuthProviderConfig, type UpsertAuthProviderData } from '@/api/admin';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
@@ -40,7 +41,7 @@ import { useCreateProject } from '@/hooks/useProjects';
 import { useBranding, useUpdateBranding, useUploadLogo, useUploadFavicon } from '@/hooks/useBranding';
 import { cn } from '@/utils/cn';
 
-type Tab = 'users' | 'workspaces' | 'deleted' | 'audit' | 'smtp' | 'branding';
+type Tab = 'users' | 'workspaces' | 'deleted' | 'audit' | 'smtp' | 'branding' | 'auth';
 
 function timeAgo(dateStr: string): string {
   const now = Date.now();
@@ -481,6 +482,7 @@ export function AdminDashboardPage() {
     { id: 'audit', label: 'Audit Log', icon: ClipboardList },
     { id: 'smtp', label: 'SMTP Settings', icon: Mail },
     { id: 'branding', label: 'Branding', icon: Paintbrush },
+    { id: 'auth', label: 'Authentication', icon: Lock },
   ];
 
   return (
@@ -2109,6 +2111,247 @@ export function AdminDashboardPage() {
           </Card>
         </div>
       )}
+
+      {/* ── Authentication Tab ──────────────────────────────────── */}
+      {activeTab === 'auth' && (
+        <AuthProvidersPanel />
+      )}
     </div>
+  );
+}
+
+// ── Auth Providers Admin Panel ────────────────────────────────────
+
+type ProviderType = 'GOOGLE' | 'MICROSOFT' | 'OIDC';
+
+const PROVIDER_INFO: Record<ProviderType, { label: string; description: string; fields: string[] }> = {
+  GOOGLE: {
+    label: 'Google',
+    description: 'Allow users to sign in with their Google accounts.',
+    fields: ['clientId', 'clientSecret'],
+  },
+  MICROSOFT: {
+    label: 'Microsoft',
+    description: 'Allow users to sign in with Microsoft / Azure AD accounts.',
+    fields: ['clientId', 'clientSecret', 'tenantId'],
+  },
+  OIDC: {
+    label: 'OIDC (Okta, Auth0, etc.)',
+    description: 'Allow users to sign in with any OpenID Connect provider.',
+    fields: ['clientId', 'clientSecret', 'issuerUrl'],
+  },
+};
+
+function AuthProvidersPanel() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+
+  const { data: providers, isLoading } = useQuery({
+    queryKey: ['admin', 'auth-providers'],
+    queryFn: () => adminApi.listAuthProviders(),
+  });
+
+  const upsertMutation = useMutation({
+    mutationFn: (data: UpsertAuthProviderData) => adminApi.upsertAuthProvider(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'auth-providers'] });
+      toast({ type: 'success', title: 'Provider saved' });
+    },
+    onError: (err) => toast({ type: 'error', title: 'Failed to save provider', description: (err as Error).message }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (provider: string) => adminApi.deleteAuthProvider(provider),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'auth-providers'] });
+      toast({ type: 'success', title: 'Provider removed' });
+    },
+    onError: (err) => toast({ type: 'error', title: 'Failed to remove provider', description: (err as Error).message }),
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-surface-700 border-t-primary-500" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-lg font-semibold text-surface-100">SSO / OAuth Providers</h2>
+        <p className="text-sm text-surface-400">
+          Configure single sign-on providers. Users will see SSO buttons on the login and register pages.
+        </p>
+      </div>
+      {(['GOOGLE', 'MICROSOFT', 'OIDC'] as ProviderType[]).map((providerType) => (
+        <AuthProviderCard
+          key={providerType}
+          providerType={providerType}
+          existing={providers?.find((p: OAuthProviderConfig) => p.provider === providerType) || null}
+          onSave={(data) => upsertMutation.mutate(data)}
+          onDelete={() => deleteMutation.mutate(providerType)}
+          saving={upsertMutation.isPending}
+        />
+      ))}
+    </div>
+  );
+}
+
+function AuthProviderCard({
+  providerType,
+  existing,
+  onSave,
+  onDelete,
+  saving,
+}: {
+  providerType: ProviderType;
+  existing: OAuthProviderConfig | null;
+  onSave: (data: UpsertAuthProviderData) => void;
+  onDelete: () => void;
+  saving: boolean;
+}) {
+  const info = PROVIDER_INFO[providerType];
+  const [expanded, setExpanded] = useState(false);
+  const [form, setForm] = useState({
+    clientId: existing?.clientId || '',
+    clientSecret: existing?.clientSecret || '',
+    tenantId: existing?.tenantId || '',
+    issuerUrl: existing?.issuerUrl || '',
+    enabled: existing?.enabled ?? false,
+  });
+
+  useEffect(() => {
+    if (existing) {
+      setForm({
+        clientId: existing.clientId || '',
+        clientSecret: existing.clientSecret || '',
+        tenantId: existing.tenantId || '',
+        issuerUrl: existing.issuerUrl || '',
+        enabled: existing.enabled,
+      });
+    }
+  }, [existing?.id]);
+
+  const handleSave = () => {
+    onSave({
+      provider: providerType,
+      clientId: form.clientId,
+      clientSecret: form.clientSecret,
+      tenantId: providerType === 'MICROSOFT' ? (form.tenantId || null) : null,
+      issuerUrl: providerType === 'OIDC' ? (form.issuerUrl || null) : null,
+      enabled: form.enabled,
+    });
+  };
+
+  return (
+    <Card>
+      <CardBody>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-surface-100">{info.label}</span>
+              {existing?.enabled && (
+                <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-400">
+                  Active
+                </span>
+              )}
+            </div>
+          </div>
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="text-sm text-surface-400 hover:text-surface-200"
+          >
+            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
+        </div>
+        <p className="mt-1 text-xs text-surface-500">{info.description}</p>
+
+        {expanded && (
+          <div className="mt-4 space-y-3 border-t border-surface-700 pt-4">
+            <label className="flex items-center gap-2 text-sm text-surface-200">
+              <input
+                type="checkbox"
+                checked={form.enabled}
+                onChange={(e) => setForm({ ...form, enabled: e.target.checked })}
+                className="rounded border-surface-600 bg-surface-700"
+              />
+              Enabled
+            </label>
+
+            <div>
+              <label className="block text-xs font-medium text-surface-400 mb-1">Client ID</label>
+              <input
+                type="text"
+                value={form.clientId}
+                onChange={(e) => setForm({ ...form, clientId: e.target.value })}
+                className="w-full rounded-lg border border-surface-600 bg-surface-700 px-3 py-2 text-sm text-surface-100 placeholder-surface-500 focus:border-primary-500 focus:outline-none"
+                placeholder="Your OAuth client ID"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-surface-400 mb-1">Client Secret</label>
+              <input
+                type="password"
+                value={form.clientSecret}
+                onChange={(e) => setForm({ ...form, clientSecret: e.target.value })}
+                className="w-full rounded-lg border border-surface-600 bg-surface-700 px-3 py-2 text-sm text-surface-100 placeholder-surface-500 focus:border-primary-500 focus:outline-none"
+                placeholder="Your OAuth client secret"
+              />
+            </div>
+
+            {providerType === 'MICROSOFT' && (
+              <div>
+                <label className="block text-xs font-medium text-surface-400 mb-1">Tenant ID (optional)</label>
+                <input
+                  type="text"
+                  value={form.tenantId}
+                  onChange={(e) => setForm({ ...form, tenantId: e.target.value })}
+                  className="w-full rounded-lg border border-surface-600 bg-surface-700 px-3 py-2 text-sm text-surface-100 placeholder-surface-500 focus:border-primary-500 focus:outline-none"
+                  placeholder="Azure AD tenant ID (leave blank for 'common')"
+                />
+              </div>
+            )}
+
+            {providerType === 'OIDC' && (
+              <div>
+                <label className="block text-xs font-medium text-surface-400 mb-1">Issuer URL</label>
+                <input
+                  type="text"
+                  value={form.issuerUrl}
+                  onChange={(e) => setForm({ ...form, issuerUrl: e.target.value })}
+                  className="w-full rounded-lg border border-surface-600 bg-surface-700 px-3 py-2 text-sm text-surface-100 placeholder-surface-500 focus:border-primary-500 focus:outline-none"
+                  placeholder="https://your-provider.com"
+                />
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 pt-2">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleSave}
+                loading={saving}
+              >
+                Save
+              </Button>
+              {existing && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onDelete}
+                  className="text-red-400 hover:text-red-300"
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-1" />
+                  Remove
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+      </CardBody>
+    </Card>
   );
 }

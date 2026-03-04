@@ -86,6 +86,10 @@ export class AuthService {
       throw ApiError.unauthorized('Invalid email or password');
     }
 
+    if (!user.passwordHash) {
+      throw ApiError.unauthorized('This account uses SSO. Please sign in with your SSO provider.');
+    }
+
     const valid = await comparePassword(password, user.passwordHash);
     if (!valid) {
       throw ApiError.unauthorized('Invalid email or password');
