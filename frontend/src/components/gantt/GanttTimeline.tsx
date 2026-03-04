@@ -182,9 +182,8 @@ export function GanttTimeline({ tasks, scale, rowHeight, projectId, hoveredRow, 
       e.stopPropagation();
       if (!projectId) return;
 
-      const scrollContainer = e.currentTarget.closest('.overflow-auto');
       const rect = e.currentTarget.getBoundingClientRect();
-      const clickX = e.clientX - rect.left + (scrollContainer?.scrollLeft || 0);
+      const clickX = e.clientX - rect.left;
       const daysFromStart = Math.floor(clickX / dayWidth);
       const clickDate = addDays(dateRange.start, daysFromStart);
 
