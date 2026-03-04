@@ -63,10 +63,19 @@ export function GanttChart({ tasks, isLoading, projectId }: GanttChartProps) {
     const DRAG_THRESHOLD = 4; // px — movement beyond this = drag, not click
 
     function onPointerDown(e: PointerEvent) {
-      // Kill middle-click auto-scroll circle
+      // Middle-click: prevent browser auto-scroll circle, but start our own grab scroll
       if (e.button === 1) {
         e.preventDefault();
         e.stopPropagation();
+        didDragRef.current = false;
+        isGrabbingRef.current = true;
+        setGrabCursor(true);
+        grabStartRef.current = {
+          x: e.clientX,
+          y: e.clientY,
+          scrollLeft: el.scrollLeft,
+          scrollTop: el.scrollTop,
+        };
         return;
       }
       if (e.button !== 0) return;
