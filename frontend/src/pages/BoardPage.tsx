@@ -41,6 +41,7 @@ function BoardSkeleton() {
 
 export function BoardPage() {
   const { projectId } = useParams<{ projectId: string }>();
+  const { selectionMode, setSelectionMode, clearSelection } = useSelectionStore();
 
   const [filters, setFilters] = useState<TaskFilterState>({
     search: '',
@@ -172,8 +173,6 @@ export function BoardPage() {
       </div>
     );
   }
-
-  const { selectionMode, setSelectionMode, clearSelection } = useSelectionStore();
 
   return (
     <div className="flex h-full flex-col gap-3 p-2 sm:p-4">
