@@ -88,6 +88,9 @@ export class UsersService {
       throw ApiError.notFound('User not found');
     }
 
+    if (!user.passwordHash) {
+      throw ApiError.badRequest('This account uses SSO sign-in and has no password to change');
+    }
     const valid = await comparePassword(oldPassword, user.passwordHash);
     if (!valid) {
       throw ApiError.badRequest('Current password is incorrect');
