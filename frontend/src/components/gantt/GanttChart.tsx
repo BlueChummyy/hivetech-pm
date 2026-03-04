@@ -53,14 +53,22 @@ export function GanttChart({ tasks, isLoading, projectId }: GanttChartProps) {
     document.addEventListener('mouseup', handleMouseUp);
   }, []);
 
-  // Middle-mouse grab-to-scroll
+  // Left-click grab-to-scroll on empty areas + prevent middle-click auto-scroll circle
   useEffect(() => {
     const el = timelineRef.current;
     if (!el) return;
 
     function onMouseDown(e: MouseEvent) {
-      if (e.button !== 1) return;
-      e.preventDefault();
+      // Prevent middle-click auto-scroll circle
+      if (e.button === 1) {
+        e.preventDefault();
+        return;
+      }
+      if (e.button !== 0) return;
+      // Don't grab when clicking on interactive elements
+      const target = e.target as HTMLElement;
+      if (target.closest('button') || target.closest('[data-gantt-bar]') || target.closest('input')) return;
+
       isGrabbingRef.current = true;
       setGrabCursor(true);
       grabStartRef.current = {
@@ -79,8 +87,8 @@ export function GanttChart({ tasks, isLoading, projectId }: GanttChartProps) {
       el!.scrollTop = grabStartRef.current.scrollTop - dy;
     }
 
-    function onMouseUp(e: MouseEvent) {
-      if (e.button === 1 && isGrabbingRef.current) {
+    function onMouseUp() {
+      if (isGrabbingRef.current) {
         isGrabbingRef.current = false;
         setGrabCursor(false);
       }
@@ -195,7 +203,7 @@ export function GanttChart({ tasks, isLoading, projectId }: GanttChartProps) {
         />
 
         {/* Right panel: Timeline */}
-        <div ref={timelineRef} className={cn('flex-1 overflow-auto', grabCursor && 'cursor-grabbing select-none')}>
+        <div ref={timelineRef} className={cn('flex-1 overflow-auto scrollbar-thin cursor-grab', grabCursor && 'cursor-grabbing select-none')}>
           <GanttTimeline tasks={sortedTasks} scale={scale} rowHeight={ROW_HEIGHT} projectId={projectId} hoveredRow={hoveredRow} onHoverRow={setHoveredRow} />
         </div>
       </div>
