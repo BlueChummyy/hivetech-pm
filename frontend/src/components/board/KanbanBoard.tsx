@@ -42,7 +42,7 @@ const PRIORITY_COLORS: Record<string, string> = {
 };
 
 function getAssigneeColumns(tasks: Task[]): ColumnConfig[] {
-  const seen = new Map<string, { name: string; color: string }>();
+  const seen = new Map<string, { name: string; color: string; avatarUrl: string | null }>();
   for (const task of tasks) {
     if (task.assignees && task.assignees.length > 0) {
       for (const a of task.assignees) {
@@ -50,6 +50,7 @@ function getAssigneeColumns(tasks: Task[]): ColumnConfig[] {
           seen.set(a.userId, {
             name: a.user?.name || a.user?.displayName || 'Unknown',
             color: '#' + a.userId.slice(0, 6).replace(/[^0-9a-f]/gi, 'a'),
+            avatarUrl: a.user?.avatarUrl || null,
           });
         }
       }
@@ -58,15 +59,16 @@ function getAssigneeColumns(tasks: Task[]): ColumnConfig[] {
         seen.set(task.assigneeId, {
           name: task.assignee.name || task.assignee.displayName || 'Unknown',
           color: '#' + task.assigneeId.slice(0, 6).replace(/[^0-9a-f]/gi, 'a'),
+          avatarUrl: task.assignee.avatarUrl || null,
         });
       }
     }
   }
   const columns: ColumnConfig[] = Array.from(seen.entries())
     .sort((a, b) => a[1].name.localeCompare(b[1].name))
-    .map(([id, { name, color }]) => ({ id, name, color }));
+    .map(([id, { name, color, avatarUrl }]) => ({ id, name, color, avatarUrl }));
   // Always add Unassigned column
-  columns.push({ id: '__unassigned__', name: 'Unassigned', color: '#6B7280' });
+  columns.push({ id: '__unassigned__', name: 'Unassigned', color: '#6B7280', avatarUrl: null });
   return columns;
 }
 

@@ -1,21 +1,19 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { brandingApi, type UpdateBrandingData } from '@/api/branding';
 
-export function useBranding(workspaceId: string) {
+export function useBranding() {
   return useQuery({
-    queryKey: ['branding', workspaceId],
-    queryFn: () => brandingApi.get(workspaceId),
-    enabled: !!workspaceId,
+    queryKey: ['branding'],
+    queryFn: () => brandingApi.get(),
   });
 }
 
 export function useUpdateBranding() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ workspaceId, data }: { workspaceId: string; data: UpdateBrandingData }) =>
-      brandingApi.upsert(workspaceId, data),
-    onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: ['branding', variables.workspaceId] });
+    mutationFn: (data: UpdateBrandingData) => brandingApi.upsert(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['branding'] });
     },
   });
 }
@@ -23,10 +21,9 @@ export function useUpdateBranding() {
 export function useUploadLogo() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ workspaceId, file }: { workspaceId: string; file: File }) =>
-      brandingApi.uploadLogo(workspaceId, file),
-    onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: ['branding', variables.workspaceId] });
+    mutationFn: (file: File) => brandingApi.uploadLogo(file),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['branding'] });
     },
   });
 }
@@ -34,10 +31,9 @@ export function useUploadLogo() {
 export function useUploadFavicon() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ workspaceId, file }: { workspaceId: string; file: File }) =>
-      brandingApi.uploadFavicon(workspaceId, file),
-    onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: ['branding', variables.workspaceId] });
+    mutationFn: (file: File) => brandingApi.uploadFavicon(file),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['branding'] });
     },
   });
 }

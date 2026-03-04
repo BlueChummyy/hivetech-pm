@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Users,
@@ -25,6 +25,8 @@ import {
   ChevronUp,
   Plus,
   Mail,
+  Paintbrush,
+  Upload,
 } from 'lucide-react';
 import { adminApi, type AdminUser, type SmtpSettingsData } from '@/api/admin';
 import { Card, CardBody } from '@/components/ui/Card';
@@ -35,9 +37,10 @@ import { useAuthStore } from '@/store/auth.store';
 import { useCreateWorkspace } from '@/hooks/useWorkspaces';
 import { useCreateSpace } from '@/hooks/useSpaces';
 import { useCreateProject } from '@/hooks/useProjects';
+import { useBranding, useUpdateBranding, useUploadLogo, useUploadFavicon } from '@/hooks/useBranding';
 import { cn } from '@/utils/cn';
 
-type Tab = 'users' | 'workspaces' | 'deleted' | 'audit' | 'smtp';
+type Tab = 'users' | 'workspaces' | 'deleted' | 'audit' | 'smtp' | 'branding';
 
 function timeAgo(dateStr: string): string {
   const now = Date.now();
@@ -452,12 +455,32 @@ export function AdminDashboardPage() {
     enabled: activeTab === 'audit',
   });
 
+  // ── Branding ──────────────────────────────────────────────────────
+  const { data: branding } = useBranding();
+  const updateBranding = useUpdateBranding();
+  const uploadLogo = useUploadLogo();
+  const uploadFavicon = useUploadFavicon();
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const faviconInputRef = useRef<HTMLInputElement>(null);
+
+  const [brandingForm, setBrandingForm] = useState({ orgName: '', primaryColor: '#6366f1' });
+
+  useEffect(() => {
+    if (branding) {
+      setBrandingForm({
+        orgName: branding.orgName || '',
+        primaryColor: branding.primaryColor || '#6366f1',
+      });
+    }
+  }, [branding?.id]);
+
   const tabs: { id: Tab; label: string; icon: typeof Users }[] = [
     { id: 'users', label: 'Manage Users', icon: Users },
     { id: 'workspaces', label: 'Workspaces', icon: Building2 },
     { id: 'deleted', label: 'Deleted Items', icon: Archive },
     { id: 'audit', label: 'Audit Log', icon: ClipboardList },
     { id: 'smtp', label: 'SMTP Settings', icon: Mail },
+    { id: 'branding', label: 'Branding', icon: Paintbrush },
   ];
 
   return (
@@ -1938,6 +1961,150 @@ export function AdminDashboardPage() {
                   {testSmtpMutation.isPending ? 'Sending...' : 'Test Connection'}
                 </Button>
               </div>
+            </CardBody>
+          </Card>
+        </div>
+      )}
+
+      {/* ── Branding Tab ──────────────────────────────────────────── */}
+      {activeTab === 'branding' && (
+        <div className="space-y-4 max-w-2xl">
+          <Card>
+            <CardBody className="space-y-5">
+              <h3 className="text-lg font-semibold text-surface-100">White Label / Branding</h3>
+              <p className="text-sm text-surface-400">
+                Customize the application branding globally across all workspaces.
+              </p>
+
+              {/* Organization Name */}
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-surface-400">Organization Name</label>
+                <input
+                  type="text"
+                  value={brandingForm.orgName}
+                  onChange={(e) => setBrandingForm({ ...brandingForm, orgName: e.target.value })}
+                  placeholder="Your Organization"
+                  className="w-full max-w-md rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                />
+              </div>
+
+              {/* Primary Color */}
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-surface-400">Primary Color</label>
+                <div className="flex items-center gap-3 max-w-md">
+                  <input
+                    type="color"
+                    value={brandingForm.primaryColor}
+                    onChange={(e) => setBrandingForm({ ...brandingForm, primaryColor: e.target.value })}
+                    className="h-9 w-12 cursor-pointer rounded border border-surface-700 bg-surface-900 p-0.5"
+                  />
+                  <input
+                    type="text"
+                    value={brandingForm.primaryColor}
+                    onChange={(e) => setBrandingForm({ ...brandingForm, primaryColor: e.target.value })}
+                    className="flex-1 rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-200 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  />
+                </div>
+              </div>
+
+              {/* Logo Upload */}
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-surface-400">Logo</label>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-lg border border-dashed border-surface-600 bg-surface-900 text-surface-500 text-xs overflow-hidden">
+                    {branding?.logoUrl ? (
+                      <img
+                        src={branding.logoUrl.startsWith('http') ? branding.logoUrl : `${import.meta.env.VITE_API_URL?.replace('/api/v1', '') || ''}${branding.logoUrl}`}
+                        alt="Logo"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      'Logo'
+                    )}
+                  </div>
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        uploadLogo.mutate(file, {
+                          onSuccess: () => toast({ type: 'success', title: 'Logo uploaded' }),
+                          onError: (err) => toast({ type: 'error', title: 'Upload failed', description: (err as Error).message }),
+                        });
+                      }
+                    }}
+                  />
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => logoInputRef.current?.click()}
+                    loading={uploadLogo.isPending}
+                  >
+                    <Upload className="h-3.5 w-3.5 mr-1.5" />
+                    Upload Logo
+                  </Button>
+                </div>
+              </div>
+
+              {/* Favicon Upload */}
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-surface-400">Favicon</label>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded border border-dashed border-surface-600 bg-surface-900 text-surface-500 text-xs overflow-hidden">
+                    {branding?.faviconUrl ? (
+                      <img
+                        src={branding.faviconUrl.startsWith('http') ? branding.faviconUrl : `${import.meta.env.VITE_API_URL?.replace('/api/v1', '') || ''}${branding.faviconUrl}`}
+                        alt="Favicon"
+                        className="h-full w-full object-contain"
+                      />
+                    ) : (
+                      'ico'
+                    )}
+                  </div>
+                  <input
+                    ref={faviconInputRef}
+                    type="file"
+                    accept="image/*,.ico"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        uploadFavicon.mutate(file, {
+                          onSuccess: () => toast({ type: 'success', title: 'Favicon uploaded' }),
+                          onError: (err) => toast({ type: 'error', title: 'Upload failed', description: (err as Error).message }),
+                        });
+                      }
+                    }}
+                  />
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => faviconInputRef.current?.click()}
+                    loading={uploadFavicon.isPending}
+                  >
+                    <Upload className="h-3.5 w-3.5 mr-1.5" />
+                    Upload Favicon
+                  </Button>
+                </div>
+              </div>
+
+              {/* Save */}
+              <Button
+                variant="primary"
+                size="sm"
+                loading={updateBranding.isPending}
+                onClick={() => {
+                  updateBranding.mutate(brandingForm, {
+                    onSuccess: () => toast({ type: 'success', title: 'Branding settings saved' }),
+                    onError: (err) => toast({ type: 'error', title: 'Failed to save branding', description: (err as Error).message }),
+                  });
+                }}
+              >
+                Save Branding
+              </Button>
             </CardBody>
           </Card>
         </div>

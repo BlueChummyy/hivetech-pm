@@ -1,17 +1,13 @@
 import type { Request, Response, NextFunction } from 'express';
 import { BrandingService } from '../services/branding.service.js';
-import { requireWorkspaceMember } from '../utils/authorization.js';
 import { successResponse } from '../utils/api-response.js';
 
 const brandingService = new BrandingService();
 
 export class BrandingController {
-  async get(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async get(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const workspaceId = req.params.workspaceId as string;
-      await requireWorkspaceMember(workspaceId, req.user!.id);
-
-      const branding = await brandingService.get(workspaceId);
+      const branding = await brandingService.get();
       res.json(successResponse(branding));
     } catch (err) {
       next(err);
@@ -20,10 +16,7 @@ export class BrandingController {
 
   async upsert(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const workspaceId = req.params.workspaceId as string;
-      await requireWorkspaceMember(workspaceId, req.user!.id, ['OWNER', 'ADMIN']);
-
-      const branding = await brandingService.upsert(workspaceId, req.body);
+      const branding = await brandingService.upsert(req.body);
       res.json(successResponse(branding));
     } catch (err) {
       next(err);
@@ -32,15 +25,11 @@ export class BrandingController {
 
   async uploadLogo(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const workspaceId = req.params.workspaceId as string;
-      await requireWorkspaceMember(workspaceId, req.user!.id, ['OWNER', 'ADMIN']);
-
       if (!req.file) {
         res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'No file uploaded' } });
         return;
       }
-
-      const branding = await brandingService.uploadFile(workspaceId, 'logo', req.file);
+      const branding = await brandingService.uploadFile('logo', req.file);
       res.json(successResponse(branding));
     } catch (err) {
       next(err);
@@ -49,15 +38,11 @@ export class BrandingController {
 
   async uploadFavicon(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const workspaceId = req.params.workspaceId as string;
-      await requireWorkspaceMember(workspaceId, req.user!.id, ['OWNER', 'ADMIN']);
-
       if (!req.file) {
         res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'No file uploaded' } });
         return;
       }
-
-      const branding = await brandingService.uploadFile(workspaceId, 'favicon', req.file);
+      const branding = await brandingService.uploadFile('favicon', req.file);
       res.json(successResponse(branding));
     } catch (err) {
       next(err);

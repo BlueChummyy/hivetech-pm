@@ -4,8 +4,8 @@ import { useBranding } from './useBranding';
 const DEFAULT_TITLE = 'HiveTech PM';
 const DEFAULT_FAVICON = '/favicon.ico';
 
-export function useBrandingEffect(workspaceId: string) {
-  const { data: branding } = useBranding(workspaceId);
+export function useBrandingEffect() {
+  const { data: branding } = useBranding();
 
   useEffect(() => {
     if (!branding) {

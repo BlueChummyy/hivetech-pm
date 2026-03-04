@@ -37,7 +37,7 @@ export function Sidebar() {
   const user = useAuthStore((s) => s.user);
   const { activeWorkspaceId, setActiveWorkspace } = useWorkspaceStore();
   const { data: workspaces } = useWorkspaces();
-  const { data: branding } = useBranding(activeWorkspaceId ?? '');
+  const { data: branding } = useBranding();
 
   // Auto-select first workspace if none selected
   useEffect(() => {

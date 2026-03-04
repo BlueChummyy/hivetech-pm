@@ -707,17 +707,17 @@ export function TaskTableRow({ task, statuses, dragEnabled, overlay, depth = 0, 
       </td>
 
       {/* Status */}
-      <td className="px-4 py-2.5">
+      <td className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
         <StatusBadge task={task} statuses={statuses} />
       </td>
 
       {/* Priority */}
-      <td className="px-4 py-2.5">
+      <td className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
         <PriorityBadge task={task} />
       </td>
 
       {/* Assignee */}
-      <td className="px-4 py-2.5">
+      <td className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
         <AssigneeBadge task={task} />
       </td>
 

@@ -7,10 +7,29 @@ import fs from 'node:fs';
 import { BrandingController } from '../controllers/branding.controller.js';
 import { authenticate } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
+import { prisma } from '../prisma/client.js';
+import { ApiError } from '../utils/api-error.js';
 import { env } from '../config/index.js';
+import type { Request, Response, NextFunction } from 'express';
 
-const router = Router({ mergeParams: true });
+const router = Router();
 const controller = new BrandingController();
+
+async function requireAdmin(req: Request, _res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return next(ApiError.unauthorized('Authentication required'));
+    const membership = await prisma.workspaceMember.findFirst({
+      where: { userId, role: { in: ['OWNER', 'ADMIN'] } },
+    });
+    if (!membership) return next(ApiError.forbidden('Admin access required'));
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+
+router.use(authenticate);
 
 // Ensure branding upload directory exists
 const brandingUploadDir = path.join(env.UPLOAD_DIR, 'branding');
@@ -28,7 +47,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB for branding assets
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const allowedTypes = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/x-icon', 'image/vnd.microsoft.icon', 'image/webp'];
     if (allowedTypes.includes(file.mimetype)) {
@@ -39,14 +58,15 @@ const upload = multer({
   },
 });
 
-router.use(authenticate);
+// Note: authentication & admin check are applied by the parent admin router
 
-// GET /api/v1/workspaces/:workspaceId/branding
+// GET /api/v1/admin/branding
 router.get('/', controller.get);
 
-// PUT /api/v1/workspaces/:workspaceId/branding
+// PUT /api/v1/admin/branding (admin only)
 router.put(
   '/',
+  requireAdmin,
   validate({
     body: z.object({
       orgName: z.string().max(200).optional(),
@@ -56,10 +76,10 @@ router.put(
   controller.upsert,
 );
 
-// POST /api/v1/workspaces/:workspaceId/branding/logo
-router.post('/logo', upload.single('file'), controller.uploadLogo);
+// POST /api/v1/admin/branding/logo (admin only)
+router.post('/logo', requireAdmin, upload.single('file'), controller.uploadLogo);
 
-// POST /api/v1/workspaces/:workspaceId/branding/favicon
-router.post('/favicon', upload.single('file'), controller.uploadFavicon);
+// POST /api/v1/admin/branding/favicon (admin only)
+router.post('/favicon', requireAdmin, upload.single('file'), controller.uploadFavicon);
 
 export { router as brandingRoutes };

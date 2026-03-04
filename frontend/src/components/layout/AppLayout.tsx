@@ -15,7 +15,7 @@ export function AppLayout() {
 
   useNotificationSocket();
   useWorkspaceSocketEvents(activeWorkspaceId ?? undefined);
-  useBrandingEffect(activeWorkspaceId ?? '');
+  useBrandingEffect();
 
   return (
     <div className="flex h-screen bg-surface-950 text-surface-100">

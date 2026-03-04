@@ -4,6 +4,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Plus } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { KanbanCard } from './KanbanCard';
+import { Avatar } from '@/components/ui/Avatar';
 import { useProjectPermissions } from '@/hooks/useProjectRole';
 import { CreateTaskModal } from '@/components/CreateTaskModal';
 import type { Task, ProjectStatus } from '@/types/models.types';
@@ -12,6 +13,7 @@ export interface ColumnConfig {
   id: string;
   name: string;
   color: string;
+  avatarUrl?: string | null;
 }
 
 interface KanbanColumnProps {
@@ -41,10 +43,14 @@ export function KanbanColumn({ column, tasks, projectId, status }: KanbanColumnP
     >
       {/* Column header */}
       <div className="flex items-center gap-2 px-3 py-3">
-        <span
-          className="h-2.5 w-2.5 shrink-0 rounded-full"
-          style={{ backgroundColor: column.color }}
-        />
+        {column.avatarUrl !== undefined ? (
+          <Avatar src={column.avatarUrl} name={column.name} size="sm" />
+        ) : (
+          <span
+            className="h-2.5 w-2.5 shrink-0 rounded-full"
+            style={{ backgroundColor: column.color }}
+          />
+        )}
         <h3 className="text-sm font-medium text-gray-300">{column.name}</h3>
         <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-xs text-gray-400">
           {tasks.length}

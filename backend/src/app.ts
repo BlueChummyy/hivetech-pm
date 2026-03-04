@@ -60,7 +60,7 @@ export function createApp() {
   app.use('/api/v1/admin', adminRoutes);
   app.use('/api/v1/dashboard', dashboardRoutes);
   app.use('/api/v1/task-templates', taskTemplatesRoutes);
-  app.use('/api/v1/workspaces/:workspaceId/branding', brandingRoutes);
+  app.use('/api/v1/admin/branding', brandingRoutes);
 
   // 404 handler for undefined routes
   app.use((_req, res) => {

@@ -3,6 +3,7 @@ import { Bell, CheckCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/utils/cn';
 import { useNotifications, useMarkAsRead, useMarkAllAsRead } from '@/hooks/useNotifications';
+import { useUIStore } from '@/store/ui.store';
 import { NotificationType } from '@/types/models.types';
 
 function getNotificationLabel(type: NotificationType): string {
@@ -108,6 +109,10 @@ export function NotificationDropdown() {
                   onClick={() => {
                     if (!notification.isRead) {
                       markAsRead.mutate(notification.id);
+                    }
+                    if (notification.resourceType?.toLowerCase() === 'task' && notification.resourceId) {
+                      useUIStore.getState().openTaskPanel(notification.resourceId);
+                      setOpen(false);
                     }
                   }}
                 >
