@@ -29,8 +29,8 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/src/prisma ./src/prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
-# Create uploads directory
-RUN mkdir -p /app/uploads && chown -R hivetech:hivetech /app
+# Create uploads and data directories
+RUN mkdir -p /app/uploads /app/data && chown -R hivetech:hivetech /app
 
 USER hivetech
 
