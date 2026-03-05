@@ -64,7 +64,7 @@ export function RegisterPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-surface-950 px-4" style={getBackgroundStyle(branding?.loginBackground)}>
+    <div className={`flex min-h-screen items-center justify-center px-4 ${branding?.loginBackground ? '' : 'bg-surface-950'}`} style={getBackgroundStyle(branding?.loginBackground)}>
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center">
           <img src="/logo.png" alt="HiveTech" className="mb-3 h-12 w-12" />

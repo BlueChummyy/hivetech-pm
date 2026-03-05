@@ -29,13 +29,13 @@ const lightTemplates: Record<string, CSSProperties> = {
   'gradient-forest': { background: 'linear-gradient(135deg, #f0fdf4 0%, #bbf7d0 25%, #86efac 40%, #a7f3d0 55%, #f0fdf4 100%)' },
   'gradient-slate': { background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 30%, #cbd5e1 50%, #e2e8f0 70%, #f8fafc 100%)' },
   // App backgrounds - light equivalents
-  'app-subtle-grid': { background: '#f9fafb', backgroundImage: 'linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px)', backgroundSize: '32px 32px' },
-  'app-subtle-dots': { background: '#f9fafb', backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.07) 1px, transparent 1px)', backgroundSize: '24px 24px' },
-  'app-gradient-dark': { background: 'linear-gradient(180deg, #e2e8f0 0%, #f9fafb 40%, #f9fafb 100%)' },
-  'app-noise': { background: '#f9fafb', backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\' opacity=\'0.04\'/%3E%3C/svg%3E")' },
-  'app-mesh-dark': { background: 'linear-gradient(135deg, #f9fafb 0%, #e2e8f0 25%, #f9fafb 50%, #f3f4f6 75%, #f9fafb 100%)' },
-  'app-vignette': { background: 'radial-gradient(ellipse at center, #ffffff 0%, #f3f4f6 70%)' },
-  'app-deep-space': { background: 'linear-gradient(180deg, #f1f5f9 0%, #e8edf5 30%, #eef2f7 60%, #f1f5f9 100%)' },
+  'app-subtle-grid': { background: '#f1f5f9', backgroundImage: 'linear-gradient(rgba(0,0,0,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.06) 1px, transparent 1px)', backgroundSize: '32px 32px' },
+  'app-subtle-dots': { background: '#f1f5f9', backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.1) 1px, transparent 1px)', backgroundSize: '24px 24px' },
+  'app-gradient-dark': { background: 'linear-gradient(180deg, #cbd5e1 0%, #e2e8f0 30%, #f1f5f9 100%)' },
+  'app-noise': { background: '#f1f5f9', backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\' opacity=\'0.06\'/%3E%3C/svg%3E")' },
+  'app-mesh-dark': { background: 'linear-gradient(135deg, #f1f5f9 0%, #dbeafe 25%, #f1f5f9 50%, #e0e7ff 75%, #f1f5f9 100%)' },
+  'app-vignette': { background: 'radial-gradient(ellipse at center, #ffffff 0%, #e2e8f0 70%)' },
+  'app-deep-space': { background: 'linear-gradient(180deg, #e0e7ff 0%, #dbeafe 30%, #e0f2fe 60%, #f0f9ff 100%)' },
 };
 
 function isLightMode(): boolean {

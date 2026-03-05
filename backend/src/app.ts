@@ -50,6 +50,17 @@ export function createApp() {
     res.json(successResponse({ status: 'ok', timestamp: new Date().toISOString() }));
   });
 
+  // Public branding endpoint (no auth required, for login page)
+  app.get('/api/v1/branding', async (_req, res, next) => {
+    try {
+      const { BrandingService } = await import('./services/branding.service.js');
+      const branding = await new BrandingService().get();
+      res.json(successResponse(branding));
+    } catch (err) {
+      next(err);
+    }
+  });
+
   // API routes
   app.use('/api/v1/auth', authRoutes);
   app.use('/api/v1/users', usersRoutes);

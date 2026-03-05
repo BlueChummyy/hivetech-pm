@@ -22,7 +22,7 @@ export interface UpdateBrandingData {
 
 export const brandingApi = {
   get: () =>
-    get<Branding | null>('/admin/branding').then((r) => r.data),
+    get<Branding | null>('/branding').then((r) => r.data),
 
   upsert: (data: UpdateBrandingData) =>
     put<Branding>('/admin/branding', data).then((r) => r.data),

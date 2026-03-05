@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Outlet } from 'react-router-dom';
+import { cn } from '@/utils/cn';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { TaskDetailPanel } from '@/components/task-detail/TaskDetailPanel';
@@ -26,7 +27,7 @@ export function AppLayout() {
   useKeyboardShortcuts(openShortcutsModal);
 
   return (
-    <div className="flex h-screen bg-surface-950 text-surface-100" style={getBackgroundStyle(branding?.appBackground)}>
+    <div className={cn('flex h-screen text-surface-100', branding?.appBackground ? '' : 'bg-surface-950')} style={getBackgroundStyle(branding?.appBackground)}>
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:z-[200] focus:bg-primary-600 focus:text-white focus:px-4 focus:py-2 focus:rounded-md focus:top-2 focus:left-2"
