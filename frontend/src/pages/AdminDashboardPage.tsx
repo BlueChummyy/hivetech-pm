@@ -40,6 +40,7 @@ import { useCreateSpace } from '@/hooks/useSpaces';
 import { useCreateProject } from '@/hooks/useProjects';
 import { useBranding, useUpdateBranding, useUploadLogo, useUploadFavicon } from '@/hooks/useBranding';
 import { cn } from '@/utils/cn';
+import { getBackgroundStyle } from '@/utils/backgroundTemplates';
 
 type Tab = 'users' | 'workspaces' | 'deleted' | 'audit' | 'smtp' | 'branding' | 'auth';
 
@@ -480,13 +481,15 @@ export function AdminDashboardPage() {
   const logoInputRef = useRef<HTMLInputElement>(null);
   const faviconInputRef = useRef<HTMLInputElement>(null);
 
-  const [brandingForm, setBrandingForm] = useState({ orgName: '', primaryColor: '#6366f1' });
+  const [brandingForm, setBrandingForm] = useState({ orgName: '', primaryColor: '#22c55e', loginBackground: '', appBackground: '' });
 
   useEffect(() => {
     if (branding) {
       setBrandingForm({
         orgName: branding.orgName || '',
-        primaryColor: branding.primaryColor || '#6366f1',
+        primaryColor: branding.primaryColor || '#22c55e',
+        loginBackground: branding.loginBackground || '',
+        appBackground: branding.appBackground || '',
       });
     }
   }, [branding?.id]);
@@ -2106,6 +2109,68 @@ export function AdminDashboardPage() {
                     <Upload className="h-3.5 w-3.5 mr-1.5" />
                     Upload Favicon
                   </Button>
+                </div>
+              </div>
+
+              {/* Login Background */}
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-surface-400">Login Page Background</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    { id: '', label: 'None', style: 'bg-surface-950' },
+                    { id: 'gradient-mesh', label: 'Mesh', style: '' },
+                    { id: 'gradient-aurora', label: 'Aurora', style: '' },
+                    { id: 'gradient-cosmic', label: 'Cosmic', style: '' },
+                    { id: 'gradient-ocean', label: 'Ocean', style: '' },
+                    { id: 'gradient-sunset', label: 'Sunset', style: '' },
+                    { id: 'gradient-forest', label: 'Forest', style: '' },
+                    { id: 'gradient-slate', label: 'Slate', style: '' },
+                  ].map((bg) => (
+                    <button
+                      key={bg.id}
+                      onClick={() => setBrandingForm({ ...brandingForm, loginBackground: bg.id })}
+                      className={cn(
+                        'relative h-20 rounded-lg border-2 overflow-hidden transition-all',
+                        brandingForm.loginBackground === bg.id
+                          ? 'border-primary-500 ring-1 ring-primary-500/50'
+                          : 'border-surface-700 hover:border-surface-600',
+                      )}
+                    >
+                      <div className={cn('absolute inset-0', bg.style)} style={bg.id ? getBackgroundStyle(bg.id) : undefined} />
+                      <span className="relative z-10 text-[10px] font-medium text-white drop-shadow-md">{bg.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* App Background */}
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-surface-400">App Background</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    { id: '', label: 'Default', style: 'bg-surface-950' },
+                    { id: 'app-subtle-grid', label: 'Grid', style: '' },
+                    { id: 'app-subtle-dots', label: 'Dots', style: '' },
+                    { id: 'app-gradient-dark', label: 'Gradient', style: '' },
+                    { id: 'app-noise', label: 'Texture', style: '' },
+                    { id: 'app-mesh-dark', label: 'Mesh', style: '' },
+                    { id: 'app-vignette', label: 'Vignette', style: '' },
+                    { id: 'app-deep-space', label: 'Deep Space', style: '' },
+                  ].map((bg) => (
+                    <button
+                      key={bg.id}
+                      onClick={() => setBrandingForm({ ...brandingForm, appBackground: bg.id })}
+                      className={cn(
+                        'relative h-20 rounded-lg border-2 overflow-hidden transition-all',
+                        brandingForm.appBackground === bg.id
+                          ? 'border-primary-500 ring-1 ring-primary-500/50'
+                          : 'border-surface-700 hover:border-surface-600',
+                      )}
+                    >
+                      <div className={cn('absolute inset-0', bg.style)} style={bg.id ? getBackgroundStyle(bg.id) : undefined} />
+                      <span className="relative z-10 text-[10px] font-medium text-white drop-shadow-md">{bg.label}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
 

@@ -8,6 +8,8 @@ import { useAuthStore } from '@/store/auth.store';
 import { isAxiosError } from 'axios';
 import { SsoButtons } from '@/components/SsoButtons';
 import { useRegistrationDisabled } from '@/App';
+import { useBranding } from '@/hooks/useBranding';
+import { getBackgroundStyle } from '@/utils/backgroundTemplates';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
@@ -19,6 +21,7 @@ export function LoginPage() {
   const login = useAuthStore((s) => s.login);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const registrationDisabled = useRegistrationDisabled();
+  const { data: branding } = useBranding();
 
   // Show error from SSO redirect
   useEffect(() => {
@@ -58,7 +61,7 @@ export function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-surface-950 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-surface-950 px-4" style={getBackgroundStyle(branding?.loginBackground)}>
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center">
           <img src="/logo.png" alt="HiveTech" className="mb-3 h-12 w-12" />

@@ -7,6 +7,8 @@ export interface Branding {
   faviconUrl: string | null;
   orgName: string | null;
   primaryColor: string | null;
+  loginBackground: string | null;
+  appBackground: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -14,6 +16,8 @@ export interface Branding {
 export interface UpdateBrandingData {
   orgName?: string;
   primaryColor?: string;
+  loginBackground?: string;
+  appBackground?: string;
 }
 
 export const brandingApi = {

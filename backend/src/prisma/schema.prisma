@@ -134,15 +134,17 @@ model Workspace {
 }
 
 model Branding {
-  id           String   @id @default(cuid())
-  workspaceId  String   @unique @map("workspace_id")
-  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  logoUrl      String?  @map("logo_url")
-  faviconUrl   String?  @map("favicon_url")
-  orgName      String?  @map("org_name")
-  primaryColor String?  @map("primary_color")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id                  String   @id @default(cuid())
+  workspaceId         String   @unique @map("workspace_id")
+  workspace           Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  logoUrl             String?  @map("logo_url")
+  faviconUrl          String?  @map("favicon_url")
+  orgName             String?  @map("org_name")
+  primaryColor        String?  @map("primary_color")
+  loginBackground     String?  @map("login_background")
+  appBackground       String?  @map("app_background")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
 
   @@map("brandings")
 }

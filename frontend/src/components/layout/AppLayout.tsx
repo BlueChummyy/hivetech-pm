@@ -11,6 +11,7 @@ import { useNotificationSocket } from '@/hooks/useNotificationSocket';
 import { useWorkspaceSocketEvents } from '@/hooks/useWorkspaceSocketEvents';
 import { useBrandingEffect } from '@/hooks/useBrandingEffect';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { getBackgroundStyle } from '@/utils/backgroundTemplates';
 
 export function AppLayout() {
   const { sidebarOpen } = useUIStore();
@@ -21,11 +22,11 @@ export function AppLayout() {
 
   useNotificationSocket();
   useWorkspaceSocketEvents(activeWorkspaceId ?? undefined);
-  useBrandingEffect();
+  const branding = useBrandingEffect();
   useKeyboardShortcuts(openShortcutsModal);
 
   return (
-    <div className="flex h-screen bg-surface-950 text-surface-100">
+    <div className="flex h-screen bg-surface-950 text-surface-100" style={getBackgroundStyle(branding?.appBackground)}>
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:z-[200] focus:bg-primary-600 focus:text-white focus:px-4 focus:py-2 focus:rounded-md focus:top-2 focus:left-2"

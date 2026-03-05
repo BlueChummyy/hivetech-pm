@@ -71,6 +71,8 @@ router.put(
     body: z.object({
       orgName: z.string().max(200).optional(),
       primaryColor: z.string().max(20).optional(),
+      loginBackground: z.string().max(50).optional(),
+      appBackground: z.string().max(50).optional(),
     }),
   }),
   controller.upsert,

@@ -13,7 +13,7 @@ export class BrandingService {
   }
 
   async upsert(
-    data: { orgName?: string; primaryColor?: string; logoUrl?: string; faviconUrl?: string },
+    data: { orgName?: string; primaryColor?: string; logoUrl?: string; faviconUrl?: string; loginBackground?: string; appBackground?: string },
   ) {
     const existing = await prisma.branding.findFirst();
 
@@ -25,6 +25,8 @@ export class BrandingService {
           ...(data.primaryColor !== undefined && { primaryColor: data.primaryColor }),
           ...(data.logoUrl !== undefined && { logoUrl: data.logoUrl }),
           ...(data.faviconUrl !== undefined && { faviconUrl: data.faviconUrl }),
+          ...(data.loginBackground !== undefined && { loginBackground: data.loginBackground }),
+          ...(data.appBackground !== undefined && { appBackground: data.appBackground }),
         },
       });
     }
@@ -43,6 +45,8 @@ export class BrandingService {
         primaryColor: data.primaryColor,
         logoUrl: data.logoUrl,
         faviconUrl: data.faviconUrl,
+        loginBackground: data.loginBackground,
+        appBackground: data.appBackground,
       },
     });
   }
