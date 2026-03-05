@@ -53,6 +53,9 @@ enum NotificationType {
   TASK_UPDATED
   MENTIONED
   STATUS_CHANGED
+  DUE_SOON
+  OVERDUE
+  TASK_DELETED
 }
 
 enum AuthProvider {

@@ -6,6 +6,11 @@ import {
   sendTaskAssignedEmail,
   sendCommentNotificationEmail,
   sendStatusChangeEmail,
+  sendMentionEmail,
+  sendTaskUpdatedEmail,
+  sendDueSoonEmail,
+  sendOverdueEmail,
+  sendTaskDeletedEmail,
 } from './email.service.js';
 
 export class NotificationsService {
@@ -25,6 +30,12 @@ export class NotificationsService {
       oldStatus?: string;
       newStatus?: string;
       changedBy?: string;
+      mentionedBy?: string;
+      context?: string;
+      updatedBy?: string;
+      changes?: string;
+      dueDate?: string;
+      deletedBy?: string;
     };
   }) {
     const notification = await prisma.notification.create({
@@ -59,6 +70,31 @@ export class NotificationsService {
           case 'STATUS_CHANGED':
             if (ed.taskTitle && ed.oldStatus && ed.newStatus && ed.changedBy) {
               sendStatusChangeEmail(user.email, { taskTitle: ed.taskTitle, oldStatus: ed.oldStatus, newStatus: ed.newStatus, changedBy: ed.changedBy });
+            }
+            break;
+          case 'MENTIONED':
+            if (ed.taskTitle && ed.mentionedBy && ed.context) {
+              sendMentionEmail(user.email, { taskTitle: ed.taskTitle, mentionedBy: ed.mentionedBy, context: ed.context });
+            }
+            break;
+          case 'TASK_UPDATED':
+            if (ed.taskTitle && ed.updatedBy) {
+              sendTaskUpdatedEmail(user.email, { taskTitle: ed.taskTitle, updatedBy: ed.updatedBy, changes: ed.changes || '' });
+            }
+            break;
+          case 'DUE_SOON':
+            if (ed.taskTitle && ed.projectName && ed.dueDate) {
+              sendDueSoonEmail(user.email, { taskTitle: ed.taskTitle, projectName: ed.projectName, dueDate: ed.dueDate });
+            }
+            break;
+          case 'OVERDUE':
+            if (ed.taskTitle && ed.projectName && ed.dueDate) {
+              sendOverdueEmail(user.email, { taskTitle: ed.taskTitle, projectName: ed.projectName, dueDate: ed.dueDate });
+            }
+            break;
+          case 'TASK_DELETED':
+            if (ed.taskTitle && ed.deletedBy) {
+              sendTaskDeletedEmail(user.email, { taskTitle: ed.taskTitle, deletedBy: ed.deletedBy });
             }
             break;
         }

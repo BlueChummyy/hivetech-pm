@@ -1,8 +1,11 @@
 import { prisma } from '../prisma/client.js';
 import { ApiError } from '../utils/api-error.js';
-import { emitToProject, emitToUser } from '../utils/socket.js';
+import { emitToProject } from '../utils/socket.js';
 import { logAudit } from './audit.service.js';
 import { calculateNextRecurrence } from './recurrence.service.js';
+import { NotificationsService } from './notifications.service.js';
+
+const notificationsService = new NotificationsService();
 
 export class TasksService {
   async create(data: {
@@ -99,31 +102,34 @@ export class TasksService {
         reporter: true,
         labels: { include: { label: true } },
         assignees: { include: { user: true } },
+        project: { select: { id: true, key: true, name: true, workspaceId: true } },
       },
     });
 
     emitToProject(task.projectId, 'task:created', fullTask);
 
     // Audit log
-    const project = await prisma.project.findUnique({ where: { id: task.projectId }, select: { workspaceId: true } });
+    const project = fullTask?.project || await prisma.project.findUnique({ where: { id: task.projectId }, select: { workspaceId: true, name: true } });
     if (project) {
       logAudit({ workspaceId: project.workspaceId, userId: data.reporterId, action: 'created', entityType: 'task', entityId: task.id, metadata: { title: task.title, taskNumber: task.taskNumber } });
     }
 
     // Notify all assignees about task assignment
+    const reporterUser = await prisma.user.findUnique({ where: { id: data.reporterId }, select: { firstName: true, lastName: true } });
+    const reporterName = reporterUser ? `${reporterUser.firstName} ${reporterUser.lastName}`.trim() : 'Someone';
+    const projectName = fullTask?.project?.name || '';
+
     for (const assigneeId of resolvedAssigneeIds) {
       if (assigneeId !== data.reporterId) {
-        const notification = await prisma.notification.create({
-          data: {
-            userId: assigneeId,
-            type: 'TASK_ASSIGNED',
-            title: 'Task assigned to you',
-            message: `You've been assigned to "${task.title}"`,
-            resourceType: 'task',
-            resourceId: task.id,
-          },
+        await notificationsService.create({
+          userId: assigneeId,
+          type: 'TASK_ASSIGNED',
+          title: 'Task assigned to you',
+          message: `You've been assigned to "${task.title}"`,
+          resourceType: 'task',
+          resourceId: task.id,
+          emailData: { taskTitle: task.title, projectName, assignedBy: reporterName },
         });
-        emitToUser(assigneeId, 'notification:new', notification);
       }
     }
 
@@ -345,19 +351,21 @@ export class TasksService {
       }
 
       // Notify newly added assignees
+      const updaterUser = updatedByUserId ? await prisma.user.findUnique({ where: { id: updatedByUserId }, select: { firstName: true, lastName: true } }) : null;
+      const updaterName = updaterUser ? `${updaterUser.firstName} ${updaterUser.lastName}`.trim() : 'Someone';
+      const projectForNotif = await prisma.project.findUnique({ where: { id: task.projectId }, select: { name: true } });
+
       for (const userId of toAdd) {
         if (userId !== updatedByUserId) {
-          const notification = await prisma.notification.create({
-            data: {
-              userId,
-              type: 'TASK_ASSIGNED',
-              title: 'Task assigned to you',
-              message: `You've been assigned to "${task.title}"`,
-              resourceType: 'task',
-              resourceId: task.id,
-            },
+          await notificationsService.create({
+            userId,
+            type: 'TASK_ASSIGNED',
+            title: 'Task assigned to you',
+            message: `You've been assigned to "${task.title}"`,
+            resourceType: 'task',
+            resourceId: task.id,
+            emailData: { taskTitle: task.title, projectName: projectForNotif?.name || '', assignedBy: updaterName },
           });
-          emitToUser(userId, 'notification:new', notification);
         }
       }
 
@@ -391,23 +399,34 @@ export class TasksService {
       logAudit({ workspaceId: proj.workspaceId, userId: updatedByUserId, action: 'updated', entityType: 'task', entityId: task.id, metadata: { title: task.title, changes } });
     }
 
-    // Notify new assignee about task assignment (if assignee changed and not self-assigning)
+    // Get updater name for email notifications
+    const updaterForEmail = updatedByUserId ? await prisma.user.findUnique({ where: { id: updatedByUserId }, select: { firstName: true, lastName: true } }) : null;
+    const updaterNameForEmail = updaterForEmail ? `${updaterForEmail.firstName} ${updaterForEmail.lastName}`.trim() : 'Someone';
+
+    // Notify new assignee about task assignment (if single assignee changed and not self-assigning)
     if (data.assigneeId && data.assigneeId !== existing.assigneeId && data.assigneeId !== updatedByUserId) {
-      const notification = await prisma.notification.create({
-        data: {
-          userId: data.assigneeId,
-          type: 'TASK_ASSIGNED',
-          title: 'Task assigned to you',
-          message: `You've been assigned to "${task.title}"`,
-          resourceType: 'task',
-          resourceId: task.id,
-        },
+      const proj2 = await prisma.project.findUnique({ where: { id: task.projectId }, select: { name: true } });
+      await notificationsService.create({
+        userId: data.assigneeId,
+        type: 'TASK_ASSIGNED',
+        title: 'Task assigned to you',
+        message: `You've been assigned to "${task.title}"`,
+        resourceType: 'task',
+        resourceId: task.id,
+        emailData: { taskTitle: task.title, projectName: proj2?.name || '', assignedBy: updaterNameForEmail },
       });
-      emitToUser(data.assigneeId, 'notification:new', notification);
     }
 
-    // Collect users to notify (assignee + reporter, excluding the updater)
+    // Collect users to notify (all assignees + reporter, excluding the updater)
     const usersToNotify = new Set<string>();
+    // Include all assignees from junction table
+    const currentAssignees = existing.assignees || [];
+    for (const a of currentAssignees) {
+      if ((a as any).userId !== updatedByUserId) {
+        usersToNotify.add((a as any).userId);
+      }
+    }
+    // Also include legacy assigneeId
     if (existing.assigneeId && existing.assigneeId !== updatedByUserId) {
       usersToNotify.add(existing.assigneeId);
     }
@@ -418,18 +437,18 @@ export class TasksService {
     // STATUS_CHANGED notification
     if (data.statusId && data.statusId !== existing.statusId && usersToNotify.size > 0) {
       const newStatusName = task.status?.name || 'Unknown';
+      const oldStatus = await prisma.projectStatus.findUnique({ where: { id: existing.statusId }, select: { name: true } });
+      const oldStatusName = oldStatus?.name || 'Unknown';
       for (const userId of usersToNotify) {
-        const notification = await prisma.notification.create({
-          data: {
-            userId,
-            type: 'STATUS_CHANGED',
-            title: 'Task status changed',
-            message: `"${task.title}" status changed to ${newStatusName}`,
-            resourceType: 'task',
-            resourceId: task.id,
-          },
+        await notificationsService.create({
+          userId,
+          type: 'STATUS_CHANGED',
+          title: 'Task status changed',
+          message: `"${task.title}" status changed to ${newStatusName}`,
+          resourceType: 'task',
+          resourceId: task.id,
+          emailData: { taskTitle: task.title, oldStatus: oldStatusName, newStatus: newStatusName, changedBy: updaterNameForEmail },
         });
-        emitToUser(userId, 'notification:new', notification);
       }
     }
 
@@ -442,18 +461,23 @@ export class TasksService {
       (data.dueDate !== undefined);
 
     if (otherFieldsChanged && !(data.statusId && data.statusId !== existing.statusId) && usersToNotify.size > 0) {
+      const changesList: string[] = [];
+      if (data.title !== undefined && data.title !== existing.title) changesList.push('title');
+      if (data.description !== undefined && data.description !== existing.description) changesList.push('description');
+      if (data.priority !== undefined && data.priority !== existing.priority) changesList.push('priority');
+      if (data.startDate !== undefined) changesList.push('start date');
+      if (data.dueDate !== undefined) changesList.push('due date');
+
       for (const userId of usersToNotify) {
-        const notification = await prisma.notification.create({
-          data: {
-            userId,
-            type: 'TASK_UPDATED',
-            title: 'Task updated',
-            message: `"${task.title}" has been updated`,
-            resourceType: 'task',
-            resourceId: task.id,
-          },
+        await notificationsService.create({
+          userId,
+          type: 'TASK_UPDATED',
+          title: 'Task updated',
+          message: `"${task.title}" has been updated`,
+          resourceType: 'task',
+          resourceId: task.id,
+          emailData: { taskTitle: task.title, updatedBy: updaterNameForEmail, changes: `Changed: ${changesList.join(', ')}` },
         });
-        emitToUser(userId, 'notification:new', notification);
       }
     }
 
@@ -463,9 +487,15 @@ export class TasksService {
   async softDelete(id: string, deletedByUserId?: string) {
     const task = await prisma.task.findFirst({
       where: { id, deletedAt: null },
-      select: { id: true, projectId: true, title: true, taskNumber: true },
-    });
+      select: { id: true, projectId: true, title: true, taskNumber: true, assigneeId: true, reporterId: true },
+      });
     if (!task) throw ApiError.notFound('Task not found');
+
+    // Fetch all assignees before deletion for notifications
+    const assignees = await prisma.taskAssignee.findMany({
+      where: { taskId: id },
+      select: { userId: true },
+    });
 
     const now = new Date();
 
@@ -489,6 +519,29 @@ export class TasksService {
       if (proj) {
         logAudit({ workspaceId: proj.workspaceId, userId: deletedByUserId, action: 'deleted', entityType: 'task', entityId: task.id, metadata: { title: task.title, taskNumber: task.taskNumber } });
       }
+    }
+
+    // Notify assignees and reporter about task deletion
+    const deleterUser = deletedByUserId ? await prisma.user.findUnique({ where: { id: deletedByUserId }, select: { firstName: true, lastName: true } }) : null;
+    const deleterName = deleterUser ? `${deleterUser.firstName} ${deleterUser.lastName}`.trim() : 'Someone';
+
+    const usersToNotifyDelete = new Set<string>();
+    for (const a of assignees) {
+      if (a.userId !== deletedByUserId) usersToNotifyDelete.add(a.userId);
+    }
+    if (task.assigneeId && task.assigneeId !== deletedByUserId) usersToNotifyDelete.add(task.assigneeId);
+    if (task.reporterId && task.reporterId !== deletedByUserId) usersToNotifyDelete.add(task.reporterId);
+
+    for (const userId of usersToNotifyDelete) {
+      await notificationsService.create({
+        userId,
+        type: 'TASK_DELETED',
+        title: 'Task deleted',
+        message: `"${task.title}" has been deleted`,
+        resourceType: 'task',
+        resourceId: task.id,
+        emailData: { taskTitle: task.title, deletedBy: deleterName },
+      });
     }
 
     return task;

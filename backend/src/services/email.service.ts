@@ -113,74 +113,216 @@ export async function sendMailOrThrow(to: string, subject: string, html: string)
 
 export { sendMail };
 
+// ── Email template helpers ──────────────────────────────────────────
+
+function emailLayout(opts: { iconEmoji: string; accentColor: string; heading: string; body: string }): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background-color:#111827;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#111827;padding:32px 16px;">
+  <tr><td align="center">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background-color:#1f2937;border-radius:12px;overflow:hidden;border:1px solid #374151;">
+      <!-- Header bar -->
+      <tr><td style="background:linear-gradient(135deg,${opts.accentColor},${opts.accentColor}dd);padding:24px 32px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="font-size:28px;line-height:1;">${opts.iconEmoji}</td>
+            <td style="padding-left:14px;font-size:18px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">${opts.heading}</td>
+          </tr>
+        </table>
+      </td></tr>
+      <!-- Body -->
+      <tr><td style="padding:28px 32px 32px;color:#d1d5db;font-size:15px;line-height:1.7;">
+        ${opts.body}
+      </td></tr>
+      <!-- Footer -->
+      <tr><td style="padding:0 32px 24px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr><td style="border-top:1px solid #374151;padding-top:16px;">
+            <table role="presentation" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="font-size:12px;color:#6b7280;font-weight:600;letter-spacing:0.5px;">HIVETECH PM</td>
+              </tr>
+            </table>
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`;
+}
+
+function taskPill(title: string): string {
+  return `<span style="display:inline-block;background-color:#374151;color:#e5e7eb;padding:4px 12px;border-radius:6px;font-weight:600;font-size:14px;">${title}</span>`;
+}
+
+function projectBadge(name: string): string {
+  return `<span style="display:inline-block;background-color:#6366f1;color:#ffffff;padding:3px 10px;border-radius:4px;font-size:12px;font-weight:600;letter-spacing:0.3px;text-transform:uppercase;">${name}</span>`;
+}
+
+function statusBadge(name: string, color: string): string {
+  return `<span style="display:inline-block;background-color:${color};color:#ffffff;padding:3px 10px;border-radius:4px;font-size:12px;font-weight:600;">${name}</span>`;
+}
+
 // ── Email templates ──────────────────────────────────────────────────
 
 export async function sendTaskAssignedEmail(
   to: string,
   data: { taskTitle: string; projectName: string; assignedBy: string },
 ): Promise<boolean> {
-  return sendMail(
-    to,
-    `Task Assigned: ${data.taskTitle}`,
-    `
-    <div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
-      <h2 style="color:#6366f1;">Task Assigned to You</h2>
-      <p>You have been assigned to <strong>${data.taskTitle}</strong> in project <strong>${data.projectName}</strong> by ${data.assignedBy}.</p>
-      <p style="color:#888;font-size:12px;">— Project Management App</p>
-    </div>
+  return sendMail(to, `Task Assigned: ${data.taskTitle}`, emailLayout({
+    iconEmoji: '&#128203;',
+    accentColor: '#6366f1',
+    heading: 'Task Assigned',
+    body: `
+      <p style="margin:0 0 16px;color:#9ca3af;font-size:14px;"><strong style="color:#e5e7eb;">${data.assignedBy}</strong> assigned you a task</p>
+      <p style="margin:0 0 12px;">${taskPill(data.taskTitle)}</p>
+      <p style="margin:0;">${projectBadge(data.projectName)}</p>
     `,
-  );
+  }));
 }
 
 export async function sendCommentNotificationEmail(
   to: string,
   data: { taskTitle: string; commentBy: string; commentPreview: string },
 ): Promise<boolean> {
-  return sendMail(
-    to,
-    `New comment on: ${data.taskTitle}`,
-    `
-    <div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
-      <h2 style="color:#6366f1;">New Comment</h2>
-      <p><strong>${data.commentBy}</strong> commented on <strong>${data.taskTitle}</strong>:</p>
-      <blockquote style="border-left:3px solid #6366f1;padding-left:12px;color:#555;">${data.commentPreview}</blockquote>
-      <p style="color:#888;font-size:12px;">— Project Management App</p>
-    </div>
+  return sendMail(to, `New comment on: ${data.taskTitle}`, emailLayout({
+    iconEmoji: '&#128172;',
+    accentColor: '#3b82f6',
+    heading: 'New Comment',
+    body: `
+      <p style="margin:0 0 16px;color:#9ca3af;font-size:14px;"><strong style="color:#e5e7eb;">${data.commentBy}</strong> commented on ${taskPill(data.taskTitle)}</p>
+      <div style="background-color:#111827;border-left:3px solid #3b82f6;border-radius:0 8px 8px 0;padding:14px 18px;margin:0;">
+        <p style="margin:0;color:#d1d5db;font-size:14px;line-height:1.6;font-style:italic;">${data.commentPreview}</p>
+      </div>
     `,
-  );
+  }));
 }
 
 export async function sendStatusChangeEmail(
   to: string,
   data: { taskTitle: string; oldStatus: string; newStatus: string; changedBy: string },
 ): Promise<boolean> {
-  return sendMail(
-    to,
-    `Status changed: ${data.taskTitle}`,
-    `
-    <div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
-      <h2 style="color:#6366f1;">Status Updated</h2>
-      <p><strong>${data.changedBy}</strong> changed <strong>${data.taskTitle}</strong> from <em>${data.oldStatus}</em> to <em>${data.newStatus}</em>.</p>
-      <p style="color:#888;font-size:12px;">— Project Management App</p>
-    </div>
+  return sendMail(to, `Status changed: ${data.taskTitle}`, emailLayout({
+    iconEmoji: '&#128260;',
+    accentColor: '#8b5cf6',
+    heading: 'Status Changed',
+    body: `
+      <p style="margin:0 0 16px;color:#9ca3af;font-size:14px;"><strong style="color:#e5e7eb;">${data.changedBy}</strong> updated the status of ${taskPill(data.taskTitle)}</p>
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0;">
+        <tr>
+          <td style="padding-right:8px;">${statusBadge(data.oldStatus, '#6b7280')}</td>
+          <td style="color:#6b7280;font-size:18px;padding:0 8px;">&#8594;</td>
+          <td style="padding-left:8px;">${statusBadge(data.newStatus, '#6366f1')}</td>
+        </tr>
+      </table>
     `,
-  );
+  }));
 }
 
 export async function sendMentionEmail(
   to: string,
   data: { taskTitle: string; mentionedBy: string; context: string },
 ): Promise<boolean> {
-  return sendMail(
-    to,
-    `You were mentioned in: ${data.taskTitle}`,
-    `
-    <div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
-      <h2 style="color:#6366f1;">You Were Mentioned</h2>
-      <p><strong>${data.mentionedBy}</strong> mentioned you in <strong>${data.taskTitle}</strong>:</p>
-      <blockquote style="border-left:3px solid #6366f1;padding-left:12px;color:#555;">${data.context}</blockquote>
-      <p style="color:#888;font-size:12px;">— Project Management App</p>
-    </div>
+  return sendMail(to, `You were mentioned in: ${data.taskTitle}`, emailLayout({
+    iconEmoji: '&#128227;',
+    accentColor: '#ec4899',
+    heading: 'You Were Mentioned',
+    body: `
+      <p style="margin:0 0 16px;color:#9ca3af;font-size:14px;"><strong style="color:#e5e7eb;">${data.mentionedBy}</strong> mentioned you on ${taskPill(data.taskTitle)}</p>
+      <div style="background-color:#111827;border-left:3px solid #ec4899;border-radius:0 8px 8px 0;padding:14px 18px;margin:0;">
+        <p style="margin:0;color:#d1d5db;font-size:14px;line-height:1.6;font-style:italic;">${data.context}</p>
+      </div>
     `,
-  );
+  }));
+}
+
+export async function sendTaskUpdatedEmail(
+  to: string,
+  data: { taskTitle: string; updatedBy: string; changes: string },
+): Promise<boolean> {
+  return sendMail(to, `Task updated: ${data.taskTitle}`, emailLayout({
+    iconEmoji: '&#9998;',
+    accentColor: '#f59e0b',
+    heading: 'Task Updated',
+    body: `
+      <p style="margin:0 0 16px;color:#9ca3af;font-size:14px;"><strong style="color:#e5e7eb;">${data.updatedBy}</strong> made changes to ${taskPill(data.taskTitle)}</p>
+      <div style="background-color:#111827;border-radius:8px;padding:14px 18px;margin:0;">
+        <p style="margin:0;color:#fbbf24;font-size:13px;font-weight:600;letter-spacing:0.3px;text-transform:uppercase;margin-bottom:6px;">What changed</p>
+        <p style="margin:0;color:#d1d5db;font-size:14px;">${data.changes}</p>
+      </div>
+    `,
+  }));
+}
+
+export async function sendDueSoonEmail(
+  to: string,
+  data: { taskTitle: string; projectName: string; dueDate: string },
+): Promise<boolean> {
+  return sendMail(to, `Task due soon: ${data.taskTitle}`, emailLayout({
+    iconEmoji: '&#9200;',
+    accentColor: '#f59e0b',
+    heading: 'Due Soon',
+    body: `
+      <p style="margin:0 0 12px;">${taskPill(data.taskTitle)}</p>
+      <p style="margin:0 0 16px;">${projectBadge(data.projectName)}</p>
+      <div style="background-color:#111827;border-radius:8px;padding:14px 18px;border:1px solid #f59e0b44;">
+        <table role="presentation" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="font-size:20px;padding-right:10px;">&#128197;</td>
+            <td>
+              <p style="margin:0;color:#fbbf24;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;">Due Date</p>
+              <p style="margin:4px 0 0;color:#e5e7eb;font-size:16px;font-weight:700;">${data.dueDate}</p>
+            </td>
+          </tr>
+        </table>
+      </div>
+    `,
+  }));
+}
+
+export async function sendOverdueEmail(
+  to: string,
+  data: { taskTitle: string; projectName: string; dueDate: string },
+): Promise<boolean> {
+  return sendMail(to, `Task overdue: ${data.taskTitle}`, emailLayout({
+    iconEmoji: '&#9888;',
+    accentColor: '#ef4444',
+    heading: 'Task Overdue',
+    body: `
+      <p style="margin:0 0 12px;">${taskPill(data.taskTitle)}</p>
+      <p style="margin:0 0 16px;">${projectBadge(data.projectName)}</p>
+      <div style="background-color:#111827;border-radius:8px;padding:14px 18px;border:1px solid #ef444444;">
+        <table role="presentation" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="font-size:20px;padding-right:10px;">&#128308;</td>
+            <td>
+              <p style="margin:0;color:#ef4444;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px;">Was due</p>
+              <p style="margin:4px 0 0;color:#e5e7eb;font-size:16px;font-weight:700;">${data.dueDate}</p>
+            </td>
+          </tr>
+        </table>
+      </div>
+    `,
+  }));
+}
+
+export async function sendTaskDeletedEmail(
+  to: string,
+  data: { taskTitle: string; deletedBy: string },
+): Promise<boolean> {
+  return sendMail(to, `Task deleted: ${data.taskTitle}`, emailLayout({
+    iconEmoji: '&#128465;',
+    accentColor: '#6b7280',
+    heading: 'Task Deleted',
+    body: `
+      <p style="margin:0 0 16px;color:#9ca3af;font-size:14px;"><strong style="color:#e5e7eb;">${data.deletedBy}</strong> deleted a task you were assigned to</p>
+      <div style="background-color:#111827;border-radius:8px;padding:14px 18px;border:1px solid #6b728044;">
+        <p style="margin:0;color:#9ca3af;font-size:14px;text-decoration:line-through;">${data.taskTitle}</p>
+      </div>
+    `,
+  }));
 }

@@ -69,6 +69,9 @@ interface SortableStatusRowProps {
   editingId: string | null;
   editName: string;
   confirmDelete: string | null;
+  deleteError: string | null;
+  reassignTarget: string;
+  allStatuses: ProjectStatus[];
   onStartEdit: (id: string, name: string) => void;
   onEditNameChange: (name: string) => void;
   onNameSave: (statusId: string) => void;
@@ -76,6 +79,7 @@ interface SortableStatusRowProps {
   onCategoryChange: (statusId: string, category: string) => void;
   onColorChange: (statusId: string, color: string) => void;
   onConfirmDelete: (id: string | null) => void;
+  onReassignTargetChange: (id: string) => void;
   onDelete: (statusId: string) => void;
   overlay?: boolean;
 }
@@ -85,6 +89,9 @@ function SortableStatusRow({
   editingId,
   editName,
   confirmDelete,
+  deleteError,
+  reassignTarget,
+  allStatuses,
   onStartEdit,
   onEditNameChange,
   onNameSave,
@@ -92,6 +99,7 @@ function SortableStatusRow({
   onCategoryChange,
   onColorChange,
   onConfirmDelete,
+  onReassignTargetChange,
   onDelete,
   overlay,
 }: SortableStatusRowProps) {
@@ -168,10 +176,28 @@ function SortableStatusRow({
       </select>
 
       {confirmDelete === status.id ? (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-wrap">
+          {deleteError && (
+            <>
+              <span className="text-xs text-red-400 w-full mb-1">{deleteError}</span>
+              <select
+                value={reassignTarget}
+                onChange={(e) => onReassignTargetChange(e.target.value)}
+                className="rounded-md border border-surface-700 bg-surface-800 px-2 py-0.5 text-xs text-surface-300 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              >
+                <option value="">Move tasks to...</option>
+                {allStatuses
+                  .filter((s) => s.id !== status.id)
+                  .map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+              </select>
+            </>
+          )}
           <button
             onClick={() => onDelete(status.id)}
-            className="rounded px-2 py-1 text-xs text-red-400 hover:bg-red-500/10"
+            disabled={!!deleteError && !reassignTarget}
+            className="rounded px-2 py-1 text-xs text-red-400 hover:bg-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Delete
           </button>
@@ -211,6 +237,8 @@ export function StatusManager({ projectId }: StatusManagerProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [reassignTarget, setReassignTarget] = useState<string>('');
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [activeStatus, setActiveStatus] = useState<ProjectStatus | null>(null);
 
   const sorted = statuses?.slice().sort((a, b) => a.position - b.position) || [];
@@ -282,15 +310,27 @@ export function StatusManager({ projectId }: StatusManagerProps) {
   }
 
   function handleDelete(statusId: string) {
+    setDeleteError(null);
     deleteStatus.mutate(
-      { projectId, statusId },
+      { projectId, statusId, reassignToStatusId: reassignTarget || undefined },
       {
+        onSuccess: () => {
+          setConfirmDelete(null);
+          setReassignTarget('');
+          setDeleteError(null);
+        },
         onError: (err) => {
-          toast({ type: 'error', title: 'Failed to delete status', description: (err as Error).message });
+          const msg = (err as Error).message;
+          if (msg.includes('reassignToStatusId')) {
+            setDeleteError('This status has tasks. Select a status to move them to.');
+          } else {
+            toast({ type: 'error', title: 'Failed to delete status', description: msg });
+            setConfirmDelete(null);
+            setReassignTarget('');
+          }
         },
       },
     );
-    setConfirmDelete(null);
   }
 
   const handleDragStart = useCallback(
@@ -425,6 +465,9 @@ export function StatusManager({ projectId }: StatusManagerProps) {
                 editingId={editingId}
                 editName={editName}
                 confirmDelete={confirmDelete}
+                deleteError={deleteError}
+                reassignTarget={reassignTarget}
+                allStatuses={sorted}
                 onStartEdit={(id, name) => {
                   setEditingId(id);
                   setEditName(name);
@@ -434,7 +477,12 @@ export function StatusManager({ projectId }: StatusManagerProps) {
                 onCancelEdit={() => setEditingId(null)}
                 onCategoryChange={handleCategoryChange}
                 onColorChange={handleColorChange}
-                onConfirmDelete={setConfirmDelete}
+                onConfirmDelete={(id) => {
+                  setConfirmDelete(id);
+                  setDeleteError(null);
+                  setReassignTarget('');
+                }}
+                onReassignTargetChange={setReassignTarget}
                 onDelete={handleDelete}
               />
             ))}
@@ -454,6 +502,9 @@ export function StatusManager({ projectId }: StatusManagerProps) {
               editingId={null}
               editName=""
               confirmDelete={null}
+              deleteError={null}
+              reassignTarget=""
+              allStatuses={sorted}
               onStartEdit={() => {}}
               onEditNameChange={() => {}}
               onNameSave={() => {}}
@@ -461,6 +512,7 @@ export function StatusManager({ projectId }: StatusManagerProps) {
               onCategoryChange={() => {}}
               onColorChange={() => {}}
               onConfirmDelete={() => {}}
+              onReassignTargetChange={() => {}}
               onDelete={() => {}}
               overlay
             />

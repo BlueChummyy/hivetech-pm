@@ -7,6 +7,7 @@ import { prisma } from './prisma/client.js';
 import { logger } from './utils/logger.js';
 import { setSocketIO } from './utils/socket.js';
 import { startRecurrenceCron, stopRecurrenceCron } from './services/recurrence-cron.service.js';
+import { startDueDateCron, stopDueDateCron } from './services/due-date-cron.service.js';
 
 async function isWorkspaceMember(workspaceId: string, userId: string): Promise<boolean> {
   const member = await prisma.workspaceMember.findUnique({
@@ -98,6 +99,7 @@ io.on('connection', (socket) => {
 server.listen(env.PORT, () => {
   logger.info(`Server running on port ${env.PORT} in ${env.NODE_ENV} mode`);
   startRecurrenceCron();
+  startDueDateCron();
 });
 
 // Graceful shutdown
@@ -110,6 +112,7 @@ async function shutdown(signal: string) {
     });
   });
   stopRecurrenceCron();
+  stopDueDateCron();
   await prisma.$disconnect();
   logger.info('Database disconnected');
   process.exit(0);

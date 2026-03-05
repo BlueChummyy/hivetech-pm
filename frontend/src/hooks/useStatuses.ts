@@ -41,8 +41,8 @@ export function useUpdateStatus() {
 export function useDeleteStatus() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ projectId, statusId }: { projectId: string; statusId: string }) =>
-      projectsApi.deleteStatus(projectId, statusId),
+    mutationFn: ({ projectId, statusId, reassignToStatusId }: { projectId: string; statusId: string; reassignToStatusId?: string }) =>
+      projectsApi.deleteStatus(projectId, statusId, reassignToStatusId),
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['statuses', { projectId: variables.projectId }] });
       qc.invalidateQueries({ queryKey: ['tasks'] });

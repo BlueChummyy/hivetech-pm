@@ -69,6 +69,6 @@ export const projectsApi = {
   updateStatus: (id: string, statusId: string, data: UpdateStatusData) =>
     patch<ProjectStatus>(`/projects/${id}/statuses/${statusId}`, data).then((r) => r.data),
 
-  deleteStatus: (id: string, statusId: string) =>
-    del(`/projects/${id}/statuses/${statusId}`),
+  deleteStatus: (id: string, statusId: string, reassignToStatusId?: string) =>
+    del(`/projects/${id}/statuses/${statusId}${reassignToStatusId ? `?reassignToStatusId=${reassignToStatusId}` : ''}`),
 };

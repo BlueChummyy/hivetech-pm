@@ -1,7 +1,10 @@
 import { prisma } from '../prisma/client.js';
 import { ApiError } from '../utils/api-error.js';
-import { emitToProject, emitToUser } from '../utils/socket.js';
+import { emitToProject } from '../utils/socket.js';
 import { logAudit } from './audit.service.js';
+import { NotificationsService } from './notifications.service.js';
+
+const notificationsService = new NotificationsService();
 
 // Parse @[User Name](userId) patterns from comment text
 function parseMentions(content: string): string[] {
@@ -49,51 +52,73 @@ export class CommentsService {
       ? `${comment.author.firstName} ${comment.author.lastName}`.trim()
       : 'Someone';
 
+    // Truncate comment for email preview
+    const commentPreview = data.content.replace(/@\[[^\]]+\]\([^)]+\)/g, (m) => {
+      const nameMatch = m.match(/@\[([^\]]+)\]/);
+      return nameMatch ? `@${nameMatch[1]}` : m;
+    }).slice(0, 200);
+
     for (const mentionedUserId of mentionedUserIds) {
-      if (mentionedUserId === data.authorId) continue; // Don't notify self
+      if (mentionedUserId === data.authorId) continue;
       notifiedUserIds.add(mentionedUserId);
-      const notification = await prisma.notification.create({
-        data: {
-          userId: mentionedUserId,
-          type: 'MENTIONED',
-          title: 'You were mentioned',
-          message: `${authorName} mentioned you in a comment on "${task.title}"`,
-          resourceType: 'task',
-          resourceId: task.id,
-        },
+      await notificationsService.create({
+        userId: mentionedUserId,
+        type: 'MENTIONED',
+        title: 'You were mentioned',
+        message: `${authorName} mentioned you in a comment on "${task.title}"`,
+        resourceType: 'task',
+        resourceId: task.id,
+        emailData: { taskTitle: task.title, mentionedBy: authorName, context: commentPreview },
       });
-      emitToUser(mentionedUserId, 'notification:new', notification);
     }
 
-    // Notify task assignee about new comment (if commenter is different and not already notified via mention)
-    if (task.assigneeId && task.assigneeId !== data.authorId && !notifiedUserIds.has(task.assigneeId)) {
-      const notification = await prisma.notification.create({
-        data: {
-          userId: task.assigneeId,
+    // Fetch all assignees from junction table
+    const taskAssignees = await prisma.taskAssignee.findMany({
+      where: { taskId: data.taskId },
+      select: { userId: true },
+    });
+
+    // Notify all task assignees about new comment
+    for (const a of taskAssignees) {
+      if (a.userId !== data.authorId && !notifiedUserIds.has(a.userId)) {
+        await notificationsService.create({
+          userId: a.userId,
           type: 'COMMENT_ADDED',
           title: 'New comment',
           message: `New comment on "${task.title}"`,
           resourceType: 'task',
           resourceId: task.id,
-        },
+          emailData: { taskTitle: task.title, commentBy: authorName, commentPreview },
+        });
+        notifiedUserIds.add(a.userId);
+      }
+    }
+
+    // Also check legacy assigneeId
+    if (task.assigneeId && task.assigneeId !== data.authorId && !notifiedUserIds.has(task.assigneeId)) {
+      await notificationsService.create({
+        userId: task.assigneeId,
+        type: 'COMMENT_ADDED',
+        title: 'New comment',
+        message: `New comment on "${task.title}"`,
+        resourceType: 'task',
+        resourceId: task.id,
+        emailData: { taskTitle: task.title, commentBy: authorName, commentPreview },
       });
-      emitToUser(task.assigneeId, 'notification:new', notification);
       notifiedUserIds.add(task.assigneeId);
     }
 
-    // Notify task reporter about new comment (if different from commenter and assignee, and not already notified)
+    // Notify task reporter about new comment
     if (task.reporterId && task.reporterId !== data.authorId && !notifiedUserIds.has(task.reporterId)) {
-      const notification = await prisma.notification.create({
-        data: {
-          userId: task.reporterId,
-          type: 'COMMENT_ADDED',
-          title: 'New comment',
-          message: `New comment on "${task.title}"`,
-          resourceType: 'task',
-          resourceId: task.id,
-        },
+      await notificationsService.create({
+        userId: task.reporterId,
+        type: 'COMMENT_ADDED',
+        title: 'New comment',
+        message: `New comment on "${task.title}"`,
+        resourceType: 'task',
+        resourceId: task.id,
+        emailData: { taskTitle: task.title, commentBy: authorName, commentPreview },
       });
-      emitToUser(task.reporterId, 'notification:new', notification);
     }
 
     return comment;
@@ -153,19 +178,21 @@ export class CommentsService {
       const authorName = updated.author
         ? `${updated.author.firstName} ${updated.author.lastName}`.trim()
         : 'Someone';
+      const mentionPreview = content.replace(/@\[[^\]]+\]\([^)]+\)/g, (m) => {
+        const nameMatch = m.match(/@\[([^\]]+)\]/);
+        return nameMatch ? `@${nameMatch[1]}` : m;
+      }).slice(0, 200);
       for (const mentionedUserId of newMentions) {
         if (mentionedUserId === userId) continue;
-        const notification = await prisma.notification.create({
-          data: {
-            userId: mentionedUserId,
-            type: 'MENTIONED',
-            title: 'You were mentioned',
-            message: `${authorName} mentioned you in a comment on "${task.title}"`,
-            resourceType: 'task',
-            resourceId: comment.taskId,
-          },
+        await notificationsService.create({
+          userId: mentionedUserId,
+          type: 'MENTIONED',
+          title: 'You were mentioned',
+          message: `${authorName} mentioned you in a comment on "${task.title}"`,
+          resourceType: 'task',
+          resourceId: comment.taskId,
+          emailData: { taskTitle: task.title, mentionedBy: authorName, context: mentionPreview },
         });
-        emitToUser(mentionedUserId, 'notification:new', notification);
       }
     }
 

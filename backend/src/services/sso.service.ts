@@ -322,7 +322,7 @@ export class SsoService {
     // If not found by provider ID, try by email
     if (!user) {
       user = await prisma.user.findFirst({
-        where: { email: info.email, deletedAt: null },
+        where: { email: { equals: info.email, mode: 'insensitive' }, deletedAt: null },
       });
 
       if (user) {
@@ -340,10 +340,16 @@ export class SsoService {
             },
           });
         } else if (user.authProvider === 'LOCAL') {
-          // Local account with password — refuse auto-link
-          throw ApiError.forbidden(
-            'An account with this email already exists. Please sign in with your password first.',
-          );
+          // Local account — auto-link to SSO provider so users can sign in with either method
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              authProvider: provider,
+              providerId: info.providerId,
+              providerEmail: info.email,
+              avatarUrl: user.avatarUrl || info.avatarUrl || null,
+            },
+          });
         } else {
           // SSO account from a different provider with no password — allow linking
           await prisma.user.update({
