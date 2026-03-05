@@ -14,7 +14,7 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { getBackgroundStyle } from '@/utils/backgroundTemplates';
 
 export function AppLayout() {
-  const { sidebarOpen } = useUIStore();
+  const { sidebarOpen, theme } = useUIStore();
   const { activeWorkspaceId } = useWorkspaceStore();
   const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
 

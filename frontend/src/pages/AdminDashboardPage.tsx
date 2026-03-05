@@ -2137,7 +2137,7 @@ export function AdminDashboardPage() {
                       )}
                     >
                       <div className={cn('absolute inset-0', bg.style)} style={bg.id ? getBackgroundStyle(bg.id) : undefined} />
-                      <span className="relative z-10 text-[10px] font-medium text-white drop-shadow-md">{bg.label}</span>
+                      <span className="relative z-10 text-[10px] font-medium text-surface-100 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">{bg.label}</span>
                     </button>
                   ))}
                 </div>
@@ -2168,7 +2168,7 @@ export function AdminDashboardPage() {
                       )}
                     >
                       <div className={cn('absolute inset-0', bg.style)} style={bg.id ? getBackgroundStyle(bg.id) : undefined} />
-                      <span className="relative z-10 text-[10px] font-medium text-white drop-shadow-md">{bg.label}</span>
+                      <span className="relative z-10 text-[10px] font-medium text-surface-100 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">{bg.label}</span>
                     </button>
                   ))}
                 </div>

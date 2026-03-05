@@ -101,8 +101,8 @@ export function MyTasksPage() {
     <div>
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-white">My Tasks</h1>
-        <p className="mt-1 text-sm text-gray-400">
+        <h1 className="text-xl font-semibold text-surface-100">My Tasks</h1>
+        <p className="mt-1 text-sm text-surface-400">
           All tasks assigned to you across all projects
         </p>
       </div>
@@ -194,7 +194,7 @@ export function MyTasksPage() {
               </div>
 
               {/* Task rows */}
-              <div className="rounded-lg border border-surface-700/60 bg-surface-800/40 overflow-hidden">
+              <div className="rounded-lg border border-surface-700/60 bg-[var(--card-bg)] overflow-hidden">
                 {group.tasks.map((task, i) => (
                   <button
                     key={task.id}
@@ -258,7 +258,7 @@ function TaskListSkeleton() {
             <div className="h-4 w-4 animate-pulse rounded bg-surface-700" />
             <div className="h-4 w-32 animate-pulse rounded bg-surface-700" />
           </div>
-          <div className="rounded-lg border border-surface-700/60 bg-surface-800/40 overflow-hidden">
+          <div className="rounded-lg border border-surface-700/60 bg-[var(--card-bg)] overflow-hidden">
             {[1, 2, 3].map((r) => (
               <div
                 key={r}
