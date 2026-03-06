@@ -130,6 +130,137 @@ function timeAgo(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString();
 }
 
+function AuditPagination({
+  page,
+  totalPages,
+  total,
+  onPageChange,
+}: {
+  page: number;
+  totalPages: number;
+  total: number;
+  onPageChange: (page: number) => void;
+}) {
+  const [goToValue, setGoToValue] = useState('');
+
+  // Build page numbers: 1 ... 4 5 [6] 7 8 ... 22
+  function getPageNumbers(): (number | '...')[] {
+    const pages: (number | '...')[] = [];
+    const delta = 2; // pages around current
+
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+      return pages;
+    }
+
+    // Always show page 1
+    pages.push(1);
+
+    const rangeStart = Math.max(2, page - delta);
+    const rangeEnd = Math.min(totalPages - 1, page + delta);
+
+    if (rangeStart > 2) pages.push('...');
+
+    for (let i = rangeStart; i <= rangeEnd; i++) pages.push(i);
+
+    if (rangeEnd < totalPages - 1) pages.push('...');
+
+    // Always show last page
+    pages.push(totalPages);
+    return pages;
+  }
+
+  function handleGoTo() {
+    const target = parseInt(goToValue, 10);
+    if (target >= 1 && target <= totalPages) {
+      onPageChange(target);
+      setGoToValue('');
+    }
+  }
+
+  const pageNumbers = getPageNumbers();
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <p className="text-xs text-surface-500">
+        Page {page} of {totalPages} ({total} entries)
+      </p>
+      <div className="flex items-center gap-1">
+        {/* Prev */}
+        <button
+          onClick={() => onPageChange(Math.max(1, page - 1))}
+          disabled={page <= 1}
+          className={cn(
+            'inline-flex items-center gap-0.5 rounded-md px-2 py-1 text-xs transition-colors',
+            page <= 1 ? 'text-surface-600 cursor-not-allowed' : 'text-surface-300 hover:bg-surface-700',
+          )}
+        >
+          <ChevronLeft className="h-3.5 w-3.5" />
+          Prev
+        </button>
+
+        {/* Page numbers */}
+        {pageNumbers.map((p, i) =>
+          p === '...' ? (
+            <span key={`ellipsis-${i}`} className="px-1 text-xs text-surface-500 select-none">...</span>
+          ) : (
+            <button
+              key={p}
+              onClick={() => onPageChange(p)}
+              className={cn(
+                'min-w-[28px] rounded-md px-1.5 py-1 text-xs font-medium transition-colors',
+                p === page
+                  ? 'bg-primary-600/20 text-primary-400'
+                  : 'text-surface-400 hover:bg-surface-700 hover:text-surface-200',
+              )}
+            >
+              {p}
+            </button>
+          ),
+        )}
+
+        {/* Next */}
+        <button
+          onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+          disabled={page >= totalPages}
+          className={cn(
+            'inline-flex items-center gap-0.5 rounded-md px-2 py-1 text-xs transition-colors',
+            page >= totalPages ? 'text-surface-600 cursor-not-allowed' : 'text-surface-300 hover:bg-surface-700',
+          )}
+        >
+          Next
+          <ChevronRight className="h-3.5 w-3.5" />
+        </button>
+
+        {/* Go to page */}
+        {totalPages > 7 && (
+          <div className="flex items-center gap-1 ml-2 pl-2 border-l border-surface-700">
+            <span className="text-[11px] text-surface-500">Go to</span>
+            <input
+              type="number"
+              min={1}
+              max={totalPages}
+              value={goToValue}
+              onChange={(e) => setGoToValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleGoTo();
+              }}
+              placeholder="#"
+              className="w-12 rounded border border-surface-600 bg-surface-900 px-1.5 py-0.5 text-xs text-surface-200 text-center placeholder-surface-600 focus:outline-none focus:ring-1 focus:ring-primary-500 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            />
+            <button
+              onClick={handleGoTo}
+              className="rounded bg-surface-700 px-1.5 py-0.5 text-[11px] text-surface-300 hover:bg-surface-600 transition-colors"
+            >
+              Go
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const ENTITY_TYPES = ['project', 'task', 'space', 'comment', 'workspace', 'time_entry', 'user', 'label', 'attachment', 'settings'];
 const AUDIT_ACTIONS = [
   'created', 'updated', 'deleted', 'restored', 'hard_deleted',
@@ -1990,35 +2121,12 @@ export function AdminDashboardPage() {
 
           {/* Pagination */}
           {auditData?.pagination && auditData.pagination.totalPages > 1 && (
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-surface-500">
-                Page {auditData.pagination.page} of {auditData.pagination.totalPages} ({auditData.pagination.total} entries)
-              </p>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setAuditPage((p) => Math.max(1, p - 1))}
-                  disabled={auditPage <= 1}
-                  className={cn(
-                    'inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors',
-                    auditPage <= 1 ? 'text-surface-600 cursor-not-allowed' : 'text-surface-300 hover:bg-surface-700',
-                  )}
-                >
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                  Prev
-                </button>
-                <button
-                  onClick={() => setAuditPage((p) => Math.min(auditData.pagination.totalPages, p + 1))}
-                  disabled={auditPage >= auditData.pagination.totalPages}
-                  className={cn(
-                    'inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors',
-                    auditPage >= auditData.pagination.totalPages ? 'text-surface-600 cursor-not-allowed' : 'text-surface-300 hover:bg-surface-700',
-                  )}
-                >
-                  Next
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
+            <AuditPagination
+              page={auditData.pagination.page}
+              totalPages={auditData.pagination.totalPages}
+              total={auditData.pagination.total}
+              onPageChange={setAuditPage}
+            />
           )}
         </div>
       )}
