@@ -22,7 +22,7 @@ import { useStatuses } from '@/hooks/useStatuses';
 import { useProjectMembers } from '@/hooks/useMembers';
 import { useProjects } from '@/hooks/useProjects';
 import { useWorkspaceStore } from '@/store/workspace.store';
-import { useLabels, useAttachLabel, useDetachLabel } from '@/hooks/useLabels';
+import { useLabels, useCreateLabel, useAttachLabel, useDetachLabel } from '@/hooks/useLabels';
 import { useAttachments, useUploadAttachment, useDeleteAttachment } from '@/hooks/useAttachments';
 import { attachmentsApi } from '@/api/attachments';
 import { useTaskDependencies } from '@/hooks/useDependencies';
@@ -67,6 +67,7 @@ export function TaskDetailPanel() {
   const { data: labels } = useLabels(task?.projectId || '');
   const { data: attachments } = useAttachments(taskPanelTaskId || '');
   const { data: dependencies } = useTaskDependencies(taskPanelTaskId || '');
+  const createLabel = useCreateLabel();
   const attachLabel = useAttachLabel();
   const detachLabel = useDetachLabel();
   const uploadAttachment = useUploadAttachment();
@@ -78,6 +79,8 @@ export function TaskDetailPanel() {
   const [titleValue, setTitleValue] = useState('');
   const [descValue, setDescValue] = useState('');
   const [labelDropdownOpen, setLabelDropdownOpen] = useState(false);
+  const [newTagName, setNewTagName] = useState('');
+  const [newTagColor, setNewTagColor] = useState('#6366f1');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewName, setPreviewName] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -711,36 +714,99 @@ export function TaskDetailPanel() {
                         )}
                       </div>
                       {labelDropdownOpen && labels && (
-                        <div className="absolute left-0 top-full z-50 mt-1 w-48 rounded-lg border border-surface-700 bg-surface-800 py-1 shadow-xl">
-                          {labels.map((label) => {
-                            const isAttached = task.labels?.some(
-                              (tl) => tl.labelId === label.id,
-                            );
-                            return (
+                        <div className="absolute left-0 top-full z-50 mt-1 w-56 rounded-lg border border-surface-700 bg-surface-800 shadow-xl overflow-hidden">
+                          <div className="max-h-48 overflow-y-auto py-1">
+                            {labels.map((label) => {
+                              const isAttached = task.labels?.some(
+                                (tl) => tl.labelId === label.id,
+                              );
+                              return (
+                                <button
+                                  key={label.id}
+                                  onClick={() => handleLabelToggle(label.id)}
+                                  className={cn(
+                                    'flex w-full items-center gap-2 px-3 py-1.5 text-sm transition-colors hover:bg-surface-700',
+                                    isAttached ? 'text-surface-100' : 'text-surface-400',
+                                  )}
+                                >
+                                  <span
+                                    className="h-3 w-3 rounded-full shrink-0"
+                                    style={{ backgroundColor: label.color }}
+                                  />
+                                  <span className="truncate">{label.name}</span>
+                                  {isAttached && (
+                                    <span className="ml-auto text-primary-400 text-xs">
+                                      &#10003;
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                            {labels.length === 0 && (
+                              <p className="px-3 py-2 text-sm text-surface-500">No tags yet</p>
+                            )}
+                          </div>
+                          {/* Create new tag */}
+                          <div className="border-t border-surface-700 p-2">
+                            <p className="text-[10px] font-medium text-surface-500 uppercase tracking-wider mb-1.5 px-1">Create new tag</p>
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="color"
+                                value={newTagColor}
+                                onChange={(e) => setNewTagColor(e.target.value)}
+                                className="h-7 w-7 shrink-0 cursor-pointer rounded border border-surface-600 bg-transparent p-0.5 [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded"
+                                title="Tag color"
+                              />
+                              <input
+                                type="text"
+                                value={newTagName}
+                                onChange={(e) => setNewTagName(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && newTagName.trim()) {
+                                    e.preventDefault();
+                                    createLabel.mutate(
+                                      { projectId: task.projectId, data: { name: newTagName.trim(), color: newTagColor } },
+                                      {
+                                        onSuccess: (created) => {
+                                          setNewTagName('');
+                                          // Auto-attach the new tag
+                                          attachLabel.mutate(
+                                            { taskId: task.id, labelId: created.id },
+                                            { onError: (err) => toast({ type: 'error', title: 'Failed to attach tag', description: (err as Error).message }) },
+                                          );
+                                        },
+                                        onError: (err) => toast({ type: 'error', title: 'Failed to create tag', description: (err as Error).message }),
+                                      },
+                                    );
+                                  }
+                                }}
+                                placeholder="Tag name..."
+                                className="flex-1 min-w-0 rounded border border-surface-600 bg-surface-900 px-2 py-1 text-xs text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                              />
                               <button
-                                key={label.id}
-                                onClick={() => handleLabelToggle(label.id)}
-                                className={cn(
-                                  'flex w-full items-center gap-2 px-3 py-1.5 text-sm transition-colors hover:bg-surface-700',
-                                  isAttached ? 'text-surface-100' : 'text-surface-400',
-                                )}
+                                onClick={() => {
+                                  if (!newTagName.trim()) return;
+                                  createLabel.mutate(
+                                    { projectId: task.projectId, data: { name: newTagName.trim(), color: newTagColor } },
+                                    {
+                                      onSuccess: (created) => {
+                                        setNewTagName('');
+                                        attachLabel.mutate(
+                                          { taskId: task.id, labelId: created.id },
+                                          { onError: (err) => toast({ type: 'error', title: 'Failed to attach tag', description: (err as Error).message }) },
+                                        );
+                                      },
+                                      onError: (err) => toast({ type: 'error', title: 'Failed to create tag', description: (err as Error).message }),
+                                    },
+                                  );
+                                }}
+                                disabled={!newTagName.trim() || createLabel.isPending}
+                                className="shrink-0 rounded bg-primary-600 px-2 py-1 text-xs font-medium text-white hover:bg-primary-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                               >
-                                <span
-                                  className="h-3 w-3 rounded-full shrink-0"
-                                  style={{ backgroundColor: label.color }}
-                                />
-                                <span className="truncate">{label.name}</span>
-                                {isAttached && (
-                                  <span className="ml-auto text-primary-400 text-xs">
-                                    &#10003;
-                                  </span>
-                                )}
+                                Add
                               </button>
-                            );
-                          })}
-                          {labels.length === 0 && (
-                            <p className="px-3 py-2 text-sm text-surface-500">No labels</p>
-                          )}
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>

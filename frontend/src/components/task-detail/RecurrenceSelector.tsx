@@ -165,14 +165,14 @@ export function RecurrenceSelector({
 
       {open && (
         <div
-          className="absolute left-0 top-full z-50 mt-1 w-72 rounded-lg border border-surface-700 bg-surface-800 p-3 shadow-xl"
-          style={{ position: 'fixed', left: ref.current?.getBoundingClientRect().left ?? 0, top: (ref.current?.getBoundingClientRect().bottom ?? 0) + 4 }}
+          className="z-50 w-72 rounded-lg border border-surface-700 bg-surface-800 p-4 shadow-xl"
+          style={{ position: 'fixed', left: ref.current?.getBoundingClientRect().left ?? 0, top: (ref.current?.getBoundingClientRect().bottom ?? 0) + 6 }}
         >
           {/* Frequency selector */}
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div>
               <label className="text-[11px] font-medium text-surface-500 uppercase tracking-wider">Frequency</label>
-              <div className="mt-1 grid grid-cols-5 gap-1">
+              <div className="mt-2 grid grid-cols-5 gap-1.5">
                 {FREQUENCY_OPTIONS.map((opt) => (
                   <button
                     key={opt.label}
@@ -204,7 +204,7 @@ export function RecurrenceSelector({
                 <label className="text-[11px] font-medium text-surface-500 uppercase tracking-wider">
                   Every
                 </label>
-                <div className="mt-1 flex items-center gap-2">
+                <div className="mt-2 flex items-center gap-2">
                   <input
                     type="number"
                     min={1}
@@ -224,7 +224,7 @@ export function RecurrenceSelector({
             {rule === 'WEEKLY' && (
               <div>
                 <label className="text-[11px] font-medium text-surface-500 uppercase tracking-wider">Days</label>
-                <div className="mt-1 flex gap-1">
+                <div className="mt-2 flex gap-1">
                   {DAYS_OF_WEEK.map((d) => (
                     <button
                       key={d.value}
@@ -251,7 +251,7 @@ export function RecurrenceSelector({
             {rule && (
               <div>
                 <label className="text-[11px] font-medium text-surface-500 uppercase tracking-wider">End date (optional)</label>
-                <div className="mt-1 flex items-center gap-2">
+                <div className="mt-2 flex items-center gap-2">
                   <input
                     type="date"
                     value={endDate}
@@ -282,7 +282,7 @@ export function RecurrenceSelector({
             )}
 
             {/* Action buttons */}
-            <div className="flex items-center justify-between border-t border-surface-700 pt-2">
+            <div className="flex items-center justify-between border-t border-surface-700 pt-3 mt-1">
               {recurrenceRule && (
                 <button
                   onMouseDown={(e) => {
