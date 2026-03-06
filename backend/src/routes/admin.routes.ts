@@ -554,8 +554,25 @@ router.delete(
       const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId } });
       if (!workspace) throw ApiError.notFound('Workspace not found');
 
+      // Get admin workspace for audit (use a different workspace if deleting the current one)
+      const adminMembershipForWsDelete = await prisma.workspaceMember.findFirst({
+        where: { userId: req.user!.id, role: { in: ['OWNER', 'ADMIN'] } },
+        select: { workspaceId: true },
+      });
+
       // Cascade delete handles members, but we need to be careful about projects
       await prisma.workspace.delete({ where: { id: workspaceId } });
+
+      if (adminMembershipForWsDelete) {
+        logAudit({
+          workspaceId: adminMembershipForWsDelete.workspaceId,
+          userId: req.user!.id,
+          action: 'workspace_deleted',
+          entityType: 'workspace',
+          entityId: workspaceId,
+          metadata: { name: workspace.name },
+        });
+      }
 
       res.json(successResponse({ message: 'Workspace deleted successfully' }));
     } catch (err) {
@@ -738,8 +755,25 @@ router.delete(
       });
       if (!user) throw ApiError.notFound('Deleted user not found. Only soft-deleted users can be permanently deleted.');
 
+      // Get admin workspace for audit before deleting
+      const adminMembershipForHardDelete = await prisma.workspaceMember.findFirst({
+        where: { userId: req.user!.id, role: { in: ['OWNER', 'ADMIN'] } },
+        select: { workspaceId: true },
+      });
+
       // Permanently delete - cascade will handle related records
       await prisma.user.delete({ where: { id: userId } });
+
+      if (adminMembershipForHardDelete) {
+        logAudit({
+          workspaceId: adminMembershipForHardDelete.workspaceId,
+          userId: req.user!.id,
+          action: 'hard_deleted',
+          entityType: 'user',
+          entityId: userId,
+          metadata: { targetUser: `${user.firstName} ${user.lastName}`, email: user.email },
+        });
+      }
 
       res.json(successResponse({ message: 'User permanently deleted' }));
     } catch (err) {
@@ -828,10 +862,20 @@ router.delete(
       const taskId = req.params.id as string;
       const task = await prisma.task.findFirst({
         where: { id: taskId, deletedAt: { not: null } },
+        include: { project: { select: { workspaceId: true } } },
       });
       if (!task) throw ApiError.notFound('Deleted task not found. Only soft-deleted tasks can be permanently deleted.');
 
       await prisma.task.delete({ where: { id: taskId } });
+
+      logAudit({
+        workspaceId: task.project.workspaceId,
+        userId: req.user!.id,
+        action: 'hard_deleted',
+        entityType: 'task',
+        entityId: taskId,
+        metadata: { title: task.title },
+      });
 
       res.json(successResponse({ message: 'Task permanently deleted' }));
     } catch (err) {
@@ -899,6 +943,15 @@ router.delete(
 
       await prisma.project.delete({ where: { id: projectId } });
 
+      logAudit({
+        workspaceId: project.workspaceId,
+        userId: req.user!.id,
+        action: 'hard_deleted',
+        entityType: 'project',
+        entityId: projectId,
+        metadata: { name: project.name },
+      });
+
       res.json(successResponse({ message: 'Project permanently deleted' }));
     } catch (err) {
       next(err);
@@ -963,6 +1016,15 @@ router.delete(
       if (!space) throw ApiError.notFound('Deleted space not found. Only soft-deleted spaces can be permanently deleted.');
 
       await prisma.space.delete({ where: { id: spaceId } });
+
+      logAudit({
+        workspaceId: space.workspaceId,
+        userId: req.user!.id,
+        action: 'hard_deleted',
+        entityType: 'space',
+        entityId: spaceId,
+        metadata: { name: space.name },
+      });
 
       res.json(successResponse({ message: 'Space permanently deleted' }));
     } catch (err) {

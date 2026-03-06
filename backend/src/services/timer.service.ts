@@ -1,6 +1,7 @@
 import { prisma } from '../prisma/client.js';
 import { ApiError } from '../utils/api-error.js';
 import { TimeEntriesService } from './time-entries.service.js';
+import { logAudit } from './audit.service.js';
 
 const timeEntriesService = new TimeEntriesService();
 
@@ -24,9 +25,21 @@ export class TimerService {
     const timer = await prisma.activeTimer.create({
       data: { taskId, userId },
       include: {
-        task: { select: { id: true, title: true, taskNumber: true, projectId: true } },
+        task: { select: { id: true, title: true, taskNumber: true, projectId: true, project: { select: { workspaceId: true } } } },
       },
     });
+
+    // Audit log
+    if (timer.task) {
+      logAudit({
+        workspaceId: (timer.task as any).project.workspaceId,
+        userId,
+        action: 'timer_started',
+        entityType: 'task',
+        entityId: taskId,
+        metadata: { taskId, taskTitle: timer.task.title },
+      });
+    }
 
     return timer;
   }
@@ -57,8 +70,26 @@ export class TimerService {
     const elapsed = Date.now() - timer.startedAt.getTime();
     const hours = Math.round((elapsed / 3600000) * 100) / 100; // Round to 2 decimals
 
+    // Get task info for audit before deleting timer
+    const taskForAudit = await prisma.task.findUnique({
+      where: { id: timer.taskId },
+      select: { title: true, project: { select: { workspaceId: true } } },
+    });
+
     // Delete the timer
     await prisma.activeTimer.delete({ where: { id: timer.id } });
+
+    // Audit log
+    if (taskForAudit) {
+      logAudit({
+        workspaceId: taskForAudit.project.workspaceId,
+        userId,
+        action: 'timer_stopped',
+        entityType: 'task',
+        entityId: timer.taskId,
+        metadata: { taskId: timer.taskId, taskTitle: taskForAudit.title, duration: hours },
+      });
+    }
 
     // Only create a time entry if at least 1 minute has elapsed
     if (hours >= 0.02) {

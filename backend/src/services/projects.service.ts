@@ -347,6 +347,15 @@ export class ProjectsService {
 
     emitToProject(projectId, 'status:created', result);
 
+    logAudit({
+      workspaceId: project.workspaceId,
+      userId,
+      action: 'status_created',
+      entityType: 'project',
+      entityId: projectId,
+      metadata: { name: data.name, projectId },
+    });
+
     return result;
   }
 
@@ -384,6 +393,15 @@ export class ProjectsService {
 
     emitToProject(status.projectId, 'status:updated', result);
 
+    logAudit({
+      workspaceId: project.workspaceId,
+      userId,
+      action: 'status_updated',
+      entityType: 'project',
+      entityId: status.projectId,
+      metadata: { name: result.name, projectId: status.projectId, statusId },
+    });
+
     return result;
   }
 
@@ -396,10 +414,12 @@ export class ProjectsService {
       throw ApiError.notFound('Status not found in this project');
     }
 
+    let workspaceIdForAudit: string | undefined;
     if (userId) {
       const project = await prisma.project.findUnique({ where: { id: status.projectId } });
       if (!project) throw ApiError.notFound('Project not found');
       await requireWorkspaceMember(project.workspaceId, userId);
+      workspaceIdForAudit = project.workspaceId;
     }
 
     if (status.isDefault) {
@@ -428,11 +448,33 @@ export class ProjectsService {
       });
 
       emitToProject(status.projectId, 'status:deleted', { id: statusId });
+
+      if (userId && workspaceIdForAudit) {
+        logAudit({
+          workspaceId: workspaceIdForAudit,
+          userId,
+          action: 'status_deleted',
+          entityType: 'project',
+          entityId: status.projectId,
+          metadata: { name: status.name, projectId: status.projectId },
+        });
+      }
       return;
     }
 
     await prisma.projectStatus.delete({ where: { id: statusId } });
 
     emitToProject(status.projectId, 'status:deleted', { id: statusId });
+
+    if (userId && workspaceIdForAudit) {
+      logAudit({
+        workspaceId: workspaceIdForAudit,
+        userId,
+        action: 'status_deleted',
+        entityType: 'project',
+        entityId: status.projectId,
+        metadata: { name: status.name, projectId: status.projectId },
+      });
+    }
   }
 }

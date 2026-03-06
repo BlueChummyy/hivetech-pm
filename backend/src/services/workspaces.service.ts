@@ -2,6 +2,7 @@ import { prisma } from '../prisma/client.js';
 import { ApiError } from '../utils/api-error.js';
 import { requireWorkspaceMember } from '../utils/authorization.js';
 import { emitToWorkspace } from '../utils/socket.js';
+import { logAudit } from './audit.service.js';
 
 export class WorkspacesService {
   async create(data: { name: string; slug: string; description?: string }, userId: string) {
@@ -35,6 +36,15 @@ export class WorkspacesService {
           },
         },
       });
+    });
+
+    logAudit({
+      workspaceId: workspace.id,
+      userId,
+      action: 'workspace_created',
+      entityType: 'workspace',
+      entityId: workspace.id,
+      metadata: { name: data.name, slug: data.slug },
     });
 
     return workspace;
@@ -94,7 +104,26 @@ export class WorkspacesService {
   async delete(id: string, userId: string) {
     await requireWorkspaceMember(id, userId, ['OWNER']);
 
+    // Get workspace name for audit before deleting
+    const workspace = await prisma.workspace.findUnique({ where: { id }, select: { name: true } });
+
     await prisma.workspace.delete({ where: { id } });
+
+    // Log to another workspace the user belongs to (since this one is deleted)
+    const otherMembership = await prisma.workspaceMember.findFirst({
+      where: { userId },
+      select: { workspaceId: true },
+    });
+    if (otherMembership) {
+      logAudit({
+        workspaceId: otherMembership.workspaceId,
+        userId,
+        action: 'workspace_deleted',
+        entityType: 'workspace',
+        entityId: id,
+        metadata: { name: workspace?.name },
+      });
+    }
 
     emitToWorkspace(id, 'workspace:deleted', { id });
   }

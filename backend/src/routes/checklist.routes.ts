@@ -34,7 +34,7 @@ router.post(
       const item = await service.create({
         taskId: req.params.taskId as string,
         title: req.body.title,
-      });
+      }, req.user?.id);
       res.status(201).json(successResponse(item));
     } catch (err) {
       next(err);
@@ -74,7 +74,7 @@ router.patch(
   }),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const item = await service.update(req.params.itemId as string, req.body);
+      const item = await service.update(req.params.itemId as string, req.body, req.user?.id);
       res.json(successResponse(item));
     } catch (err) {
       next(err);
@@ -85,7 +85,7 @@ router.patch(
 // DELETE /api/v1/tasks/:taskId/checklist/:itemId — Delete checklist item
 router.delete('/:itemId', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await service.delete(req.params.itemId as string);
+    await service.delete(req.params.itemId as string, req.user?.id);
     res.status(204).send();
   } catch (err) {
     next(err);

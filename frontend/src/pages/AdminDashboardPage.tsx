@@ -59,14 +59,19 @@ function timeAgo(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString();
 }
 
-const ENTITY_TYPES = ['project', 'task', 'space', 'comment', 'workspace', 'user', 'label', 'attachment', 'settings'];
+const ENTITY_TYPES = ['project', 'task', 'space', 'comment', 'workspace', 'time_entry', 'user', 'label', 'attachment', 'settings'];
 const AUDIT_ACTIONS = [
   'created', 'updated', 'deleted', 'restored', 'hard_deleted',
   'commented', 'comment_deleted', 'member_added', 'member_removed',
   'member_role_changed', 'status_changed', 'assigned', 'unassigned',
+  'cloned', 'closed', 'reopened', 'logged_time', 'deleted_time_entry',
   'user_created', 'user_updated', 'user_deactivated', 'user_activated',
   'user_deleted', 'password_reset', 'settings_updated', 'workspace_role_changed',
   'label_created', 'label_deleted', 'attachment_uploaded', 'attachment_deleted',
+  'checklist_item_created', 'checklist_item_updated', 'checklist_item_deleted',
+  'timer_started', 'timer_stopped',
+  'status_created', 'status_updated', 'status_deleted',
+  'workspace_created', 'workspace_deleted',
 ];
 
 const WORKSPACE_ROLES = [

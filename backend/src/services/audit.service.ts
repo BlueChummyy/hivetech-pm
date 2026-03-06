@@ -32,7 +32,21 @@ export type AuditAction =
   | 'label_created'
   | 'label_deleted'
   | 'attachment_uploaded'
-  | 'attachment_deleted';
+  | 'attachment_deleted'
+  // Checklist actions
+  | 'checklist_item_created'
+  | 'checklist_item_updated'
+  | 'checklist_item_deleted'
+  // Timer actions
+  | 'timer_started'
+  | 'timer_stopped'
+  // Status actions
+  | 'status_created'
+  | 'status_updated'
+  | 'status_deleted'
+  // Workspace actions
+  | 'workspace_created'
+  | 'workspace_deleted';
 
 export type AuditEntityType = 'project' | 'task' | 'space' | 'comment' | 'workspace' | 'time_entry' | 'user' | 'label' | 'attachment' | 'settings';
 
