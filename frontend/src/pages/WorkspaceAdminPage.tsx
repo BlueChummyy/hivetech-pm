@@ -54,17 +54,21 @@ function timeAgo(dateStr: string): string {
 
 const ENTITY_TYPES = ['project', 'task', 'space', 'comment', 'workspace', 'time_entry', 'user', 'label', 'attachment', 'settings'] as const;
 const AUDIT_ACTIONS = [
-  'created', 'updated', 'deleted', 'restored', 'hard_deleted', 'commented', 'comment_deleted',
-  'member_added', 'member_removed', 'member_role_changed', 'status_changed', 'assigned', 'unassigned',
-  'cloned', 'closed', 'reopened', 'logged_time', 'deleted_time_entry',
-  'user_created', 'user_updated', 'user_deactivated', 'user_activated', 'user_deleted',
-  'password_reset', 'settings_updated', 'workspace_role_changed',
-  'label_created', 'label_deleted', 'attachment_uploaded', 'attachment_deleted',
-  'checklist_item_created', 'checklist_item_updated', 'checklist_item_deleted',
-  'timer_started', 'timer_stopped',
-  'status_created', 'status_updated', 'status_deleted',
-  'workspace_created', 'workspace_deleted',
-  'global_admin_granted', 'global_admin_revoked',
+  { value: 'created', label: 'Created' },
+  { value: 'updated', label: 'Updated' },
+  { value: 'deleted', label: 'Deleted' },
+  { value: 'restored', label: 'Restored' },
+  { value: 'hard_deleted', label: 'Hard deleted' },
+  { value: 'commented', label: 'Commented' },
+  { value: 'member_added', label: 'Member added' },
+  { value: 'member_removed', label: 'Member removed' },
+  { value: 'assigned', label: 'Assigned' },
+  { value: 'unassigned', label: 'Unassigned' },
+  { value: 'status_changed', label: 'Status changed' },
+  { value: 'logged_time', label: 'Logged time' },
+  { value: 'user_created', label: 'User created' },
+  { value: 'user_deleted', label: 'User deleted' },
+  { value: 'settings_updated', label: 'Settings updated' },
 ] as const;
 
 export function WorkspaceAdminPage() {
@@ -356,7 +360,7 @@ export function WorkspaceAdminPage() {
               >
                 <option value="">All actions</option>
                 {AUDIT_ACTIONS.map((a) => (
-                  <option key={a} value={a}>{a.replace(/_/g, ' ')}</option>
+                  <option key={a.value} value={a.value}>{a.label}</option>
                 ))}
               </select>
             </div>
