@@ -811,8 +811,13 @@ router.get(
   '/tasks/deleted',
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const { workspaceId } = req.query as { workspaceId?: string };
+      const where: any = { deletedAt: { not: null } };
+      if (workspaceId) {
+        where.project = { workspaceId };
+      }
       const tasks = await prisma.task.findMany({
-        where: { deletedAt: { not: null } },
+        where,
         orderBy: { deletedAt: 'desc' },
         take: 100,
         include: {
@@ -887,10 +892,13 @@ router.delete(
 // ── GET /api/v1/admin/projects/deleted — List soft-deleted projects ───
 router.get(
   '/projects/deleted',
-  async (_req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const { workspaceId } = req.query as { workspaceId?: string };
+      const where: any = { deletedAt: { not: null } };
+      if (workspaceId) where.workspaceId = workspaceId;
       const projects = await prisma.project.findMany({
-        where: { deletedAt: { not: null } },
+        where,
         orderBy: { deletedAt: 'desc' },
         include: {
           workspace: { select: { id: true, name: true } },
@@ -962,10 +970,13 @@ router.delete(
 // ── GET /api/v1/admin/spaces/deleted — List soft-deleted spaces ───────
 router.get(
   '/spaces/deleted',
-  async (_req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const { workspaceId } = req.query as { workspaceId?: string };
+      const where: any = { deletedAt: { not: null } };
+      if (workspaceId) where.workspaceId = workspaceId;
       const spaces = await prisma.space.findMany({
-        where: { deletedAt: { not: null } },
+        where,
         orderBy: { deletedAt: 'desc' },
         include: {
           workspace: { select: { id: true, name: true } },

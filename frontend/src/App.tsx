@@ -63,7 +63,12 @@ const NotificationsPage = lazyPage(
 const AdminDashboardPage = lazyPage(
   () => import('@/pages/AdminDashboardPage'),
   'AdminDashboardPage',
-  'Admin Dashboard',
+  'Global Admin',
+);
+const WorkspaceAdminPage = lazyPage(
+  () => import('@/pages/WorkspaceAdminPage'),
+  'WorkspaceAdminPage',
+  'Workspace Admin',
 );
 const MyTasksPage = lazyPage(
   () => import('@/pages/MyTasksPage'),
@@ -152,6 +157,10 @@ export function App() {
             <Route
               path="/workspaces/:workspaceId/settings"
               element={withErrorBoundary(WorkspaceSettingsPage)}
+            />
+            <Route
+              path="/workspaces/:workspaceId/admin"
+              element={withErrorBoundary(WorkspaceAdminPage)}
             />
             <Route path="/settings/profile" element={withErrorBoundary(ProfileSettingsPage)} />
             <Route path="/notifications" element={withErrorBoundary(NotificationsPage)} />

@@ -62,12 +62,20 @@ export function Sidebar() {
   const activeWorkspace = workspaces?.find((w) => w.id === activeWorkspaceId);
   const [showCreateWsModal, setShowCreateWsModal] = useState(false);
 
-  // Global admin check: user is OWNER or ADMIN in ANY workspace
+  // Global admin: OWNER in any workspace (full system access)
   const isGlobalAdmin = workspaces?.some((ws) =>
     (ws as any).members?.some(
-      (m: any) => m.userId === user?.id && (m.role === 'OWNER' || m.role === 'ADMIN'),
+      (m: any) => m.userId === user?.id && m.role === 'OWNER',
     ),
   );
+
+  // Workspace admin: ADMIN in the current workspace (workspace-level access)
+  const isWorkspaceAdmin = !isGlobalAdmin && activeWorkspace && (activeWorkspace as any).members?.some(
+    (m: any) => m.userId === user?.id && m.role === 'ADMIN',
+  );
+
+  const showAdminLink = isGlobalAdmin || isWorkspaceAdmin;
+  const adminPath = isGlobalAdmin ? '/admin' : `/workspaces/${activeWorkspaceId}/admin`;
 
   const navItems = [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
@@ -194,14 +202,19 @@ export function Sidebar() {
       </nav>
 
       {/* Admin link at bottom */}
-      {isGlobalAdmin && (
+      {showAdminLink && (
         <div className="border-t border-surface-700 px-2 py-3">
           <Link
-            to="/admin"
-            aria-current={location.pathname.startsWith('/admin') ? 'page' : undefined}
+            to={adminPath}
+            aria-current={
+              (isGlobalAdmin && location.pathname.startsWith('/admin'))
+              || (!isGlobalAdmin && location.pathname.includes('/admin'))
+                ? 'page' : undefined
+            }
             className={cn(
               'flex items-center gap-3 rounded-lg px-3 py-2.5 sm:py-2 text-sm font-medium transition-colors min-h-[44px] sm:min-h-0',
-              location.pathname.startsWith('/admin')
+              (isGlobalAdmin && location.pathname.startsWith('/admin'))
+              || (!isGlobalAdmin && location.pathname.includes('/admin'))
                 ? 'bg-primary-600/20 text-primary-400'
                 : 'text-surface-400 hover:bg-surface-800 hover:text-surface-200',
             )}

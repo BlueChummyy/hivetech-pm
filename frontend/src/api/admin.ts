@@ -161,8 +161,8 @@ export const adminApi = {
     patch<any>(`/admin/projects/${projectId}/space`, { spaceId }).then((r) => r.data),
 
   // Deleted users
-  listDeletedUsers: () =>
-    get<AdminUser[]>('/admin/users/deleted').then((r) => r.data),
+  listDeletedUsers: (params?: { workspaceId?: string }) =>
+    get<AdminUser[]>('/admin/users/deleted', { params }).then((r) => r.data),
 
   restoreUser: (userId: string) =>
     post<AdminUser>(`/admin/users/${userId}/restore`).then((r) => r.data),
@@ -171,8 +171,8 @@ export const adminApi = {
     del<{ message: string }>(`/admin/users/${userId}/hard-delete`).then((r) => r.data),
 
   // Deleted tasks
-  listDeletedTasks: () =>
-    get<any[]>('/admin/tasks/deleted').then((r) => r.data),
+  listDeletedTasks: (params?: { workspaceId?: string }) =>
+    get<any[]>('/admin/tasks/deleted', { params }).then((r) => r.data),
 
   restoreTask: (taskId: string) =>
     post<{ message: string }>(`/admin/tasks/${taskId}/restore`).then((r) => r.data),
@@ -181,8 +181,8 @@ export const adminApi = {
     del<{ message: string }>(`/admin/tasks/${taskId}/hard-delete`).then((r) => r.data),
 
   // Deleted projects
-  listDeletedProjects: () =>
-    get<any[]>('/admin/projects/deleted').then((r) => r.data),
+  listDeletedProjects: (params?: { workspaceId?: string }) =>
+    get<any[]>('/admin/projects/deleted', { params }).then((r) => r.data),
 
   restoreProject: (projectId: string) =>
     post<{ message: string }>(`/admin/projects/${projectId}/restore`).then((r) => r.data),
@@ -191,8 +191,8 @@ export const adminApi = {
     del<{ message: string }>(`/admin/projects/${projectId}/hard-delete`).then((r) => r.data),
 
   // Deleted spaces
-  listDeletedSpaces: () =>
-    get<any[]>('/admin/spaces/deleted').then((r) => r.data),
+  listDeletedSpaces: (params?: { workspaceId?: string }) =>
+    get<any[]>('/admin/spaces/deleted', { params }).then((r) => r.data),
 
   restoreSpace: (spaceId: string) =>
     post<{ message: string }>(`/admin/spaces/${spaceId}/restore`).then((r) => r.data),
@@ -201,7 +201,7 @@ export const adminApi = {
     del<{ message: string }>(`/admin/spaces/${spaceId}/hard-delete`).then((r) => r.data),
 
   // Audit log
-  listAuditLogs: (params?: { page?: number; limit?: number; entityType?: string; action?: string }) =>
+  listAuditLogs: (params?: { page?: number; limit?: number; entityType?: string; action?: string; workspaceId?: string }) =>
     get<{ logs: any[]; pagination: any }>('/admin/audit-log', { params }).then((r) => r.data),
 
   // SMTP settings
