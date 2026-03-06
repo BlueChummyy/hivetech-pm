@@ -8,6 +8,7 @@ export interface AdminUser {
   name: string;
   avatarUrl: string | null;
   isActive: boolean;
+  isGlobalAdmin: boolean;
   createdAt: string;
   updatedAt: string;
   workspaceMembers: { role: string; workspace: { id: string; name: string } }[];
@@ -135,6 +136,9 @@ export const adminApi = {
 
   deactivateUser: (userId: string) =>
     patch<{ message: string; isActive: boolean }>(`/admin/users/${userId}/deactivate`).then((r) => r.data),
+
+  toggleGlobalAdmin: (userId: string) =>
+    patch<{ message: string; isGlobalAdmin: boolean }>(`/admin/users/${userId}/global-admin`).then((r) => r.data),
 
   assignWorkspace: (userId: string, workspaceId: string, role: string) =>
     post<any>(`/admin/users/${userId}/assign-workspace`, { workspaceId, role }).then((r) => r.data),

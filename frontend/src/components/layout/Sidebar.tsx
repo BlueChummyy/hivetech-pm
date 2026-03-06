@@ -62,16 +62,12 @@ export function Sidebar() {
   const activeWorkspace = workspaces?.find((w) => w.id === activeWorkspaceId);
   const [showCreateWsModal, setShowCreateWsModal] = useState(false);
 
-  // Global admin: OWNER in any workspace (full system access)
-  const isGlobalAdmin = workspaces?.some((ws) =>
-    (ws as any).members?.some(
-      (m: any) => m.userId === user?.id && m.role === 'OWNER',
-    ),
-  );
+  // Global admin: based on isGlobalAdmin flag from user profile
+  const isGlobalAdmin = user?.isGlobalAdmin === true;
 
-  // Workspace admin: ADMIN in the current workspace (workspace-level access)
+  // Workspace admin: ADMIN or OWNER in the current workspace (workspace-level access)
   const isWorkspaceAdmin = !isGlobalAdmin && activeWorkspace && (activeWorkspace as any).members?.some(
-    (m: any) => m.userId === user?.id && m.role === 'ADMIN',
+    (m: any) => m.userId === user?.id && (m.role === 'ADMIN' || m.role === 'OWNER'),
   );
 
   const showAdminLink = isGlobalAdmin || isWorkspaceAdmin;

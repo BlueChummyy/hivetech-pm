@@ -24,6 +24,7 @@ const userSelectWithoutPassword = {
   lastName: true,
   avatarUrl: true,
   isActive: true,
+  isGlobalAdmin: true,
   createdAt: true,
   updatedAt: true,
 } as const;

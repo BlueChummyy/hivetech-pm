@@ -46,12 +46,15 @@ export type AuditAction =
   | 'status_deleted'
   // Workspace actions
   | 'workspace_created'
-  | 'workspace_deleted';
+  | 'workspace_deleted'
+  // Global admin actions
+  | 'global_admin_granted'
+  | 'global_admin_revoked';
 
 export type AuditEntityType = 'project' | 'task' | 'space' | 'comment' | 'workspace' | 'time_entry' | 'user' | 'label' | 'attachment' | 'settings';
 
 interface AuditEntry {
-  workspaceId: string;
+  workspaceId?: string;
   userId: string;
   action: AuditAction;
   entityType: AuditEntityType;
@@ -63,6 +66,7 @@ interface AuditEntry {
  * Log an audit entry. Fire-and-forget — never blocks the caller.
  */
 export function logAudit(entry: AuditEntry): void {
+  if (!entry.workspaceId) return; // skip if no workspace context
   prisma.activityLog
     .create({
       data: {

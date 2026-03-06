@@ -13,12 +13,20 @@ import type { Request, Response, NextFunction } from 'express';
 
 const router = Router();
 
-// ── Middleware: require admin or owner in ANY workspace (global) ─────
+// ── Middleware: require admin or owner in ANY workspace ───────────────
 async function requireAdmin(req: Request, _res: Response, next: NextFunction) {
   try {
     const userId = req.user?.id;
     if (!userId) return next(ApiError.unauthorized('Authentication required'));
 
+    // Global admins always pass
+    const user = await prisma.user.findFirst({ where: { id: userId, deletedAt: null, isActive: true } });
+    if (user?.isGlobalAdmin) {
+      (req as any).isGlobalAdmin = true;
+      return next();
+    }
+
+    // Otherwise, require OWNER or ADMIN in any workspace
     const membership = await prisma.workspaceMember.findFirst({
       where: { userId, role: { in: ['OWNER', 'ADMIN'] } },
     });
@@ -26,6 +34,22 @@ async function requireAdmin(req: Request, _res: Response, next: NextFunction) {
       return next(ApiError.forbidden('Admin access required'));
     }
 
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ── Middleware: require isGlobalAdmin flag on user ────────────────────
+async function requireGlobalAdmin(req: Request, _res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return next(ApiError.unauthorized('Authentication required'));
+
+    const user = await prisma.user.findFirst({ where: { id: userId, deletedAt: null, isActive: true } });
+    if (!user?.isGlobalAdmin) {
+      return next(ApiError.forbidden('Global admin access required'));
+    }
     next();
   } catch (err) {
     next(err);
@@ -435,6 +459,51 @@ router.patch(
       res.json(successResponse({
         message: newStatus ? 'User activated' : 'User deactivated',
         isActive: newStatus,
+      }));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ── PATCH /api/v1/admin/users/:id/global-admin — Toggle global admin ─
+router.patch(
+  '/users/:id/global-admin',
+  requireGlobalAdmin,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.params.id as string;
+      const currentUserId = req.user?.id;
+
+      if (userId === currentUserId) {
+        throw ApiError.forbidden('You cannot change your own global admin status');
+      }
+
+      const user = await prisma.user.findFirst({ where: { id: userId, deletedAt: null } });
+      if (!user) throw ApiError.notFound('User not found');
+
+      const updated = await prisma.user.update({
+        where: { id: userId },
+        data: { isGlobalAdmin: !user.isGlobalAdmin },
+        select: { id: true, isGlobalAdmin: true },
+      });
+
+      // Log audit against user's first workspace (or skip if none)
+      const membership = await prisma.workspaceMember.findFirst({ where: { userId: currentUserId! } });
+      if (membership) {
+        logAudit({
+          workspaceId: membership.workspaceId,
+          userId: currentUserId!,
+          action: updated.isGlobalAdmin ? 'global_admin_granted' : 'global_admin_revoked',
+          entityType: 'user',
+          entityId: userId,
+          metadata: { targetUser: `${user.firstName} ${user.lastName}` },
+        });
+      }
+
+      res.json(successResponse({
+        message: updated.isGlobalAdmin ? 'Global admin granted' : 'Global admin revoked',
+        isGlobalAdmin: updated.isGlobalAdmin,
       }));
     } catch (err) {
       next(err);
@@ -1047,6 +1116,7 @@ router.delete(
 // ── GET /api/v1/admin/settings/app — Get app settings ───────────────
 router.get(
   '/settings/app',
+  requireGlobalAdmin,
   async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const rows = await prisma.systemSetting.findMany({
@@ -1070,6 +1140,7 @@ const appSettingsSchema = z.object({
 
 router.put(
   '/settings/app',
+  requireGlobalAdmin,
   validate({ body: appSettingsSchema }),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -1093,6 +1164,7 @@ router.put(
 // ── GET /api/v1/admin/settings/smtp — Get SMTP settings (password masked)
 router.get(
   '/settings/smtp',
+  requireGlobalAdmin,
   async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const settings = getMaskedSmtpSettings();
@@ -1119,6 +1191,7 @@ const smtpSettingsSchema = z.object({
 
 router.put(
   '/settings/smtp',
+  requireGlobalAdmin,
   validate({ body: smtpSettingsSchema }),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -1161,6 +1234,7 @@ router.put(
 // ── POST /api/v1/admin/settings/smtp/test — Send test email ───────────
 router.post(
   '/settings/smtp/test',
+  requireGlobalAdmin,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!isEmailConfigured()) {
@@ -1200,6 +1274,7 @@ router.post(
 // ── GET /api/v1/admin/auth-providers — List all OAuth provider configs ───
 router.get(
   '/auth-providers',
+  requireGlobalAdmin,
   async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const providers = await prisma.oAuthProvider.findMany({
@@ -1231,6 +1306,7 @@ const upsertAuthProviderSchema = z.object({
 
 router.put(
   '/auth-providers',
+  requireGlobalAdmin,
   validate({ body: upsertAuthProviderSchema }),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -1295,6 +1371,7 @@ router.put(
 // ── DELETE /api/v1/admin/auth-providers/:provider — Remove an OAuth provider ──
 router.delete(
   '/auth-providers/:provider',
+  requireGlobalAdmin,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const provider = req.params.provider as string;

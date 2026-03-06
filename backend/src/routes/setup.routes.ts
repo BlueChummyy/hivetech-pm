@@ -79,9 +79,9 @@ router.post(
           throw ApiError.forbidden('Setup has already been completed');
         }
 
-        // Create admin user
+        // Create admin user (first user is always global admin)
         const created = await tx.user.create({
-          data: { email, passwordHash, firstName, lastName },
+          data: { email, passwordHash, firstName, lastName, isGlobalAdmin: true },
         });
 
         // Create default workspace
@@ -148,6 +148,7 @@ router.post(
           lastName: true,
           avatarUrl: true,
           isActive: true,
+          isGlobalAdmin: true,
           createdAt: true,
           updatedAt: true,
         },

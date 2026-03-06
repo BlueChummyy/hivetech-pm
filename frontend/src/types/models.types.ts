@@ -52,6 +52,7 @@ export interface User {
   lastName?: string;
   displayName?: string;
   avatarUrl: string | null;
+  isGlobalAdmin?: boolean;
   createdAt: string;
   updatedAt: string;
 }

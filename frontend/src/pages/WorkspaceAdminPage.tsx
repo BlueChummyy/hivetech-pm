@@ -13,6 +13,7 @@ import {
   Trash2,
   Layers,
   Circle,
+  Filter,
 } from 'lucide-react';
 import { useWorkspace, useUpdateWorkspace, useWorkspaceMembers } from '@/hooks/useWorkspaces';
 import { useProjects } from '@/hooks/useProjects';
@@ -51,6 +52,21 @@ function timeAgo(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString();
 }
 
+const ENTITY_TYPES = ['project', 'task', 'space', 'comment', 'workspace', 'time_entry', 'user', 'label', 'attachment', 'settings'] as const;
+const AUDIT_ACTIONS = [
+  'created', 'updated', 'deleted', 'restored', 'hard_deleted', 'commented', 'comment_deleted',
+  'member_added', 'member_removed', 'member_role_changed', 'status_changed', 'assigned', 'unassigned',
+  'cloned', 'closed', 'reopened', 'logged_time', 'deleted_time_entry',
+  'user_created', 'user_updated', 'user_deactivated', 'user_activated', 'user_deleted',
+  'password_reset', 'settings_updated', 'workspace_role_changed',
+  'label_created', 'label_deleted', 'attachment_uploaded', 'attachment_deleted',
+  'checklist_item_created', 'checklist_item_updated', 'checklist_item_deleted',
+  'timer_started', 'timer_stopped',
+  'status_created', 'status_updated', 'status_deleted',
+  'workspace_created', 'workspace_deleted',
+  'global_admin_granted', 'global_admin_revoked',
+] as const;
+
 export function WorkspaceAdminPage() {
   const { workspaceId } = useParams<{ workspaceId: string }>();
   const { data: workspace, isLoading, isError, error, refetch } = useWorkspace(workspaceId || '');
@@ -66,10 +82,19 @@ export function WorkspaceAdminPage() {
 
   // Audit log state
   const [auditPage, setAuditPage] = useState(1);
+  const [auditEntityType, setAuditEntityType] = useState('');
+  const [auditAction, setAuditAction] = useState('');
+  const [auditGoTo, setAuditGoTo] = useState('');
 
   const { data: auditData, isLoading: auditLoading } = useQuery({
-    queryKey: ['admin', 'audit', workspaceId, auditPage],
-    queryFn: () => adminApi.listAuditLogs({ workspaceId, page: auditPage, limit: 25 }),
+    queryKey: ['admin', 'audit', workspaceId, auditPage, auditEntityType, auditAction],
+    queryFn: () => adminApi.listAuditLogs({
+      workspaceId,
+      page: auditPage,
+      limit: 25,
+      entityType: auditEntityType || undefined,
+      action: auditAction || undefined,
+    }),
     enabled: activeTab === 'audit' && !!workspaceId,
   });
 
@@ -307,10 +332,50 @@ export function WorkspaceAdminPage() {
       {/* ── Audit Log ────────────────────────────────────────── */}
       {activeTab === 'audit' && (
         <div className="space-y-4">
+          {/* Filters */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative">
+              <Filter className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-surface-500" />
+              <select
+                value={auditEntityType}
+                onChange={(e) => { setAuditEntityType(e.target.value); setAuditPage(1); }}
+                className="appearance-none rounded-lg border border-surface-700 bg-surface-900 pl-8 pr-8 py-1.5 text-xs text-surface-200 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              >
+                <option value="">All entity types</option>
+                {ENTITY_TYPES.map((t) => (
+                  <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>
+                ))}
+              </select>
+            </div>
+            <div className="relative">
+              <Filter className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-surface-500" />
+              <select
+                value={auditAction}
+                onChange={(e) => { setAuditAction(e.target.value); setAuditPage(1); }}
+                className="appearance-none rounded-lg border border-surface-700 bg-surface-900 pl-8 pr-8 py-1.5 text-xs text-surface-200 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              >
+                <option value="">All actions</option>
+                {AUDIT_ACTIONS.map((a) => (
+                  <option key={a} value={a}>{a.replace(/_/g, ' ')}</option>
+                ))}
+              </select>
+            </div>
+            {(auditEntityType || auditAction) && (
+              <button
+                onClick={() => { setAuditEntityType(''); setAuditAction(''); setAuditPage(1); }}
+                className="text-xs text-surface-400 hover:text-surface-200 transition-colors"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+
           <div className="rounded-xl border border-surface-700 bg-surface-800 overflow-hidden">
             {auditLoading ? (
               <div className="p-6 space-y-3">
-                {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="h-10 w-full animate-pulse rounded bg-surface-700/50" />
+                ))}
               </div>
             ) : !auditData?.logs || auditData.logs.length === 0 ? (
               <p className="text-sm text-surface-500 text-center py-8">No audit entries for this workspace.</p>
@@ -378,6 +443,16 @@ export function WorkspaceAdminPage() {
               </p>
               <div className="flex items-center gap-1">
                 <button
+                  onClick={() => setAuditPage(1)}
+                  disabled={auditPage <= 1}
+                  className={cn(
+                    'rounded-md px-2 py-1 text-xs transition-colors',
+                    auditPage <= 1 ? 'text-surface-600 cursor-not-allowed' : 'text-surface-300 hover:bg-surface-700',
+                  )}
+                >
+                  First
+                </button>
+                <button
                   onClick={() => setAuditPage((p) => Math.max(1, p - 1))}
                   disabled={auditPage <= 1}
                   className={cn(
@@ -387,6 +462,36 @@ export function WorkspaceAdminPage() {
                 >
                   <ChevronLeft className="h-3.5 w-3.5" /> Prev
                 </button>
+                {(() => {
+                  const total = auditData.pagination.totalPages;
+                  const current = auditPage;
+                  const pages: (number | '...')[] = [];
+                  if (total <= 7) {
+                    for (let i = 1; i <= total; i++) pages.push(i);
+                  } else {
+                    pages.push(1);
+                    if (current > 3) pages.push('...');
+                    for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) pages.push(i);
+                    if (current < total - 2) pages.push('...');
+                    pages.push(total);
+                  }
+                  return pages.map((p, idx) =>
+                    p === '...' ? (
+                      <span key={`ellipsis-${idx}`} className="px-1 text-xs text-surface-500">...</span>
+                    ) : (
+                      <button
+                        key={p}
+                        onClick={() => setAuditPage(p)}
+                        className={cn(
+                          'rounded-md px-2.5 py-1 text-xs transition-colors',
+                          p === current ? 'bg-primary-500/20 text-primary-400 font-medium' : 'text-surface-300 hover:bg-surface-700',
+                        )}
+                      >
+                        {p}
+                      </button>
+                    ),
+                  );
+                })()}
                 <button
                   onClick={() => setAuditPage((p) => Math.min(auditData.pagination.totalPages, p + 1))}
                   disabled={auditPage >= auditData.pagination.totalPages}
@@ -397,6 +502,33 @@ export function WorkspaceAdminPage() {
                 >
                   Next <ChevronRight className="h-3.5 w-3.5" />
                 </button>
+                <button
+                  onClick={() => setAuditPage(auditData.pagination.totalPages)}
+                  disabled={auditPage >= auditData.pagination.totalPages}
+                  className={cn(
+                    'rounded-md px-2 py-1 text-xs transition-colors',
+                    auditPage >= auditData.pagination.totalPages ? 'text-surface-600 cursor-not-allowed' : 'text-surface-300 hover:bg-surface-700',
+                  )}
+                >
+                  Last
+                </button>
+                <div className="ml-2 flex items-center gap-1">
+                  <span className="text-xs text-surface-500">Go to</span>
+                  <input
+                    type="text"
+                    value={auditGoTo}
+                    onChange={(e) => setAuditGoTo(e.target.value.replace(/\D/g, ''))}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const p = Math.max(1, Math.min(auditData.pagination.totalPages, Number(auditGoTo) || 1));
+                        setAuditPage(p);
+                        setAuditGoTo('');
+                      }
+                    }}
+                    className="w-12 rounded border border-surface-700 bg-surface-900 px-1.5 py-0.5 text-xs text-surface-200 text-center focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    placeholder="#"
+                  />
+                </div>
               </div>
             </div>
           )}

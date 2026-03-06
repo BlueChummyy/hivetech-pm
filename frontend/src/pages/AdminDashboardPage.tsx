@@ -24,6 +24,11 @@ import {
   Upload,
   Lock,
   Pencil,
+  Globe,
+  ClipboardList,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
 } from 'lucide-react';
 import { adminApi, type AdminUser, type SmtpSettingsData, type OAuthProviderConfig, type UpsertAuthProviderData } from '@/api/admin';
 import { Card, CardBody } from '@/components/ui/Card';
@@ -38,7 +43,7 @@ import { useBranding, useUpdateBranding, useUploadLogo, useUploadFavicon } from 
 import { cn } from '@/utils/cn';
 import { getBackgroundStyle } from '@/utils/backgroundTemplates';
 
-type Tab = 'users' | 'workspaces' | 'smtp' | 'branding' | 'auth';
+type Tab = 'users' | 'workspaces' | 'smtp' | 'branding' | 'auth' | 'audit';
 
 const WORKSPACE_ROLES = [
   { value: 'OWNER', label: 'Owner' },
@@ -49,6 +54,35 @@ const WORKSPACE_ROLES = [
 ];
 
 const ASSIGNABLE_ROLES = WORKSPACE_ROLES.filter((r) => r.value !== 'OWNER');
+
+const ENTITY_TYPES = ['project', 'task', 'space', 'comment', 'workspace', 'time_entry', 'user', 'label', 'attachment', 'settings'] as const;
+const AUDIT_ACTIONS = [
+  'created', 'updated', 'deleted', 'restored', 'hard_deleted', 'commented', 'comment_deleted',
+  'member_added', 'member_removed', 'member_role_changed', 'status_changed', 'assigned', 'unassigned',
+  'cloned', 'closed', 'reopened', 'logged_time', 'deleted_time_entry',
+  'user_created', 'user_updated', 'user_deactivated', 'user_activated', 'user_deleted',
+  'password_reset', 'settings_updated', 'workspace_role_changed',
+  'label_created', 'label_deleted', 'attachment_uploaded', 'attachment_deleted',
+  'checklist_item_created', 'checklist_item_updated', 'checklist_item_deleted',
+  'timer_started', 'timer_stopped',
+  'status_created', 'status_updated', 'status_deleted',
+  'workspace_created', 'workspace_deleted',
+  'global_admin_granted', 'global_admin_revoked',
+] as const;
+
+function timeAgo(dateStr: string): string {
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const seconds = Math.floor((now - then) / 1000);
+  if (seconds < 60) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString();
+}
 
 export function AdminDashboardPage() {
   const [activeTab, setActiveTab] = useState<Tab>('users');
@@ -214,6 +248,34 @@ export function AdminDashboardPage() {
     },
   });
 
+  const toggleGlobalAdminMutation = useMutation({
+    mutationFn: (userId: string) => adminApi.toggleGlobalAdmin(userId),
+    onSuccess: (data) => {
+      toast({ type: 'success', title: data.message });
+      qc.invalidateQueries({ queryKey: ['admin', 'users'] });
+    },
+    onError: (err) => {
+      toast({ type: 'error', title: 'Failed to toggle global admin', description: (err as Error).message });
+    },
+  });
+
+  // ── Audit log ──────────────────────────────────────────────────
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditEntityType, setAuditEntityType] = useState('');
+  const [auditAction, setAuditAction] = useState('');
+  const [auditGoTo, setAuditGoTo] = useState('');
+
+  const { data: auditData, isLoading: auditLoading } = useQuery({
+    queryKey: ['admin', 'audit', auditPage, auditEntityType, auditAction],
+    queryFn: () => adminApi.listAuditLogs({
+      page: auditPage,
+      limit: 25,
+      entityType: auditEntityType || undefined,
+      action: auditAction || undefined,
+    }),
+    enabled: activeTab === 'audit',
+  });
+
   // ── Edit user ────────────────────────────────────────────────────
   const [editTarget, setEditTarget] = useState<AdminUser | null>(null);
   const [editForm, setEditForm] = useState({ firstName: '', lastName: '', email: '', isActive: true });
@@ -355,6 +417,7 @@ export function AdminDashboardPage() {
     { id: 'smtp', label: 'SMTP Settings', icon: Mail },
     { id: 'branding', label: 'Branding', icon: Paintbrush },
     { id: 'auth', label: 'Authentication', icon: Lock },
+    { id: 'audit', label: 'Audit Log', icon: ClipboardList },
   ];
 
   return (
@@ -457,6 +520,12 @@ export function AdminDashboardPage() {
                             <span className="font-medium text-surface-200">
                               {user.name || `${user.firstName} ${user.lastName}`}
                             </span>
+                            {user.isGlobalAdmin && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-primary-600/15 px-1.5 py-0.5 text-[10px] font-medium text-primary-400" title="Global Admin">
+                                <Globe className="h-2.5 w-2.5" />
+                                Global
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td className="px-4 py-3 text-surface-400">{user.email}</td>
@@ -531,6 +600,21 @@ export function AdminDashboardPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => !isSelf && toggleGlobalAdminMutation.mutate(user.id)}
+                              title={isSelf ? 'Cannot change your own global admin status' : user.isGlobalAdmin ? 'Revoke Global Admin' : 'Grant Global Admin'}
+                              disabled={isSelf}
+                              className={cn(
+                                'inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors',
+                                isSelf
+                                  ? 'text-surface-600 cursor-not-allowed'
+                                  : user.isGlobalAdmin
+                                    ? 'text-primary-400 hover:bg-primary-500/10'
+                                    : 'text-surface-400 hover:bg-surface-700 hover:text-surface-200',
+                              )}
+                            >
+                              <Globe className="h-3.5 w-3.5" />
+                            </button>
                             <button
                               onClick={() => {
                                 setEditTarget(user);
@@ -1756,6 +1840,217 @@ export function AdminDashboardPage() {
             </CardBody>
           </Card>
           <AuthProvidersPanel />
+        </div>
+      )}
+
+      {/* ── Audit Log Tab ──────────────────────────────────────────── */}
+      {activeTab === 'audit' && (
+        <div className="space-y-4">
+          {/* Filters */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative">
+              <Filter className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-surface-500" />
+              <select
+                value={auditEntityType}
+                onChange={(e) => { setAuditEntityType(e.target.value); setAuditPage(1); }}
+                className="appearance-none rounded-lg border border-surface-700 bg-surface-900 pl-8 pr-8 py-1.5 text-xs text-surface-200 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              >
+                <option value="">All entity types</option>
+                {ENTITY_TYPES.map((t) => (
+                  <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>
+                ))}
+              </select>
+            </div>
+            <div className="relative">
+              <Filter className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-surface-500" />
+              <select
+                value={auditAction}
+                onChange={(e) => { setAuditAction(e.target.value); setAuditPage(1); }}
+                className="appearance-none rounded-lg border border-surface-700 bg-surface-900 pl-8 pr-8 py-1.5 text-xs text-surface-200 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              >
+                <option value="">All actions</option>
+                {AUDIT_ACTIONS.map((a) => (
+                  <option key={a} value={a}>{a.replace(/_/g, ' ')}</option>
+                ))}
+              </select>
+            </div>
+            {(auditEntityType || auditAction) && (
+              <button
+                onClick={() => { setAuditEntityType(''); setAuditAction(''); setAuditPage(1); }}
+                className="text-xs text-surface-400 hover:text-surface-200 transition-colors"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+
+          {/* Table */}
+          <div className="rounded-xl border border-surface-700 bg-surface-800 overflow-hidden">
+            {auditLoading ? (
+              <div className="p-6 space-y-3">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="h-10 w-full animate-pulse rounded bg-surface-700/50" />
+                ))}
+              </div>
+            ) : !auditData?.logs || auditData.logs.length === 0 ? (
+              <p className="text-sm text-surface-500 text-center py-8">No audit entries found.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-surface-700 bg-surface-700/30 text-left">
+                      <th className="px-4 py-2.5 text-xs font-medium text-surface-400">Time</th>
+                      <th className="px-4 py-2.5 text-xs font-medium text-surface-400">User</th>
+                      <th className="px-4 py-2.5 text-xs font-medium text-surface-400">Action</th>
+                      <th className="px-4 py-2.5 text-xs font-medium text-surface-400">Entity</th>
+                      <th className="px-4 py-2.5 text-xs font-medium text-surface-400">Workspace</th>
+                      <th className="px-4 py-2.5 text-xs font-medium text-surface-400">Details</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-surface-700/60">
+                    {auditData.logs.map((log: any) => (
+                      <tr key={log.id} className="hover:bg-surface-700/20 transition-colors">
+                        <td className="px-4 py-2.5 text-xs text-surface-500 whitespace-nowrap">
+                          {timeAgo(log.createdAt)}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex items-center gap-2">
+                            <Avatar
+                              src={log.user?.avatarUrl}
+                              name={`${log.user?.firstName || ''} ${log.user?.lastName || ''}`.trim()}
+                              size="sm"
+                            />
+                            <span className="text-xs text-surface-300 whitespace-nowrap">
+                              {`${log.user?.firstName || ''} ${log.user?.lastName || ''}`.trim()}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span className={cn(
+                            'inline-block rounded px-1.5 py-0.5 text-[11px] font-medium',
+                            log.action === 'created' ? 'bg-emerald-500/15 text-emerald-400' :
+                            log.action === 'deleted' || log.action === 'hard_deleted' ? 'bg-red-500/15 text-red-400' :
+                            'bg-blue-500/15 text-blue-400',
+                          )}>
+                            {log.action.replace(/_/g, ' ')}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span className="rounded bg-surface-700 px-1.5 py-0.5 text-[11px] text-surface-300">
+                            {log.entityType?.toUpperCase()}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-xs text-surface-400 whitespace-nowrap">
+                          {log.workspace?.name || '—'}
+                        </td>
+                        <td className="px-4 py-2.5 text-xs text-surface-500 max-w-[200px] truncate">
+                          {log.metadata ? JSON.stringify(log.metadata).slice(0, 60) + (JSON.stringify(log.metadata).length > 60 ? '...' : '') : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Pagination */}
+          {auditData?.pagination && auditData.pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-surface-500">
+                Page {auditData.pagination.page} of {auditData.pagination.totalPages} ({auditData.pagination.total} entries)
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setAuditPage(1)}
+                  disabled={auditPage <= 1}
+                  className={cn(
+                    'rounded-md px-2 py-1 text-xs transition-colors',
+                    auditPage <= 1 ? 'text-surface-600 cursor-not-allowed' : 'text-surface-300 hover:bg-surface-700',
+                  )}
+                >
+                  First
+                </button>
+                <button
+                  onClick={() => setAuditPage((p) => Math.max(1, p - 1))}
+                  disabled={auditPage <= 1}
+                  className={cn(
+                    'inline-flex items-center gap-0.5 rounded-md px-2 py-1 text-xs transition-colors',
+                    auditPage <= 1 ? 'text-surface-600 cursor-not-allowed' : 'text-surface-300 hover:bg-surface-700',
+                  )}
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" /> Prev
+                </button>
+                {(() => {
+                  const total = auditData.pagination.totalPages;
+                  const current = auditPage;
+                  const pages: (number | '...')[] = [];
+                  if (total <= 7) {
+                    for (let i = 1; i <= total; i++) pages.push(i);
+                  } else {
+                    pages.push(1);
+                    if (current > 3) pages.push('...');
+                    for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) pages.push(i);
+                    if (current < total - 2) pages.push('...');
+                    pages.push(total);
+                  }
+                  return pages.map((p, idx) =>
+                    p === '...' ? (
+                      <span key={`ellipsis-${idx}`} className="px-1 text-xs text-surface-500">...</span>
+                    ) : (
+                      <button
+                        key={p}
+                        onClick={() => setAuditPage(p)}
+                        className={cn(
+                          'rounded-md px-2.5 py-1 text-xs transition-colors',
+                          p === current ? 'bg-primary-500/20 text-primary-400 font-medium' : 'text-surface-300 hover:bg-surface-700',
+                        )}
+                      >
+                        {p}
+                      </button>
+                    ),
+                  );
+                })()}
+                <button
+                  onClick={() => setAuditPage((p) => Math.min(auditData.pagination.totalPages, p + 1))}
+                  disabled={auditPage >= auditData.pagination.totalPages}
+                  className={cn(
+                    'inline-flex items-center gap-0.5 rounded-md px-2 py-1 text-xs transition-colors',
+                    auditPage >= auditData.pagination.totalPages ? 'text-surface-600 cursor-not-allowed' : 'text-surface-300 hover:bg-surface-700',
+                  )}
+                >
+                  Next <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => setAuditPage(auditData.pagination.totalPages)}
+                  disabled={auditPage >= auditData.pagination.totalPages}
+                  className={cn(
+                    'rounded-md px-2 py-1 text-xs transition-colors',
+                    auditPage >= auditData.pagination.totalPages ? 'text-surface-600 cursor-not-allowed' : 'text-surface-300 hover:bg-surface-700',
+                  )}
+                >
+                  Last
+                </button>
+                <div className="ml-2 flex items-center gap-1">
+                  <span className="text-xs text-surface-500">Go to</span>
+                  <input
+                    type="text"
+                    value={auditGoTo}
+                    onChange={(e) => setAuditGoTo(e.target.value.replace(/\D/g, ''))}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const p = Math.max(1, Math.min(auditData.pagination.totalPages, Number(auditGoTo) || 1));
+                        setAuditPage(p);
+                        setAuditGoTo('');
+                      }
+                    }}
+                    className="w-12 rounded border border-surface-700 bg-surface-900 px-1.5 py-0.5 text-xs text-surface-200 text-center focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    placeholder="#"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
