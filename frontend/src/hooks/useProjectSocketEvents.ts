@@ -17,8 +17,14 @@ export function useProjectSocketEvents(projectId: string | undefined) {
     const handleTaskCreated = () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
     };
-    const handleTaskUpdated = () => {
+    const handleTaskUpdated = (data?: { id?: string; taskId?: string }) => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      // Also invalidate the specific task detail and its activity feed
+      const taskId = data?.id || data?.taskId;
+      if (taskId) {
+        queryClient.invalidateQueries({ queryKey: ['tasks', taskId] });
+        queryClient.invalidateQueries({ queryKey: ['activity', { taskId }] });
+      }
     };
     const handleTaskDeleted = () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });

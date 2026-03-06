@@ -401,7 +401,12 @@ export class TasksService {
     if (proj && updatedByUserId) {
       const changes: Record<string, unknown> = {};
       if (data.title !== undefined && data.title !== existing.title) changes.title = { from: existing.title, to: data.title };
-      if (data.statusId !== undefined && data.statusId !== existing.statusId) changes.statusId = { from: existing.statusId, to: data.statusId };
+      if (data.statusId !== undefined && data.statusId !== existing.statusId) {
+        // Resolve status names for readable audit log
+        const oldStatusObj = await prisma.projectStatus.findUnique({ where: { id: existing.statusId }, select: { name: true } });
+        const newStatusObj = await prisma.projectStatus.findUnique({ where: { id: data.statusId }, select: { name: true } });
+        changes.status = { from: oldStatusObj?.name || existing.statusId, to: newStatusObj?.name || data.statusId };
+      }
       if (data.priority !== undefined && data.priority !== existing.priority) changes.priority = { from: existing.priority, to: data.priority };
       if (data.assigneeId !== undefined && data.assigneeId !== existing.assigneeId) changes.assigneeId = { from: existing.assigneeId, to: data.assigneeId };
       if (data.startDate !== undefined) changes.startDate = { to: data.startDate };
