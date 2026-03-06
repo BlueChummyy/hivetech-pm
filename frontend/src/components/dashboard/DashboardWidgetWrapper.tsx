@@ -65,6 +65,7 @@ export function DashboardWidgetWrapper({
   if (!visible && !editing) return null;
 
   const allowedSizes = ALLOWED_SIZES[widgetType] || ['1x1', '2x2'];
+  const isCompact = rowSpan === 1 && colSpan <= 2;
 
   return (
     <div
@@ -79,15 +80,15 @@ export function DashboardWidgetWrapper({
     >
       {/* Edit-mode header bar */}
       {editing && (
-        <div className="flex items-center gap-1.5 border-b border-surface-700/60 bg-surface-700/30 px-2.5 py-1.5 shrink-0">
+        <div className="flex items-center gap-1 border-b border-surface-700/60 bg-surface-700/30 px-2 py-1 shrink-0">
           <button
             {...attributes}
             {...listeners}
-            className="flex items-center gap-1 text-xs text-surface-400 hover:text-surface-200 cursor-grab active:cursor-grabbing"
+            className="flex items-center text-surface-400 hover:text-surface-200 cursor-grab active:cursor-grabbing"
           >
-            <GripVertical className="h-3.5 w-3.5" />
+            <GripVertical className="h-3 w-3" />
           </button>
-          <span className="text-xs font-medium text-surface-300 truncate flex-1">
+          <span className="text-[11px] font-medium text-surface-300 truncate flex-1">
             {title}
           </span>
 
@@ -98,10 +99,10 @@ export function DashboardWidgetWrapper({
                 e.stopPropagation();
                 setSizePickerOpen(!sizePickerOpen);
               }}
-              className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-mono font-medium text-surface-400 hover:text-surface-200 hover:bg-surface-600/50 transition-colors"
+              className="flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-mono font-medium text-surface-400 hover:text-surface-200 hover:bg-surface-600/50 transition-colors"
               title="Resize widget"
             >
-              <Maximize2 className="h-3 w-3" />
+              <Maximize2 className="h-2.5 w-2.5" />
               <span>{colSpan}x{rowSpan}</span>
             </button>
 
@@ -165,7 +166,7 @@ export function DashboardWidgetWrapper({
             className="flex items-center justify-center rounded p-0.5 text-surface-400 hover:text-surface-200 hover:bg-surface-600/50"
             title={visible ? 'Hide widget' : 'Show widget'}
           >
-            {visible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+            {visible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
           </button>
           <button
             onMouseDown={(e) => {
@@ -175,14 +176,14 @@ export function DashboardWidgetWrapper({
             className="flex items-center justify-center rounded p-0.5 text-surface-400 hover:text-red-400 hover:bg-surface-600/50"
             title="Remove widget"
           >
-            <X className="h-3.5 w-3.5" />
+            <X className="h-3 w-3" />
           </button>
         </div>
       )}
 
       {/* Normal-mode title */}
       {!editing && (
-        <div className="px-4 pt-3 pb-0 shrink-0">
+        <div className={isCompact ? 'px-3 pt-2 pb-0 shrink-0' : 'px-4 pt-3 pb-0 shrink-0'}>
           <h3 className="text-xs font-medium text-surface-400 uppercase tracking-wide">
             {title}
           </h3>
@@ -190,7 +191,7 @@ export function DashboardWidgetWrapper({
       )}
 
       {/* Widget content */}
-      <div className="p-4 flex-1 min-h-0 overflow-y-auto">
+      <div className={`flex-1 min-h-0 overflow-y-auto ${isCompact ? 'p-3' : 'p-4'}`}>
         {children}
       </div>
     </div>

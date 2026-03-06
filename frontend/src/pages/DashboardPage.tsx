@@ -303,35 +303,49 @@ export function DashboardPage() {
         const chartData = getChartData(config?.dataSource, stats);
         const total = chartData.reduce((s, d) => s + d.value, 0);
         if (statsLoading) return <Skeleton className="h-40" />;
-        const donutSize = Math.min(130 + (rowSpan - 2) * 40 + (colSpan - 2) * 20, 240);
+        const isSmallDonut = colSpan <= 1 && rowSpan <= 1;
+        const donutSize = isSmallDonut ? 70 : Math.min(130 + (rowSpan - 2) * 40 + (colSpan - 2) * 20, 240);
         return (
-          <DonutChart
-            data={chartData}
-            size={donutSize}
-            thickness={Math.round(donutSize * 0.17)}
-            centerValue={total}
-            centerLabel="Total"
-          />
+          <div className="flex items-center justify-center h-full">
+            <DonutChart
+              data={chartData}
+              size={donutSize}
+              thickness={Math.round(donutSize * 0.17)}
+              centerValue={total}
+              centerLabel={isSmallDonut ? undefined : 'Total'}
+              showLegend={!isSmallDonut}
+            />
+          </div>
         );
       }
 
       case 'hbar': {
         const chartData = getChartData(config?.dataSource, stats);
         if (statsLoading) return <Skeleton className="h-32" />;
-        const hbarMax = colSpan >= 4 ? 12 : config?.maxItems || 8;
-        return <HBarChart data={chartData} maxItems={hbarMax} />;
+        const hbarMax = colSpan >= 4 ? 12 : colSpan <= 1 ? 3 : config?.maxItems || 8;
+        return (
+          <div className="flex items-center justify-center h-full">
+            <div className="w-full">
+              <HBarChart data={chartData} maxItems={hbarMax} />
+            </div>
+          </div>
+        );
       }
 
       case 'vbar': {
         const chartData = getChartData(config?.dataSource, stats);
         if (statsLoading) return <Skeleton className="h-40" />;
-        const vbarHeight = 100 + (rowSpan - 1) * 60;
+        const vbarHeight = colSpan <= 1 && rowSpan <= 1 ? 60 : 100 + (rowSpan - 1) * 60;
         return (
-          <VBarChart
-            data={chartData}
-            height={vbarHeight}
-            maxItems={config?.maxItems || 8}
-          />
+          <div className="flex items-center justify-center h-full">
+            <div className="w-full">
+              <VBarChart
+                data={chartData}
+                height={vbarHeight}
+                maxItems={colSpan <= 1 ? 4 : config?.maxItems || 8}
+              />
+            </div>
+          </div>
         );
       }
 

@@ -38,6 +38,12 @@ export function HBarChart({
   const items = data.slice(0, maxItems);
   const maxValue = Math.max(...items.map((d) => d.value), 1);
 
+  // Compute a consistent label column width based on longest label
+  const labelWidth = Math.min(
+    Math.max(...items.map((d) => d.label.length * 7), 40),
+    120,
+  );
+
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>
       {items.map((item) => {
@@ -47,7 +53,7 @@ export function HBarChart({
           <div key={item.label} className="flex items-center gap-2" style={{ height: 20 }}>
             <span
               className="shrink-0 truncate text-xs text-surface-300"
-              style={{ maxWidth: 100 }}
+              style={{ width: labelWidth }}
               title={item.label}
             >
               {item.label}

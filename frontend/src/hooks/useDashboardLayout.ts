@@ -30,9 +30,9 @@ export const ALL_SIZES: WidgetSize[] = ['1x1', '1x2', '1x4', '2x1', '2x2', '2x4'
 /** Which sizes are available per widget type */
 export const ALLOWED_SIZES: Record<WidgetType, WidgetSize[]> = {
   number:           ['1x1', '2x1'],
-  donut:            ['2x2', '2x4', '4x2', '4x4'],
-  hbar:             ['2x1', '2x2', '4x1', '4x2'],
-  vbar:             ['2x2', '2x4', '4x2', '4x4'],
+  donut:            ['1x1', '2x2', '2x4', '4x2', '4x4'],
+  hbar:             ['1x1', '2x1', '2x2', '4x1', '4x2'],
+  vbar:             ['1x1', '2x2', '2x4', '4x2', '4x4'],
   progress:         ['2x1', '2x2', '4x1', '4x2'],
   activity:         ['2x2', '2x4', '4x2', '4x4'],
   'recently-viewed':['2x2', '2x4', '4x2', '4x4'],
