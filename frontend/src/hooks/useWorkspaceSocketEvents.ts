@@ -29,6 +29,7 @@ export function useWorkspaceSocketEvents(workspaceId: string | undefined) {
     // Task changes affect project task counts in sidebar and dashboard stats
     const handleTaskChange = () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['spaces'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard', 'stats', workspaceId] });
     };
 
