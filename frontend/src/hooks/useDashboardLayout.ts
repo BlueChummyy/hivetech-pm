@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
+import { useAuthStore } from '@/store/auth.store';
 
 export type WidgetType =
   | 'number'
@@ -52,13 +53,16 @@ export const WIDGET_CATALOG: WidgetInstance[] = [
   { id: 'list-recent', type: 'recently-viewed', title: 'Recently Viewed', colSpan: 2, visible: true },
 ];
 
-const STORAGE_KEY = 'dashboard-layout-v2';
+function buildKey(userId: string | undefined): string {
+  return `dashboard-layout-${userId || 'default'}`;
+}
 
-function loadLayout(): WidgetInstance[] {
+function loadLayout(key: string): WidgetInstance[] {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = localStorage.getItem(key);
     if (!saved) return DEFAULT_WIDGETS;
     const parsed = JSON.parse(saved) as WidgetInstance[];
+    if (!Array.isArray(parsed) || parsed.length === 0) return DEFAULT_WIDGETS;
     // Merge: keep saved order/visibility, but ensure all default widgets exist
     const savedIds = new Set(parsed.map((w) => w.id));
     const merged = [...parsed];
@@ -72,49 +76,59 @@ function loadLayout(): WidgetInstance[] {
 }
 
 export function useDashboardLayout() {
-  const [widgets, setWidgets] = useState<WidgetInstance[]>(loadLayout);
+  const userId = useAuthStore((s) => s.user?.id);
+  const keyRef = useRef(buildKey(userId));
+  keyRef.current = buildKey(userId);
+
+  const [widgets, setWidgets] = useState<WidgetInstance[]>(() =>
+    loadLayout(keyRef.current),
+  );
   const [editing, setEditing] = useState(false);
+
+  const save = useCallback((data: WidgetInstance[]) => {
+    localStorage.setItem(keyRef.current, JSON.stringify(data));
+  }, []);
 
   const persist = useCallback((next: WidgetInstance[]) => {
     setWidgets(next);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  }, []);
+    save(next);
+  }, [save]);
 
   const reorder = useCallback((oldIndex: number, newIndex: number) => {
     setWidgets((prev) => {
       const next = [...prev];
       const [moved] = next.splice(oldIndex, 1);
       next.splice(newIndex, 0, moved);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      save(next);
       return next;
     });
-  }, []);
+  }, [save]);
 
   const toggleVisibility = useCallback((id: string) => {
     setWidgets((prev) => {
       const next = prev.map((w) =>
         w.id === id ? { ...w, visible: !w.visible } : w,
       );
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      save(next);
       return next;
     });
-  }, []);
+  }, [save]);
 
   const removeWidget = useCallback((id: string) => {
     setWidgets((prev) => {
       const next = prev.filter((w) => w.id !== id);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      save(next);
       return next;
     });
-  }, []);
+  }, [save]);
 
   const addWidget = useCallback((widget: WidgetInstance) => {
     setWidgets((prev) => {
       const next = [...prev, { ...widget, visible: true }];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      save(next);
       return next;
     });
-  }, []);
+  }, [save]);
 
   const resetLayout = useCallback(() => {
     persist(DEFAULT_WIDGETS);

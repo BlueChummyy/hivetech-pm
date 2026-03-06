@@ -91,7 +91,9 @@ export async function queryAuditLogs(params: {
   page?: number;
   limit?: number;
 }) {
-  const { workspaceId, entityType, entityId, userId, action, page = 1, limit = 50 } = params;
+  const { workspaceId, entityType, entityId, userId, action } = params;
+  const page = Math.max(1, Number(params.page) || 1);
+  const limit = Math.min(Math.max(1, Number(params.limit) || 50), 100);
   const skip = (page - 1) * limit;
 
   const where: any = {};

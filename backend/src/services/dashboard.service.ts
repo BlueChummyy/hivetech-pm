@@ -115,9 +115,11 @@ export class DashboardService {
         priorityCounts[task.priority]++;
       }
 
-      // Summary
-      if (category === 'ACTIVE') {
+      // Summary — active includes both NOT_STARTED and ACTIVE tasks
+      if (category === 'NOT_STARTED' || category === 'ACTIVE') {
         activeCount++;
+      }
+      if (category === 'ACTIVE') {
         inProgress++;
       }
       if (category === 'DONE') completed++;
@@ -269,7 +271,9 @@ export class DashboardService {
       deletedAt: null,
     };
 
-    if (filter === 'active' || filter === 'in_progress') {
+    if (filter === 'active') {
+      baseWhere.status = { category: { in: ['NOT_STARTED', 'ACTIVE'] } };
+    } else if (filter === 'in_progress') {
       baseWhere.status = { category: 'ACTIVE' };
     } else if (filter === 'completed') {
       baseWhere.status = { category: 'DONE' };
