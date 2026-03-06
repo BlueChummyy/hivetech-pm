@@ -1,23 +1,26 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Eye, EyeOff } from 'lucide-react';
-import type { WidgetId } from '@/hooks/useDashboardLayout';
+import { GripVertical, Eye, EyeOff, X } from 'lucide-react';
 
 interface Props {
-  id: WidgetId;
-  label: string;
-  visible: boolean;
+  id: string;
+  colSpan: 1 | 2 | 3;
+  title: string;
   editing: boolean;
+  visible: boolean;
   onToggle: () => void;
+  onRemove: () => void;
   children: React.ReactNode;
 }
 
 export function DashboardWidgetWrapper({
   id,
-  label,
-  visible,
+  colSpan,
+  title,
   editing,
+  visible,
   onToggle,
+  onRemove,
   children,
 }: Props) {
   const {
@@ -29,9 +32,10 @@ export function DashboardWidgetWrapper({
     isDragging,
   } = useSortable({ id, disabled: !editing });
 
-  const style = {
+  const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
+    gridColumn: `span ${colSpan}`,
   };
 
   if (!visible && !editing) return null;
@@ -40,41 +44,60 @@ export function DashboardWidgetWrapper({
     <div
       ref={setNodeRef}
       style={style}
-      className={`relative ${isDragging ? 'z-50 opacity-80' : ''} ${!visible && editing ? 'opacity-40' : ''}`}
+      className={`
+        relative rounded-lg border bg-surface-800 overflow-hidden
+        ${editing ? 'ring-1 ring-dashed ring-surface-500/40 border-surface-600/60' : 'border-surface-700/60'}
+        ${isDragging ? 'z-50 opacity-80 shadow-xl' : ''}
+        ${!visible && editing ? 'opacity-40' : ''}
+      `}
     >
+      {/* Edit-mode header bar */}
       {editing && (
-        <div className="absolute -top-3 left-0 right-0 z-10 flex items-center gap-2 px-2">
+        <div className="flex items-center gap-2 border-b border-surface-700/60 bg-surface-700/30 px-3 py-1.5">
           <button
             {...attributes}
             {...listeners}
-            className="flex items-center gap-1 rounded bg-surface-700 px-2 py-0.5 text-xs text-surface-300 hover:bg-surface-600 cursor-grab active:cursor-grabbing"
+            className="flex items-center gap-1 text-xs text-surface-400 hover:text-surface-200 cursor-grab active:cursor-grabbing"
           >
-            <GripVertical className="h-3 w-3" />
-            {label}
+            <GripVertical className="h-3.5 w-3.5" />
           </button>
+          <span className="text-xs font-medium text-surface-300 truncate flex-1">
+            {title}
+          </span>
           <button
             onMouseDown={(e) => {
               e.stopPropagation();
               onToggle();
             }}
-            className="flex items-center gap-1 rounded bg-surface-700 px-2 py-0.5 text-xs text-surface-300 hover:bg-surface-600"
+            className="flex items-center justify-center rounded p-0.5 text-surface-400 hover:text-surface-200 hover:bg-surface-600/50"
+            title={visible ? 'Hide widget' : 'Show widget'}
           >
-            {visible ? (
-              <Eye className="h-3 w-3" />
-            ) : (
-              <EyeOff className="h-3 w-3" />
-            )}
-            {visible ? 'Hide' : 'Show'}
+            {visible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+          </button>
+          <button
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
+            className="flex items-center justify-center rounded p-0.5 text-surface-400 hover:text-red-400 hover:bg-surface-600/50"
+            title="Remove widget"
+          >
+            <X className="h-3.5 w-3.5" />
           </button>
         </div>
       )}
-      <div
-        className={
-          editing
-            ? 'mt-4 rounded-lg ring-1 ring-surface-600 ring-dashed p-1'
-            : ''
-        }
-      >
+
+      {/* Normal-mode title */}
+      {!editing && (
+        <div className="px-4 pt-3 pb-0">
+          <h3 className="text-xs font-medium text-surface-400 uppercase tracking-wide">
+            {title}
+          </h3>
+        </div>
+      )}
+
+      {/* Widget content */}
+      <div className="p-4">
         {children}
       </div>
     </div>

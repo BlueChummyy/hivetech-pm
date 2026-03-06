@@ -110,8 +110,8 @@ export class DashboardService {
         statusCounts[category]++;
       }
 
-      // Priority counts (all tasks)
-      if (priorityCounts[task.priority] !== undefined) {
+      // Priority counts (exclude completed and cancelled tasks)
+      if (priorityCounts[task.priority] !== undefined && category !== 'DONE' && category !== 'CANCELLED') {
         priorityCounts[task.priority]++;
       }
 

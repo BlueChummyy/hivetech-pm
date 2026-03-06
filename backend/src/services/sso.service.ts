@@ -369,38 +369,10 @@ export class SsoService {
       throw ApiError.unauthorized('Your account has been deactivated');
     }
 
-    // Create new user if not found
+    // SSO login requires an existing account — no auto-creation.
+    // Accounts must be created via registration or by an admin.
     if (!user) {
-      user = await prisma.$transaction(async (tx: any) => {
-        const created = await tx.user.create({
-          data: {
-            email: info.email,
-            passwordHash: null,
-            firstName: info.firstName,
-            lastName: info.lastName,
-            avatarUrl: info.avatarUrl || null,
-            authProvider: provider,
-            providerId: info.providerId,
-            providerEmail: info.email,
-          },
-        });
-
-        // Add to default workspace
-        const defaultWorkspace = await tx.workspace.findFirst({
-          orderBy: { createdAt: 'asc' },
-        });
-        if (defaultWorkspace) {
-          await tx.workspaceMember.create({
-            data: {
-              workspaceId: defaultWorkspace.id,
-              userId: created.id,
-              role: 'MEMBER',
-            },
-          });
-        }
-
-        return created;
-      });
+      throw ApiError.unauthorized('No account found for this email. Please contact your administrator to create an account.');
     }
 
     // Issue tokens

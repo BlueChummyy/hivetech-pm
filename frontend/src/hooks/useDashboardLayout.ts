@@ -1,56 +1,81 @@
 import { useState, useCallback } from 'react';
 
-export type WidgetId =
-  | 'stat-cards'
+export type WidgetType =
+  | 'number'
+  | 'donut'
+  | 'hbar'
+  | 'vbar'
+  | 'progress'
+  | 'activity'
   | 'recently-viewed'
-  | 'status-chart'
-  | 'priority-chart'
-  | 'assignee-chart'
-  | 'project-progress'
-  | 'recent-activity'
-  | 'recent-projects';
+  | 'projects';
 
-export interface WidgetConfig {
-  id: WidgetId;
-  label: string;
+export interface WidgetInstance {
+  id: string;
+  type: WidgetType;
+  title: string;
+  colSpan: 1 | 2 | 3;
   visible: boolean;
+  config?: {
+    chartType?: 'donut' | 'hbar' | 'vbar';
+    dataSource?: 'byStatus' | 'byPriority' | 'byAssignee' | 'projectProgress';
+    filter?: string;
+    color?: string;
+    icon?: string;
+    maxItems?: number;
+  };
 }
 
-const STORAGE_KEY = 'dashboard-layout';
-
-const DEFAULT_LAYOUT: WidgetConfig[] = [
-  { id: 'stat-cards', label: 'Summary Stats', visible: true },
-  { id: 'recently-viewed', label: 'Recently Viewed', visible: true },
-  { id: 'status-chart', label: 'Status Breakdown', visible: true },
-  { id: 'priority-chart', label: 'Priority Breakdown', visible: true },
-  { id: 'assignee-chart', label: 'Assignee Workload', visible: true },
-  { id: 'project-progress', label: 'Project Progress', visible: true },
-  { id: 'recent-activity', label: 'Recent Activity', visible: true },
-  { id: 'recent-projects', label: 'Recent Projects', visible: true },
+const DEFAULT_WIDGETS: WidgetInstance[] = [
+  { id: 'num-active', type: 'number', title: 'Active Tasks', colSpan: 1, visible: true, config: { filter: 'active', color: 'primary', icon: 'ListChecks' } },
+  { id: 'num-progress', type: 'number', title: 'In Progress', colSpan: 1, visible: true, config: { filter: 'in_progress', color: 'blue', icon: 'Activity' } },
+  { id: 'num-overdue', type: 'number', title: 'Overdue', colSpan: 1, visible: true, config: { filter: 'overdue', color: 'red', icon: 'AlertTriangle' } },
+  { id: 'num-due-week', type: 'number', title: 'Due This Week', colSpan: 1, visible: true, config: { filter: 'due_this_week', color: 'amber', icon: 'CalendarClock' } },
+  { id: 'num-completed', type: 'number', title: 'Completed', colSpan: 1, visible: true, config: { filter: 'completed', color: 'emerald', icon: 'CheckSquare' } },
+  { id: 'num-unassigned', type: 'number', title: 'Unassigned', colSpan: 1, visible: true, config: { filter: 'unassigned', color: 'surface', icon: 'UserX' } },
+  { id: 'donut-status', type: 'donut', title: 'Tasks by Status', colSpan: 2, visible: true, config: { dataSource: 'byStatus' } },
+  { id: 'donut-priority', type: 'donut', title: 'Tasks by Priority', colSpan: 2, visible: true, config: { dataSource: 'byPriority' } },
+  { id: 'hbar-assignee', type: 'hbar', title: 'Assignee Workload', colSpan: 2, visible: true, config: { dataSource: 'byAssignee' } },
+  { id: 'progress-projects', type: 'progress', title: 'Project Progress', colSpan: 2, visible: true },
+  { id: 'feed-activity', type: 'activity', title: 'Recent Activity', colSpan: 2, visible: true },
+  { id: 'grid-projects', type: 'projects', title: 'Recent Projects', colSpan: 2, visible: true },
 ];
 
-function loadLayout(): WidgetConfig[] {
+export const WIDGET_CATALOG: WidgetInstance[] = [
+  ...DEFAULT_WIDGETS,
+  { id: 'hbar-status', type: 'hbar', title: 'Status Breakdown', colSpan: 2, visible: true, config: { dataSource: 'byStatus' } },
+  { id: 'hbar-priority', type: 'hbar', title: 'Priority Breakdown', colSpan: 2, visible: true, config: { dataSource: 'byPriority' } },
+  { id: 'vbar-assignee', type: 'vbar', title: 'Assignee Chart', colSpan: 2, visible: true, config: { dataSource: 'byAssignee' } },
+  { id: 'vbar-priority', type: 'vbar', title: 'Priority Chart', colSpan: 2, visible: true, config: { dataSource: 'byPriority' } },
+  { id: 'vbar-status', type: 'vbar', title: 'Status Chart', colSpan: 2, visible: true, config: { dataSource: 'byStatus' } },
+  { id: 'donut-assignee', type: 'donut', title: 'Tasks per Assignee', colSpan: 2, visible: true, config: { dataSource: 'byAssignee' } },
+  { id: 'list-recent', type: 'recently-viewed', title: 'Recently Viewed', colSpan: 2, visible: true },
+];
+
+const STORAGE_KEY = 'dashboard-layout-v2';
+
+function loadLayout(): WidgetInstance[] {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (!saved) return DEFAULT_LAYOUT;
-    const parsed = JSON.parse(saved) as WidgetConfig[];
-    // Merge with defaults to handle new widgets added after saving
+    if (!saved) return DEFAULT_WIDGETS;
+    const parsed = JSON.parse(saved) as WidgetInstance[];
+    // Merge: keep saved order/visibility, but ensure all default widgets exist
     const savedIds = new Set(parsed.map((w) => w.id));
     const merged = [...parsed];
-    for (const def of DEFAULT_LAYOUT) {
+    for (const def of DEFAULT_WIDGETS) {
       if (!savedIds.has(def.id)) merged.push(def);
     }
     return merged;
   } catch {
-    return DEFAULT_LAYOUT;
+    return DEFAULT_WIDGETS;
   }
 }
 
 export function useDashboardLayout() {
-  const [widgets, setWidgets] = useState<WidgetConfig[]>(loadLayout);
+  const [widgets, setWidgets] = useState<WidgetInstance[]>(loadLayout);
   const [editing, setEditing] = useState(false);
 
-  const save = useCallback((next: WidgetConfig[]) => {
+  const persist = useCallback((next: WidgetInstance[]) => {
     setWidgets(next);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   }, []);
@@ -65,7 +90,7 @@ export function useDashboardLayout() {
     });
   }, []);
 
-  const toggleVisibility = useCallback((id: WidgetId) => {
+  const toggleVisibility = useCallback((id: string) => {
     setWidgets((prev) => {
       const next = prev.map((w) =>
         w.id === id ? { ...w, visible: !w.visible } : w,
@@ -75,9 +100,34 @@ export function useDashboardLayout() {
     });
   }, []);
 
-  const resetLayout = useCallback(() => {
-    save(DEFAULT_LAYOUT);
-  }, [save]);
+  const removeWidget = useCallback((id: string) => {
+    setWidgets((prev) => {
+      const next = prev.filter((w) => w.id !== id);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
 
-  return { widgets, editing, setEditing, reorder, toggleVisibility, resetLayout };
+  const addWidget = useCallback((widget: WidgetInstance) => {
+    setWidgets((prev) => {
+      const next = [...prev, { ...widget, visible: true }];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const resetLayout = useCallback(() => {
+    persist(DEFAULT_WIDGETS);
+  }, [persist]);
+
+  return {
+    widgets,
+    editing,
+    setEditing,
+    reorder,
+    toggleVisibility,
+    removeWidget,
+    addWidget,
+    resetLayout,
+  };
 }
