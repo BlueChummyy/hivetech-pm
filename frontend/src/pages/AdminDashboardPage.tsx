@@ -45,6 +45,77 @@ import { getBackgroundStyle } from '@/utils/backgroundTemplates';
 
 type Tab = 'users' | 'workspaces' | 'deleted' | 'audit' | 'smtp' | 'branding' | 'auth';
 
+/* ── Custom dropdown for audit filters (replaces native <select>) ──── */
+function AuditFilterDropdown({
+  value,
+  onChange,
+  placeholder,
+  options,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  options: { value: string; label: string }[];
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [open]);
+
+  const selected = options.find((o) => o.value === value);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-2 rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-300 hover:border-surface-600 focus:outline-none focus:ring-1 focus:ring-primary-500"
+      >
+        <span className={selected ? 'text-surface-200' : 'text-surface-400'}>
+          {selected ? selected.label : placeholder}
+        </span>
+        <ChevronDown className="h-3.5 w-3.5 text-surface-500" />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-full z-50 mt-1 min-w-[200px] max-h-[320px] overflow-y-auto rounded-lg border border-surface-600 bg-surface-800 py-1 shadow-xl">
+          <button
+            type="button"
+            className={`w-full px-3 py-1.5 text-left text-sm hover:bg-surface-700 ${!value ? 'text-primary-400 bg-surface-700/50' : 'text-surface-300'}`}
+            onMouseDown={() => { onChange(''); setOpen(false); }}
+          >
+            {placeholder}
+          </button>
+          {options.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              className={`w-full px-3 py-1.5 text-left text-sm hover:bg-surface-700 ${value === opt.value ? 'text-primary-400 bg-surface-700/50' : 'text-surface-300'}`}
+              onMouseDown={() => { onChange(opt.value); setOpen(false); }}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function timeAgo(dateStr: string): string {
   const now = Date.now();
   const then = new Date(dateStr).getTime();
@@ -1812,26 +1883,18 @@ export function AdminDashboardPage() {
         <div className="space-y-4">
           {/* Filters */}
           <div className="flex flex-wrap gap-3">
-            <select
+            <AuditFilterDropdown
               value={auditEntityFilter}
-              onChange={(e) => { setAuditEntityFilter(e.target.value); setAuditPage(1); }}
-              className="rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-300 focus:outline-none focus:ring-1 focus:ring-primary-500"
-            >
-              <option value="">All entity types</option>
-              {ENTITY_TYPES.map((t) => (
-                <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
-              ))}
-            </select>
-            <select
+              onChange={(v) => { setAuditEntityFilter(v); setAuditPage(1); }}
+              placeholder="All entity types"
+              options={ENTITY_TYPES.map((t) => ({ value: t, label: t.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) }))}
+            />
+            <AuditFilterDropdown
               value={auditActionFilter}
-              onChange={(e) => { setAuditActionFilter(e.target.value); setAuditPage(1); }}
-              className="rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-300 focus:outline-none focus:ring-1 focus:ring-primary-500"
-            >
-              <option value="">All actions</option>
-              {AUDIT_ACTIONS.map((a) => (
-                <option key={a} value={a}>{a.replace(/_/g, ' ')}</option>
-              ))}
-            </select>
+              onChange={(v) => { setAuditActionFilter(v); setAuditPage(1); }}
+              placeholder="All actions"
+              options={AUDIT_ACTIONS.map((a) => ({ value: a, label: a.replace(/_/g, ' ') }))}
+            />
           </div>
 
           {/* Audit table */}
