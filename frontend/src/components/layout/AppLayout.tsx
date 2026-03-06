@@ -27,7 +27,13 @@ export function AppLayout() {
   useEffect(() => {
     const { isAuthenticated, setUser } = useAuthStore.getState();
     if (isAuthenticated) {
-      authApi.me().then((res) => setUser(res.data)).catch(() => {});
+      authApi.me().then((res) => {
+        const u = res.data;
+        setUser({
+          ...u,
+          name: u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim(),
+        });
+      }).catch(() => {});
     }
   }, []);
 

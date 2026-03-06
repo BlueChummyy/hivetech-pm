@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Menu, Settings, LogOut, User } from 'lucide-react';
+import { Menu, LogOut, User } from 'lucide-react';
 import { useUIStore } from '@/store/ui.store';
 import { useAuthStore } from '@/store/auth.store';
 import { useWorkspaceStore } from '@/store/workspace.store';
@@ -15,6 +15,7 @@ export function Header() {
   const { toggleSidebar } = useUIStore();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const displayName = user?.name || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.email || '';
 
   const handleLogout = async () => {
     try { await authApi.logout(); } catch { /* ignore */ }
@@ -45,12 +46,12 @@ export function Header() {
         <DropdownMenu
           trigger={
             <button aria-label="User menu" aria-haspopup="menu" className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:ring-2 hover:ring-surface-600">
-              <Avatar src={user?.avatarUrl} name={user?.name || user?.displayName} size="sm" />
+              <Avatar src={user?.avatarUrl} name={displayName} size="sm" />
             </button>
           }
         >
           <div className="px-3 py-2">
-            <p className="text-sm font-medium text-surface-200">{user?.name || user?.displayName}</p>
+            <p className="text-sm font-medium text-surface-200">{displayName}</p>
             <p className="text-xs text-surface-500">{user?.email}</p>
           </div>
           <DropdownSeparator />
@@ -59,12 +60,6 @@ export function Header() {
             onClick={() => navigate('/settings/profile')}
           >
             Profile
-          </DropdownItem>
-          <DropdownItem
-            icon={<Settings className="h-4 w-4" />}
-            onClick={() => navigate('/settings/profile')}
-          >
-            Settings
           </DropdownItem>
           <DropdownSeparator />
           <DropdownItem
