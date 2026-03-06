@@ -198,6 +198,7 @@ export function DashboardPage() {
     toggleVisibility,
     removeWidget,
     addWidget,
+    resizeWidget,
     resetLayout,
   } = useDashboardLayout();
 
@@ -265,7 +266,7 @@ export function DashboardPage() {
   /* ---------- Widget Renderer ---------- */
 
   function renderWidget(widget: WidgetInstance): React.ReactNode {
-    const { type, config } = widget;
+    const { type, config, colSpan, rowSpan } = widget;
 
     switch (type) {
       case 'number': {
@@ -302,11 +303,12 @@ export function DashboardPage() {
         const chartData = getChartData(config?.dataSource, stats);
         const total = chartData.reduce((s, d) => s + d.value, 0);
         if (statsLoading) return <Skeleton className="h-40" />;
+        const donutSize = Math.min(130 + (rowSpan - 2) * 40 + (colSpan - 2) * 20, 240);
         return (
           <DonutChart
             data={chartData}
-            size={130}
-            thickness={22}
+            size={donutSize}
+            thickness={Math.round(donutSize * 0.17)}
             centerValue={total}
             centerLabel="Total"
           />
@@ -316,16 +318,18 @@ export function DashboardPage() {
       case 'hbar': {
         const chartData = getChartData(config?.dataSource, stats);
         if (statsLoading) return <Skeleton className="h-32" />;
-        return <HBarChart data={chartData} maxItems={config?.maxItems || 8} />;
+        const hbarMax = colSpan >= 4 ? 12 : config?.maxItems || 8;
+        return <HBarChart data={chartData} maxItems={hbarMax} />;
       }
 
       case 'vbar': {
         const chartData = getChartData(config?.dataSource, stats);
         if (statsLoading) return <Skeleton className="h-40" />;
+        const vbarHeight = 100 + (rowSpan - 1) * 60;
         return (
           <VBarChart
             data={chartData}
-            height={140}
+            height={vbarHeight}
             maxItems={config?.maxItems || 8}
           />
         );
@@ -678,17 +682,23 @@ export function DashboardPage() {
           items={displayWidgets.map((w) => w.id)}
           strategy={rectSortingStrategy}
         >
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+          <div
+            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4"
+            style={{ gridAutoRows: 'minmax(90px, auto)' }}
+          >
             {displayWidgets.map((widget) => (
               <DashboardWidgetWrapper
                 key={widget.id}
                 id={widget.id}
+                widgetType={widget.type}
                 colSpan={widget.colSpan}
+                rowSpan={widget.rowSpan}
                 title={widget.title}
                 editing={editing}
                 visible={widget.visible}
                 onToggle={() => toggleVisibility(widget.id)}
                 onRemove={() => removeWidget(widget.id)}
+                onResize={(cols, rows) => resizeWidget(widget.id, cols, rows)}
               >
                 {renderWidget(widget)}
               </DashboardWidgetWrapper>

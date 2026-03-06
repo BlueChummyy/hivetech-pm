@@ -93,6 +93,41 @@ function Toolbar({ editor, mode }: { editor: Editor; mode: 'full' | 'compact' })
 
   const iconSize = 'h-4 w-4';
 
+  const toggleHeading = useCallback((level: 1 | 2 | 3) => {
+    const { from, to } = editor.state.selection;
+    const $from = editor.state.doc.resolve(from);
+    const $to = editor.state.doc.resolve(to);
+    const parentFrom = $from.parent;
+    const parentTo = $to.parent;
+
+    // If selection spans part of a single paragraph, split it first
+    if (
+      !editor.isActive('heading', { level }) &&
+      parentFrom === parentTo &&
+      parentFrom.type.name === 'paragraph' &&
+      (from > $from.start() || to < $from.end())
+    ) {
+      const chain = editor.chain().focus();
+      // Split at end of selection first (if not at block end)
+      if (to < $from.end()) {
+        chain.command(({ tr }) => {
+          tr.split(to);
+          return true;
+        });
+      }
+      // Split at start of selection (if not at block start)
+      if (from > $from.start()) {
+        chain.command(({ tr }) => {
+          tr.split(from);
+          return true;
+        });
+      }
+      chain.toggleHeading({ level }).run();
+    } else {
+      editor.chain().focus().toggleHeading({ level }).run();
+    }
+  }, [editor]);
+
   const handleLink = useCallback(() => {
     if (editor.isActive('link')) {
       editor.chain().focus().unsetLink().run();
@@ -231,22 +266,22 @@ function Toolbar({ editor, mode }: { editor: Editor; mode: 'full' | 'compact' })
 
       <ToolbarButton
         active={editor.isActive('heading', { level: 1 })}
-        onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-        title="Heading 1"
+        onClick={() => toggleHeading(1)}
+        title="Heading 1 (applies to current line)"
       >
         <Heading1 className={iconSize} />
       </ToolbarButton>
       <ToolbarButton
         active={editor.isActive('heading', { level: 2 })}
-        onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-        title="Heading 2"
+        onClick={() => toggleHeading(2)}
+        title="Heading 2 (applies to current line)"
       >
         <Heading2 className={iconSize} />
       </ToolbarButton>
       <ToolbarButton
         active={editor.isActive('heading', { level: 3 })}
-        onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-        title="Heading 3"
+        onClick={() => toggleHeading(3)}
+        title="Heading 3 (applies to current line)"
       >
         <Heading3 className={iconSize} />
       </ToolbarButton>
@@ -551,9 +586,10 @@ export function RichTextEditor({
   return (
     <div
       className={cn(
-        'tiptap-editor rounded-lg border border-surface-700 bg-surface-900 overflow-hidden focus-within:ring-1 focus-within:ring-primary-500',
+        'tiptap-editor rounded-lg border border-surface-700 bg-surface-900 focus-within:ring-1 focus-within:ring-primary-500',
         mode === 'compact' && 'compact',
       )}
+      style={mode === 'full' ? { resize: 'vertical', overflow: 'hidden', minHeight: '140px' } : undefined}
     >
       {editable && <Toolbar editor={editor} mode={mode} />}
       <EditorContent editor={editor} />

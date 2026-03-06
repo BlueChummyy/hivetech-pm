@@ -3,6 +3,8 @@
 .tiptap-editor .ProseMirror {
   outline: none;
   min-height: 100px;
+  max-height: 400px;
+  overflow-y: auto;
   padding: 12px;
 }
 

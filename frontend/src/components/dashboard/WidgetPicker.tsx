@@ -90,6 +90,7 @@ export function WidgetPicker({ open, onClose, onAdd, existingIds }: WidgetPicker
       type: typeMap[customChartType],
       title: customTitle.trim(),
       colSpan: 2,
+      rowSpan: 2,
       visible: true,
       config: {
         chartType: customChartType,
