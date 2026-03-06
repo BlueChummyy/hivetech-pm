@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { cn } from '@/utils/cn';
 import { Sidebar } from './Sidebar';
@@ -7,12 +7,14 @@ import { TaskDetailPanel } from '@/components/task-detail/TaskDetailPanel';
 import { ToastContainer } from './ToastContainer';
 import { KeyboardShortcutsModal } from '@/components/KeyboardShortcutsModal';
 import { useUIStore } from '@/store/ui.store';
+import { useAuthStore } from '@/store/auth.store';
 import { useWorkspaceStore } from '@/store/workspace.store';
 import { useNotificationSocket } from '@/hooks/useNotificationSocket';
 import { useWorkspaceSocketEvents } from '@/hooks/useWorkspaceSocketEvents';
 import { useBrandingEffect } from '@/hooks/useBrandingEffect';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { getBackgroundStyle } from '@/utils/backgroundTemplates';
+import { authApi } from '@/api/auth';
 
 export function AppLayout() {
   const { sidebarOpen } = useUIStore();
@@ -20,6 +22,14 @@ export function AppLayout() {
   const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
 
   const openShortcutsModal = useCallback(() => setShortcutsModalOpen(true), []);
+
+  // Refresh user profile on mount to pick up new fields (e.g. isGlobalAdmin)
+  useEffect(() => {
+    const { isAuthenticated, setUser } = useAuthStore.getState();
+    if (isAuthenticated) {
+      authApi.me().then((res) => setUser(res.data)).catch(() => {});
+    }
+  }, []);
 
   useNotificationSocket();
   useWorkspaceSocketEvents(activeWorkspaceId ?? undefined);
