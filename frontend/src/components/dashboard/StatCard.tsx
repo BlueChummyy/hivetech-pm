@@ -7,11 +7,15 @@ interface StatCardProps {
   value: number;
   color: string;
   loading?: boolean;
+  onClick?: () => void;
 }
 
-export function StatCard({ icon, label, value, color, loading }: StatCardProps) {
+export function StatCard({ icon, label, value, color, loading, onClick }: StatCardProps) {
   return (
-    <Card>
+    <Card
+      className={onClick ? 'cursor-pointer transition-colors hover:border-surface-600 hover:bg-surface-800/80' : ''}
+      onClick={onClick}
+    >
       <CardBody className="flex items-center gap-4">
         <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${color}`}>
           {icon}

@@ -60,6 +60,7 @@ export function GanttChart({ tasks, isLoading, projectId }: GanttChartProps) {
     const el = timelineRef.current;
     if (!el) return;
 
+    const scrollEl = el; // captured as non-null for closures
     const DRAG_THRESHOLD = 4; // px — movement beyond this = drag, not click
 
     function onPointerDown(e: PointerEvent) {
@@ -73,8 +74,8 @@ export function GanttChart({ tasks, isLoading, projectId }: GanttChartProps) {
         grabStartRef.current = {
           x: e.clientX,
           y: e.clientY,
-          scrollLeft: el.scrollLeft,
-          scrollTop: el.scrollTop,
+          scrollLeft: scrollEl.scrollLeft,
+          scrollTop: scrollEl.scrollTop,
         };
         return;
       }
@@ -88,8 +89,8 @@ export function GanttChart({ tasks, isLoading, projectId }: GanttChartProps) {
       grabStartRef.current = {
         x: e.clientX,
         y: e.clientY,
-        scrollLeft: el.scrollLeft,
-        scrollTop: el.scrollTop,
+        scrollLeft: scrollEl.scrollLeft,
+        scrollTop: scrollEl.scrollTop,
       };
     }
 
@@ -105,8 +106,8 @@ export function GanttChart({ tasks, isLoading, projectId }: GanttChartProps) {
       }
 
       if (didDragRef.current) {
-        el.scrollLeft = grabStartRef.current.scrollLeft - dx;
-        el.scrollTop = grabStartRef.current.scrollTop - dy;
+        scrollEl.scrollLeft = grabStartRef.current.scrollLeft - dx;
+        scrollEl.scrollTop = grabStartRef.current.scrollTop - dy;
       }
     }
 
@@ -134,18 +135,18 @@ export function GanttChart({ tasks, isLoading, projectId }: GanttChartProps) {
       if (e.button === 1) { e.preventDefault(); e.stopPropagation(); }
     }
 
-    el.addEventListener('pointerdown', onPointerDown);
-    el.addEventListener('mousedown', onMiddleDown);
-    el.addEventListener('auxclick', onAuxClick);
-    el.addEventListener('click', onClickCapture, true); // capture phase
+    scrollEl.addEventListener('pointerdown', onPointerDown);
+    scrollEl.addEventListener('mousedown', onMiddleDown);
+    scrollEl.addEventListener('auxclick', onAuxClick);
+    scrollEl.addEventListener('click', onClickCapture, true); // capture phase
     document.addEventListener('pointermove', onPointerMove);
     document.addEventListener('pointerup', onPointerUp);
 
     return () => {
-      el.removeEventListener('pointerdown', onPointerDown);
-      el.removeEventListener('mousedown', onMiddleDown);
-      el.removeEventListener('auxclick', onAuxClick);
-      el.removeEventListener('click', onClickCapture, true);
+      scrollEl.removeEventListener('pointerdown', onPointerDown);
+      scrollEl.removeEventListener('mousedown', onMiddleDown);
+      scrollEl.removeEventListener('auxclick', onAuxClick);
+      scrollEl.removeEventListener('click', onClickCapture, true);
       document.removeEventListener('pointermove', onPointerMove);
       document.removeEventListener('pointerup', onPointerUp);
     };

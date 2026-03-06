@@ -60,6 +60,9 @@ router.get(
 // GET /api/v1/attachments/:id — Get attachment metadata
 router.get('/:id', controller.getById);
 
+// GET /api/v1/attachments/:id/thumbnail — Get image thumbnail
+router.get('/:id/thumbnail', controller.thumbnail);
+
 // GET /api/v1/attachments/:id/download — Download attachment file
 router.get('/:id/download', controller.download);
 
@@ -82,6 +85,9 @@ taskScopedRouter.get('/', controller.list);
 
 // GET /api/v1/tasks/:taskId/attachments/:id — Get attachment metadata
 taskScopedRouter.get('/:id', controller.getById);
+
+// GET /api/v1/tasks/:taskId/attachments/:id/thumbnail — Get image thumbnail
+taskScopedRouter.get('/:id/thumbnail', controller.thumbnail);
 
 // GET /api/v1/tasks/:taskId/attachments/:id/download — Download attachment file
 taskScopedRouter.get('/:id/download', controller.download);

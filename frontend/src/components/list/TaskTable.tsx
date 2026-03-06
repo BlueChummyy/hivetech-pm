@@ -422,7 +422,8 @@ export function TaskTable({ tasks, statuses, groupBy }: TaskTableProps) {
     Record<string, boolean>
   >({});
   const updatePosition = useUpdateTaskPosition();
-  const { selectedTaskIds, toggleTask, selectAll, deselectAll } = useSelectionStore();
+  const { selectedTaskIds, toggleTask, selectRange, selectAll, deselectAll } = useSelectionStore();
+  const focusedTaskId = useUIStore((s) => s.focusedTaskId);
 
   const isGrouped =
     !!groupBy && groupBy.enabled && groupBy.field !== 'none';
@@ -624,6 +625,17 @@ export function TaskTable({ tasks, statuses, groupBy }: TaskTableProps) {
 
   /* ---- render helper for a group's tasks (desktop) ---- */
 
+  const handleToggleSelect = useCallback(
+    (taskId: string, e?: React.MouseEvent) => {
+      if (e?.shiftKey) {
+        selectRange(taskId, allTaskIds);
+      } else {
+        toggleTask(taskId);
+      }
+    },
+    [toggleTask, selectRange, allTaskIds],
+  );
+
   function renderGroupRows(groupTasks: Task[]) {
     const items = buildRenderListForTasks(
       groupTasks,
@@ -645,7 +657,8 @@ export function TaskTable({ tasks, statuses, groupBy }: TaskTableProps) {
           onToggleExpand={() => toggleExpand(task.id)}
           subtaskCount={hasChildren ? kids!.length : undefined}
           isSelected={selectedTaskIds.has(task.id)}
-          onToggleSelect={() => toggleTask(task.id)}
+          onToggleSelect={(e) => handleToggleSelect(task.id, e)}
+          isFocused={focusedTaskId === task.id}
         />
       );
     });
@@ -834,7 +847,8 @@ export function TaskTable({ tasks, statuses, groupBy }: TaskTableProps) {
                           hasChildren ? kids!.length : undefined
                         }
                         isSelected={selectedTaskIds.has(task.id)}
-                        onToggleSelect={() => toggleTask(task.id)}
+                        onToggleSelect={(e) => handleToggleSelect(task.id, e)}
+                        isFocused={focusedTaskId === task.id}
                       />
                     );
                   })}

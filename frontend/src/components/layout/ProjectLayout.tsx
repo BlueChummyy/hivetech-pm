@@ -5,6 +5,7 @@ import { cn } from '@/utils/cn';
 import { useProject } from '@/hooks/useProjects';
 import { useProjectSocketEvents } from '@/hooks/useProjectSocketEvents';
 import { useProjectPermissions } from '@/hooks/useProjectRole';
+import { addRecentlyViewed } from '@/components/dashboard/RecentlyViewed';
 
 interface ViewDef {
   label: string;
@@ -51,6 +52,18 @@ export function ProjectLayout() {
   const permissions = useProjectPermissions(projectId);
 
   useProjectSocketEvents(projectId);
+
+  // Track recently viewed projects
+  useEffect(() => {
+    if (project) {
+      addRecentlyViewed({
+        type: 'project',
+        id: project.id,
+        title: project.name,
+        projectKey: project.key,
+      });
+    }
+  }, [project]);
 
   const [enabledViews, setEnabledViews] = useState<string[]>(() =>
     loadEnabledViews(projectId ?? ''),

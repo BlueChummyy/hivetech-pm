@@ -1,5 +1,12 @@
 import { prisma } from '../prisma/client.js';
 
+export interface SearchFilters {
+  statusCategory?: string;
+  priority?: string;
+  assigneeId?: string;
+  projectId?: string;
+}
+
 export interface SearchResults {
   tasks: {
     id: string;
@@ -28,22 +35,40 @@ export interface SearchResults {
 }
 
 export class SearchService {
-  async search(query: string, workspaceId: string, userId: string): Promise<SearchResults> {
+  async search(query: string, workspaceId: string, userId: string, filters?: SearchFilters): Promise<SearchResults> {
     const term = query.trim();
     if (!term) {
       return { tasks: [], projects: [], people: [] };
     }
 
     // Get projects the user has access to in this workspace
+    const projectWhere: any = {
+      workspaceId,
+      deletedAt: null,
+      members: { some: { userId } },
+    };
+    // If filtering by project, only search within that project
+    if (filters?.projectId) {
+      projectWhere.id = filters.projectId;
+    }
+
     const accessibleProjects = await prisma.project.findMany({
-      where: {
-        workspaceId,
-        deletedAt: null,
-        members: { some: { userId } },
-      },
+      where: projectWhere,
       select: { id: true },
     });
     const projectIds = accessibleProjects.map((p: { id: string }) => p.id);
+
+    // Build additional task filters
+    const taskFilterWhere: any = {};
+    if (filters?.statusCategory) {
+      taskFilterWhere.status = { category: filters.statusCategory };
+    }
+    if (filters?.priority) {
+      taskFilterWhere.priority = filters.priority;
+    }
+    if (filters?.assigneeId) {
+      taskFilterWhere.assignees = { some: { userId: filters.assigneeId } };
+    }
 
     // Run all three searches in parallel
     const [tasks, projects, people] = await Promise.all([
@@ -54,6 +79,7 @@ export class SearchService {
               projectId: { in: projectIds },
               deletedAt: null,
               closedAt: null,
+              ...taskFilterWhere,
               OR: [
                 { title: { contains: term, mode: 'insensitive' } },
                 { description: { contains: term, mode: 'insensitive' } },
@@ -69,11 +95,11 @@ export class SearchService {
               status: { select: { name: true, color: true } },
             },
             orderBy: { updatedAt: 'desc' },
-            take: 5,
+            take: 10,
           })
         : Promise.resolve([]),
 
-      // Search projects
+      // Search projects (not affected by task filters)
       prisma.project.findMany({
         where: {
           workspaceId,

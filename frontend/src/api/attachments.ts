@@ -25,6 +25,14 @@ export const attachmentsApi = {
     return URL.createObjectURL(res.data);
   },
 
+  /** Fetch thumbnail as blob URL (authenticated, for img src usage) */
+  thumbnail: async (attachmentId: string): Promise<string> => {
+    const res = await get<Blob>(`/attachments/${attachmentId}/thumbnail`, {
+      responseType: 'blob',
+    });
+    return URL.createObjectURL(res.data);
+  },
+
   remove: (attachmentId: string) =>
     del(`/attachments/${attachmentId}`),
 };

@@ -121,6 +121,9 @@ export const adminApi = {
   createUser: (data: CreateUserData) =>
     post<AdminUser>('/admin/users', data).then((r) => r.data),
 
+  updateUser: (userId: string, data: { firstName?: string; lastName?: string; email?: string; isActive?: boolean }) =>
+    patch<AdminUser>(`/admin/users/${userId}`, data).then((r) => r.data),
+
   resetPassword: (userId: string, newPassword: string) =>
     post<{ message: string }>(`/admin/users/${userId}/reset-password`, { newPassword }).then((r) => r.data),
 

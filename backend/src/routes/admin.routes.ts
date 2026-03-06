@@ -141,7 +141,99 @@ router.post(
         },
       });
 
+      // Audit log
+      const adminMembershipForCreate = await prisma.workspaceMember.findFirst({
+        where: { userId: req.user!.id, role: { in: ['OWNER', 'ADMIN'] } },
+        select: { workspaceId: true },
+      });
+      if (adminMembershipForCreate) {
+        logAudit({
+          workspaceId: adminMembershipForCreate.workspaceId,
+          userId: req.user!.id,
+          action: 'user_created',
+          entityType: 'user',
+          entityId: user.id,
+          metadata: { email, firstName, lastName, workspaceRole },
+        });
+      }
+
       res.status(201).json(successResponse(fullUser));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ── PATCH /api/v1/admin/users/:id — Update user fields ────────────────
+const updateUserSchema = z.object({
+  firstName: z.string().min(1).max(50).optional(),
+  lastName: z.string().min(1).max(50).optional(),
+  email: z.string().email().optional(),
+  isActive: z.boolean().optional(),
+});
+
+router.patch(
+  '/users/:id',
+  validate({ body: updateUserSchema }),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.params.id as string;
+      const { firstName, lastName, email, isActive } = req.body;
+
+      const user = await prisma.user.findFirst({ where: { id: userId, deletedAt: null } });
+      if (!user) throw ApiError.notFound('User not found');
+
+      // Check for email conflict if email is being changed
+      if (email && email !== user.email) {
+        const existing = await prisma.user.findFirst({ where: { email, deletedAt: null, id: { not: userId } } });
+        if (existing) throw ApiError.conflict('A user with this email already exists');
+      }
+
+      // Build changes object for audit log
+      const changes: Record<string, { from: unknown; to: unknown }> = {};
+      if (firstName !== undefined && firstName !== user.firstName) changes.firstName = { from: user.firstName, to: firstName };
+      if (lastName !== undefined && lastName !== user.lastName) changes.lastName = { from: user.lastName, to: lastName };
+      if (email !== undefined && email !== user.email) changes.email = { from: user.email, to: email };
+      if (isActive !== undefined && isActive !== user.isActive) changes.isActive = { from: user.isActive, to: isActive };
+
+      const updateData: any = {};
+      if (firstName !== undefined) updateData.firstName = firstName;
+      if (lastName !== undefined) updateData.lastName = lastName;
+      if (email !== undefined) updateData.email = email;
+      if (isActive !== undefined) updateData.isActive = isActive;
+
+      const updated = await prisma.user.update({
+        where: { id: userId },
+        data: updateData,
+        include: {
+          workspaceMembers: {
+            select: { role: true, workspace: { select: { id: true, name: true } } },
+          },
+        },
+      });
+
+      // If deactivating, revoke refresh tokens
+      if (isActive === false && user.isActive) {
+        await prisma.refreshToken.deleteMany({ where: { userId } });
+      }
+
+      // Audit log
+      const adminMembership = await prisma.workspaceMember.findFirst({
+        where: { userId: req.user!.id, role: { in: ['OWNER', 'ADMIN'] } },
+        select: { workspaceId: true },
+      });
+      if (adminMembership) {
+        logAudit({
+          workspaceId: adminMembership.workspaceId,
+          userId: req.user!.id,
+          action: 'user_updated',
+          entityType: 'user',
+          entityId: userId,
+          metadata: { targetUser: `${user.firstName} ${user.lastName}`, changes },
+        });
+      }
+
+      res.json(successResponse(updated));
     } catch (err) {
       next(err);
     }
@@ -170,6 +262,22 @@ router.post(
       // Revoke all refresh tokens so user must re-login
       await prisma.refreshToken.deleteMany({ where: { userId } });
 
+      // Audit log
+      const adminMembershipForReset = await prisma.workspaceMember.findFirst({
+        where: { userId: req.user!.id, role: { in: ['OWNER', 'ADMIN'] } },
+        select: { workspaceId: true },
+      });
+      if (adminMembershipForReset) {
+        logAudit({
+          workspaceId: adminMembershipForReset.workspaceId,
+          userId: req.user!.id,
+          action: 'password_reset',
+          entityType: 'user',
+          entityId: userId,
+          metadata: { targetUser: `${user.firstName} ${user.lastName}` },
+        });
+      }
+
       res.json(successResponse({ message: 'Password reset successfully' }));
     } catch (err) {
       next(err);
@@ -197,10 +305,20 @@ router.patch(
       if (!membership) throw ApiError.notFound('User is not a member of this workspace');
       if (membership.role === 'OWNER') throw ApiError.forbidden('Cannot change the role of a workspace owner');
 
+      const oldRole = membership.role;
       const updated = await prisma.workspaceMember.update({
         where: { workspaceId_userId: { workspaceId, userId } },
         data: { role },
         include: { user: true, workspace: true },
+      });
+
+      logAudit({
+        workspaceId,
+        userId: req.user!.id,
+        action: 'workspace_role_changed',
+        entityType: 'user',
+        entityId: userId,
+        metadata: { oldRole, newRole: role, workspace: updated.workspace.name },
       });
 
       res.json(successResponse(updated));
@@ -232,6 +350,12 @@ router.delete(
         throw ApiError.forbidden('Cannot delete a workspace owner. Transfer ownership first.');
       }
 
+      // Get admin workspace for audit before deleting memberships
+      const adminMembershipForDelete = await prisma.workspaceMember.findFirst({
+        where: { userId: req.user!.id, role: { in: ['OWNER', 'ADMIN'] } },
+        select: { workspaceId: true },
+      });
+
       await prisma.$transaction(async (tx: any) => {
         // Soft-delete the user
         await tx.user.update({
@@ -248,6 +372,17 @@ router.delete(
         // Revoke all refresh tokens
         await tx.refreshToken.deleteMany({ where: { userId } });
       });
+
+      if (adminMembershipForDelete) {
+        logAudit({
+          workspaceId: adminMembershipForDelete.workspaceId,
+          userId: req.user!.id,
+          action: 'user_deleted',
+          entityType: 'user',
+          entityId: userId,
+          metadata: { targetUser: `${user.firstName} ${user.lastName}`, email: user.email },
+        });
+      }
 
       res.json(successResponse({ message: 'User deleted successfully' }));
     } catch (err) {
@@ -279,6 +414,22 @@ router.patch(
       // If deactivating, revoke refresh tokens so they're logged out
       if (!newStatus) {
         await prisma.refreshToken.deleteMany({ where: { userId } });
+      }
+
+      // Audit log
+      const adminMembershipForDeactivate = await prisma.workspaceMember.findFirst({
+        where: { userId: req.user!.id, role: { in: ['OWNER', 'ADMIN'] } },
+        select: { workspaceId: true },
+      });
+      if (adminMembershipForDeactivate) {
+        logAudit({
+          workspaceId: adminMembershipForDeactivate.workspaceId,
+          userId: req.user!.id,
+          action: newStatus ? 'user_activated' : 'user_deactivated',
+          entityType: 'user',
+          entityId: userId,
+          metadata: { targetUser: `${user.firstName} ${user.lastName}` },
+        });
       }
 
       res.json(successResponse({
@@ -911,6 +1062,22 @@ router.put(
       saveSmtpSettings(data);
       resetTransporter();
 
+      // Audit log
+      const adminMembershipForSmtp = await prisma.workspaceMember.findFirst({
+        where: { userId: req.user!.id, role: { in: ['OWNER', 'ADMIN'] } },
+        select: { workspaceId: true },
+      });
+      if (adminMembershipForSmtp) {
+        logAudit({
+          workspaceId: adminMembershipForSmtp.workspaceId,
+          userId: req.user!.id,
+          action: 'settings_updated',
+          entityType: 'settings',
+          entityId: 'smtp',
+          metadata: { settingType: 'smtp' },
+        });
+      }
+
       res.json(successResponse({ message: 'SMTP settings saved successfully' }));
     } catch (err) {
       next(err);
@@ -1025,6 +1192,22 @@ router.put(
           enabled,
         },
       });
+
+      // Audit log
+      const adminMembershipForAuth = await prisma.workspaceMember.findFirst({
+        where: { userId: req.user!.id, role: { in: ['OWNER', 'ADMIN'] } },
+        select: { workspaceId: true },
+      });
+      if (adminMembershipForAuth) {
+        logAudit({
+          workspaceId: adminMembershipForAuth.workspaceId,
+          userId: req.user!.id,
+          action: 'settings_updated',
+          entityType: 'settings',
+          entityId: provider,
+          metadata: { settingType: 'auth_provider', provider, enabled },
+        });
+      }
 
       res.json(successResponse({
         ...result,

@@ -281,6 +281,29 @@ export interface ActivityLog {
   createdAt: string;
 }
 
+export interface ChecklistItem {
+  id: string;
+  taskId: string;
+  title: string;
+  isChecked: boolean;
+  position: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ActiveTimer {
+  id: string;
+  taskId: string;
+  userId: string;
+  startedAt: string;
+  task?: {
+    id: string;
+    title: string;
+    taskNumber: number;
+    projectId: string;
+  };
+}
+
 export interface SubtaskTemplate {
   title: string;
   priority?: string;

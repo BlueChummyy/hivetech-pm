@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { ListFilter, Plus } from 'lucide-react';
 import { TaskTable } from '@/components/list/TaskTable';
@@ -7,11 +7,12 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { PageError } from '@/components/ui/PageError';
 import { CreateTaskModal } from '@/components/CreateTaskModal';
 import { BulkActionBar } from '@/components/BulkActionBar';
-import { useTasks } from '@/hooks/useTasks';
+import { useTasks, useUpdateTask, useCloneTask, useDeleteTask } from '@/hooks/useTasks';
 import { useStatuses } from '@/hooks/useStatuses';
 import { useProjectMembers } from '@/hooks/useMembers';
 import { useLabels } from '@/hooks/useLabels';
 import { useProjectPermissions } from '@/hooks/useProjectRole';
+import { useToast } from '@/components/ui/Toast';
 import type { Task } from '@/types/models.types';
 
 function ListSkeleton() {
@@ -60,6 +61,66 @@ export function ListPage() {
   const { data: labels } = useLabels(projectId ?? '');
   const permissions = useProjectPermissions(projectId);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const updateTask = useUpdateTask();
+  const cloneTask = useCloneTask();
+  const deleteTask = useDeleteTask();
+  const { toast } = useToast();
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Listen for keyboard shortcut custom events
+  useEffect(() => {
+    const handleClone = (e: Event) => {
+      const taskId = (e as CustomEvent).detail?.taskId;
+      if (taskId) {
+        cloneTask.mutate(taskId, {
+          onSuccess: () => toast({ type: 'success', title: 'Task duplicated' }),
+          onError: () => toast({ type: 'error', title: 'Failed to duplicate task' }),
+        });
+      }
+    };
+
+    const handleSetPriority = (e: Event) => {
+      const { taskId, priority } = (e as CustomEvent).detail ?? {};
+      if (taskId && priority) {
+        updateTask.mutate(
+          { id: taskId, data: { priority } },
+          {
+            onSuccess: () => toast({ type: 'success', title: `Priority set to ${priority.charAt(0) + priority.slice(1).toLowerCase()}` }),
+            onError: () => toast({ type: 'error', title: 'Failed to update priority' }),
+          },
+        );
+      }
+    };
+
+    const handleDelete = (e: Event) => {
+      const taskId = (e as CustomEvent).detail?.taskId;
+      if (taskId) {
+        if (deleteConfirmId === taskId) {
+          deleteTask.mutate(taskId, {
+            onSuccess: () => {
+              toast({ type: 'success', title: 'Task deleted' });
+              setDeleteConfirmId(null);
+            },
+            onError: () => toast({ type: 'error', title: 'Failed to delete task' }),
+          });
+        } else {
+          setDeleteConfirmId(taskId);
+          toast({ type: 'info', title: 'Press Delete again to confirm' });
+          // Auto-clear after 3 seconds
+          setTimeout(() => setDeleteConfirmId(null), 3000);
+        }
+      }
+    };
+
+    window.addEventListener('shortcut:clone-task', handleClone);
+    window.addEventListener('shortcut:set-priority', handleSetPriority);
+    window.addEventListener('shortcut:delete-task', handleDelete);
+    return () => {
+      window.removeEventListener('shortcut:clone-task', handleClone);
+      window.removeEventListener('shortcut:set-priority', handleSetPriority);
+      window.removeEventListener('shortcut:delete-task', handleDelete);
+    };
+  }, [cloneTask, updateTask, deleteTask, toast, deleteConfirmId]);
 
   const hasActiveFilters =
     filters.search !== '' ||

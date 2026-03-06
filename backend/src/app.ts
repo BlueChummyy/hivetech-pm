@@ -27,6 +27,8 @@ import { searchRoutes } from './routes/search.routes.js';
 import { taskTimeEntriesRoutes, timeEntriesRoutes } from './routes/time-entries.routes.js';
 import { ssoRoutes } from './routes/sso.routes.js';
 import { setupRoutes } from './routes/setup.routes.js';
+import { checklistRoutes } from './routes/checklist.routes.js';
+import { taskTimerRoutes, timerRoutes } from './routes/timer.routes.js';
 
 export function createApp() {
   const app = express();
@@ -81,6 +83,9 @@ export function createApp() {
   app.use('/api/v1/time-entries', timeEntriesRoutes);
   app.use('/api/v1/auth', ssoRoutes);
   app.use('/api/v1/setup', setupRoutes);
+  app.use('/api/v1/tasks/:taskId/checklist', checklistRoutes);
+  app.use('/api/v1/tasks/:taskId/timer', taskTimerRoutes);
+  app.use('/api/v1/timer', timerRoutes);
 
   // 404 handler for undefined routes
   app.use((_req, res) => {

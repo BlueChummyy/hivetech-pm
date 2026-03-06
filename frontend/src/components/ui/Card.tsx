@@ -4,6 +4,7 @@ import { cn } from '@/utils/cn';
 interface CardProps {
   className?: string;
   children: ReactNode;
+  onClick?: () => void;
 }
 
 interface CardHeaderProps {
@@ -21,13 +22,14 @@ interface CardFooterProps {
   children: ReactNode;
 }
 
-export function Card({ className, children }: CardProps) {
+export function Card({ className, children, onClick }: CardProps) {
   return (
     <div
       className={cn(
         'rounded-xl border border-surface-700 bg-surface-800 shadow-lg',
         className,
       )}
+      onClick={onClick}
     >
       {children}
     </div>

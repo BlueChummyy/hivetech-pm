@@ -21,6 +21,7 @@ interface UIState {
   sidebarCollapsed: boolean;
   taskPanelOpen: boolean;
   taskPanelTaskId: string | null;
+  focusedTaskId: string | null;
   theme: Theme;
 }
 
@@ -29,6 +30,7 @@ interface UIActions {
   collapseSidebar: (collapsed: boolean) => void;
   openTaskPanel: (taskId: string) => void;
   closeTaskPanel: () => void;
+  setFocusedTaskId: (taskId: string | null) => void;
   setTheme: (theme: Theme) => void;
 }
 
@@ -39,6 +41,7 @@ export const useUIStore = create<UIState & UIActions>()((set) => ({
   sidebarCollapsed: false,
   taskPanelOpen: false,
   taskPanelTaskId: null,
+  focusedTaskId: null,
   theme: initialTheme,
 
   toggleSidebar: () =>
@@ -52,6 +55,9 @@ export const useUIStore = create<UIState & UIActions>()((set) => ({
 
   closeTaskPanel: () =>
     set({ taskPanelOpen: false, taskPanelTaskId: null }),
+
+  setFocusedTaskId: (taskId) =>
+    set({ focusedTaskId: taskId }),
 
   setTheme: (theme) => {
     localStorage.setItem('theme', theme);

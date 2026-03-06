@@ -1,8 +1,35 @@
 import { get } from './client';
 
+export type DashboardFilter =
+  | 'active'
+  | 'completed'
+  | 'in_progress'
+  | 'overdue'
+  | 'due_this_week'
+  | 'unassigned';
+
+export interface DashboardTask {
+  id: string;
+  title: string;
+  taskNumber: number;
+  priority: string;
+  dueDate: string | null;
+  projectId: string;
+  projectName: string;
+  projectKey: string;
+  statusName: string;
+  statusColor: string;
+  statusCategory: string;
+  assignees: {
+    userId: string;
+    name: string;
+    avatarUrl: string | null;
+  }[];
+}
+
 export interface DashboardStats {
   summary: {
-    total: number;
+    active: number;
     completed: number;
     inProgress: number;
     overdue: number;
@@ -49,4 +76,7 @@ export interface DashboardStats {
 export const dashboardApi = {
   getStats: (workspaceId: string) =>
     get<DashboardStats>(`/dashboard/${workspaceId}/stats`).then((r) => r.data),
+
+  getFilteredTasks: (workspaceId: string, filter: DashboardFilter) =>
+    get<DashboardTask[]>(`/dashboard/${workspaceId}/tasks`, { params: { filter } }).then((r) => r.data),
 };

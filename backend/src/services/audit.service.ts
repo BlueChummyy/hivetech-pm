@@ -18,9 +18,23 @@ export type AuditAction =
   | 'closed'
   | 'reopened'
   | 'logged_time'
-  | 'deleted_time_entry';
+  | 'deleted_time_entry'
+  // Admin actions
+  | 'user_created'
+  | 'user_updated'
+  | 'user_deactivated'
+  | 'user_activated'
+  | 'user_deleted'
+  | 'password_reset'
+  | 'settings_updated'
+  | 'workspace_role_changed'
+  // Project actions
+  | 'label_created'
+  | 'label_deleted'
+  | 'attachment_uploaded'
+  | 'attachment_deleted';
 
-export type AuditEntityType = 'project' | 'task' | 'space' | 'comment' | 'workspace' | 'time_entry';
+export type AuditEntityType = 'project' | 'task' | 'space' | 'comment' | 'workspace' | 'time_entry' | 'user' | 'label' | 'attachment' | 'settings';
 
 interface AuditEntry {
   workspaceId: string;

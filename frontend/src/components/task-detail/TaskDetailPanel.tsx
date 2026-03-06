@@ -7,7 +7,7 @@ import {
   Paperclip,
   Upload,
   Download,
-  Eye,
+  FileText,
   Trash2,
   Loader2,
   Repeat,
@@ -34,11 +34,18 @@ import { CommentSection } from './CommentSection';
 import { RecurrenceSelector } from './RecurrenceSelector';
 import { TimeTrackingSection } from './TimeTrackingSection';
 import { ActivitySection } from './ActivitySection';
+import { ChecklistSection } from './ChecklistSection';
+import { TaskTimer } from './TaskTimer';
+import { DropZone, AttachmentDropArea } from '@/components/ui/DropZone';
 import { useToast } from '@/components/ui/Toast';
 import { cn } from '@/utils/cn';
 import { StatusCategory } from '@/types/models.types';
 import type { Priority } from '@/types/models.types';
 import { useProjectPermissions } from '@/hooks/useProjectRole';
+import { addRecentlyViewed } from '@/components/dashboard/RecentlyViewed';
+import { RichTextEditor } from '@/components/ui/RichTextEditor';
+import { RichTextDisplay } from '@/components/ui/RichTextDisplay';
+import { useThumbnail } from '@/hooks/useThumbnail';
 
 export function TaskDetailPanel() {
   const taskPanelOpen = useUIStore((s) => s.taskPanelOpen);
@@ -84,6 +91,15 @@ export function TaskDetailPanel() {
     if (task) {
       setTitleValue(task.title);
       setDescValue(task.description || '');
+      // Track recently viewed
+      addRecentlyViewed({
+        type: 'task',
+        id: task.id,
+        title: task.title,
+        projectKey: task.project?.key,
+        taskNumber: task.taskNumber,
+        projectId: task.projectId,
+      });
     }
   }, [task]);
 
@@ -157,13 +173,24 @@ export function TaskDetailPanel() {
     setEditingTitle(false);
   }
 
-  function saveDescription() {
-    if (!task || descValue === (task.description || '')) return;
-    updateTask.mutate(
-      { id: task.id, data: { description: descValue } },
-      { onError: onMutationError },
-    );
-  }
+  // Auto-save description with debounce (rich text editor has no onBlur)
+  const descSaveTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => {
+    if (!task) return;
+    // Skip saving if desc hasn't actually changed from server value
+    if (descValue === (task.description || '')) return;
+    // Clear previous timer
+    if (descSaveTimerRef.current) clearTimeout(descSaveTimerRef.current);
+    descSaveTimerRef.current = setTimeout(() => {
+      updateTask.mutate(
+        { id: task.id, data: { description: descValue } },
+        { onError: onMutationError },
+      );
+    }, 1000);
+    return () => {
+      if (descSaveTimerRef.current) clearTimeout(descSaveTimerRef.current);
+    };
+  }, [descValue]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleStatusChange(statusId: string) {
     if (!task) return;
@@ -239,7 +266,18 @@ export function TaskDetailPanel() {
     e.target.value = '';
   }
 
-  function isPreviewable(mimeType: string) {
+  function handleFilesDropped(files: File[]) {
+    if (!task) return;
+    files.forEach((file) => {
+      uploadAttachment.mutate(
+        { taskId: task.id, file },
+        { onError: (err) => toast({ type: 'error', title: 'Failed to upload file', description: (err as Error).message }) },
+      );
+    });
+  }
+
+  function isPreviewable(mimeType?: string) {
+    if (!mimeType) return false;
     return mimeType.startsWith('image/') || mimeType === 'application/pdf';
   }
 
@@ -297,8 +335,9 @@ export function TaskDetailPanel() {
         className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:p-8"
         onClick={(e) => { if (e.target === e.currentTarget) closeTaskPanel(); }}
       >
+      <DropZone onFilesDropped={handleFilesDropped} disabled={!permissions.canEditTasks} className="w-full max-w-3xl my-auto">
       <div
-        className="w-full max-w-3xl bg-surface-800 rounded-xl border border-surface-700 shadow-2xl my-auto"
+        className="w-full bg-surface-800 rounded-xl border border-surface-700 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {isLoading ? (
@@ -712,17 +751,24 @@ export function TaskDetailPanel() {
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-surface-500">Description</label>
                   {permissions.canEditTasks ? (
-                    <textarea
-                      value={descValue}
-                      onChange={(e) => setDescValue(e.target.value)}
-                      onBlur={saveDescription}
+                    <RichTextEditor
+                      content={descValue}
+                      onChange={(html) => setDescValue(html)}
                       placeholder="Add a description..."
-                      rows={4}
-                      className="w-full resize-y rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500 min-h-[6rem] max-h-[50vh]"
+                      mode="full"
+                      members={members?.map((m) => ({
+                        id: m.userId,
+                        name: m.user?.name || m.user?.displayName || 'Unknown',
+                        avatarUrl: m.user?.avatarUrl,
+                      })) || []}
                     />
                   ) : (
-                    <div className="rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-300 min-h-[4rem]">
-                      {task.description || 'No description'}
+                    <div className="rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 min-h-[4rem]">
+                      {task.description ? (
+                        <RichTextDisplay content={task.description} />
+                      ) : (
+                        <span className="text-sm text-surface-500">No description</span>
+                      )}
                     </div>
                   )}
                 </div>
@@ -734,6 +780,11 @@ export function TaskDetailPanel() {
                     subtasks={task.subtasks || []}
                     doneStatusId={doneStatus?.id}
                   />
+                </div>
+
+                {/* Checklist */}
+                <div className="border-t border-surface-700 pt-3">
+                  <ChecklistSection taskId={task.id} canEdit={permissions.canEditTasks} />
                 </div>
 
                 {/* Dependencies */}
@@ -769,7 +820,10 @@ export function TaskDetailPanel() {
                 )}
 
                 {/* Time Tracking */}
-                <div className="border-t border-surface-700 pt-3">
+                <div className="border-t border-surface-700 pt-3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <TaskTimer taskId={task.id} canEdit={permissions.canEditTasks} />
+                  </div>
                   <TimeTrackingSection
                     taskId={task.id}
                     estimatedHours={task.estimatedHours}
@@ -809,70 +863,44 @@ export function TaskDetailPanel() {
                   </div>
 
                   {attachments && attachments.length > 0 ? (
-                    <div className="space-y-1.5">
-                      {attachments.map((att) => (
-                        <div
-                          key={att.id}
-                          className="flex items-center gap-2 rounded-md bg-surface-900 px-3 py-2"
-                        >
-                          <Paperclip className="h-4 w-4 shrink-0 text-surface-500" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm text-surface-200 truncate">
-                              {att.originalName || att.filename}
-                            </p>
-                            <p className="text-xs text-surface-500">
-                              {(att.size / 1024).toFixed(1)} KB
-                              {att.uploadedBy && ` - ${att.uploadedBy.name || att.uploadedBy.displayName}`}
-                            </p>
-                          </div>
-                          {isPreviewable(att.mimeType) && (
-                            <button
-                              onClick={() => handlePreview(att.id, att.originalName || att.filename)}
-                              aria-label={`View ${att.originalName || att.filename}`}
-                              className="rounded-md p-1 text-surface-400 hover:text-primary-400"
-                              title="View"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleDownload(att.id, att.originalName || att.filename)}
-                            aria-label={`Download ${att.originalName || att.filename}`}
-                            className="rounded-md p-1 text-surface-400 hover:text-surface-200"
-                            title="Download"
-                          >
-                            <Download className="h-4 w-4" />
-                          </button>
-                          {permissions.canEditTasks && (
-                            <button
-                              onClick={() =>
-                                deleteAttachment.mutate(
-                                  {
-                                    taskId: task.id,
-                                    attachmentId: att.id,
-                                  },
-                                  {
-                                    onError: (err) =>
-                                      toast({
-                                        type: 'error',
-                                        title: 'Failed to delete attachment',
-                                        description: (err as Error).message,
-                                      }),
-                                  },
-                                )
-                              }
-                              aria-label={`Delete ${att.originalName || att.filename}`}
-                              className="rounded-md p-1 text-surface-400 hover:text-red-400"
-                              title="Delete"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+                    <>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {attachments.map((att) => (
+                          <AttachmentCard
+                            key={att.id}
+                            attachment={att}
+                            canEdit={permissions.canEditTasks}
+                            onPreview={handlePreview}
+                            onDownload={handleDownload}
+                            onDelete={(attId) =>
+                              deleteAttachment.mutate(
+                                { taskId: task.id, attachmentId: attId },
+                                {
+                                  onError: (err) =>
+                                    toast({
+                                      type: 'error',
+                                      title: 'Failed to delete attachment',
+                                      description: (err as Error).message,
+                                    }),
+                                },
+                              )
+                            }
+                            isPreviewable={isPreviewable}
+                          />
+                        ))}
+                      </div>
+                      <AttachmentDropArea
+                        onFilesDropped={handleFilesDropped}
+                        hasAttachments={true}
+                        disabled={!permissions.canEditTasks}
+                      />
+                    </>
                   ) : (
-                    <p className="text-sm text-surface-500">No attachments</p>
+                    <AttachmentDropArea
+                      onFilesDropped={handleFilesDropped}
+                      hasAttachments={false}
+                      disabled={!permissions.canEditTasks}
+                    />
                   )}
                 </div>
 
@@ -885,6 +913,7 @@ export function TaskDetailPanel() {
           </div>
         )}
         </div>
+      </DropZone>
       </div>
       )}
 
@@ -920,5 +949,86 @@ export function TaskDetailPanel() {
         </div>
       )}
     </>
+  );
+}
+
+// ── Attachment thumbnail card (separate component so it can use hooks) ──
+
+interface AttachmentCardProps {
+  attachment: { id: string; filename: string; originalName?: string; mimeType?: string; size: number; uploadedBy?: { name?: string; displayName?: string } };
+  canEdit: boolean;
+  onPreview: (id: string, name: string) => void;
+  onDownload: (id: string, name: string) => void;
+  onDelete: (id: string) => void;
+  isPreviewable: (mimeType?: string) => boolean;
+}
+
+function AttachmentCard({ attachment: att, canEdit, onPreview, onDownload, onDelete, isPreviewable }: AttachmentCardProps) {
+  const thumbnailUrl = useThumbnail(att.id, att.mimeType);
+  const isImage = att.mimeType?.startsWith('image/');
+  const canPreview = isPreviewable(att.mimeType);
+  const name = att.originalName || att.filename;
+
+  return (
+    <div className="group relative rounded-lg border border-surface-700 bg-surface-900 overflow-hidden">
+      {/* Thumbnail / file icon area — clickable to preview or download */}
+      <button
+        onClick={() => canPreview ? onPreview(att.id, name) : onDownload(att.id, name)}
+        className="block w-full aspect-[4/3] bg-surface-800 relative overflow-hidden cursor-pointer"
+        title={canPreview ? 'Click to view' : 'Click to download'}
+      >
+        {isImage && thumbnailUrl ? (
+          <img
+            src={thumbnailUrl}
+            alt={name}
+            className="h-full w-full object-cover transition-transform group-hover:scale-105"
+          />
+        ) : isImage ? (
+          <div className="flex h-full w-full items-center justify-center">
+            <Loader2 className="h-6 w-6 text-surface-500 animate-spin" />
+          </div>
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <FileText className="h-10 w-10 text-surface-500" />
+          </div>
+        )}
+        {/* Hover overlay */}
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+          <span className="text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+            {canPreview ? 'View' : 'Download'}
+          </span>
+        </div>
+      </button>
+
+      {/* File info */}
+      <div className="px-2 py-1.5">
+        <p className="text-xs text-surface-200 truncate" title={name}>{name}</p>
+        <p className="text-[10px] text-surface-500">
+          {att.size >= 1048576
+            ? `${(att.size / 1048576).toFixed(1)} MB`
+            : `${(att.size / 1024).toFixed(1)} KB`}
+        </p>
+      </div>
+
+      {/* Action buttons overlay (top-right) */}
+      <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={() => onDownload(att.id, name)}
+          className="rounded bg-surface-900/80 p-1 text-surface-300 hover:text-surface-100 backdrop-blur-sm"
+          title="Download"
+        >
+          <Download className="h-3.5 w-3.5" />
+        </button>
+        {canEdit && (
+          <button
+            onClick={() => onDelete(att.id)}
+            className="rounded bg-surface-900/80 p-1 text-surface-300 hover:text-red-400 backdrop-blur-sm"
+            title="Delete"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+    </div>
   );
 }

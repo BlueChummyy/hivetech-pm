@@ -1,5 +1,5 @@
 import { prisma } from '../prisma/client.js';
-import { emitToProject } from '../utils/socket.js';
+import { emitToProject, emitToWorkspace } from '../utils/socket.js';
 import { logger } from '../utils/logger.js';
 
 export interface RecurrenceData {
@@ -124,6 +124,12 @@ export async function updateTaskRecurrence(taskId: string, data: RecurrenceData)
 
   emitToProject(updated.projectId, 'task:updated', updated);
 
+  // Emit to workspace for sidebar updates
+  const recProj = await prisma.project.findUnique({ where: { id: updated.projectId }, select: { workspaceId: true } });
+  if (recProj) {
+    emitToWorkspace(recProj.workspaceId, 'task:updated', { projectId: updated.projectId });
+  }
+
   return updated;
 }
 
@@ -241,6 +247,12 @@ export async function processRecurringTasks() {
         });
 
         emitToProject(task.projectId, 'task:created', fullTask);
+
+        // Emit to workspace for sidebar updates
+        const recCloneProj = await prisma.project.findUnique({ where: { id: task.projectId }, select: { workspaceId: true } });
+        if (recCloneProj) {
+          emitToWorkspace(recCloneProj.workspaceId, 'task:created', { projectId: task.projectId });
+        }
 
         logger.info({ taskId: task.id, newTaskId: newTask.id }, 'Recurring task cloned');
       });

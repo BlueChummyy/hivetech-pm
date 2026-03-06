@@ -1,5 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
+@import './styles/tiptap.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -204,4 +206,56 @@ html.light .\[color-scheme\:dark\] { color-scheme: light !important; }
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* TipTap mention suggestion dropdown (rendered in document.body) */
+.mention-suggestion-dropdown {
+  background-color: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  padding: 4px 0;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  max-height: 200px;
+  overflow-y: auto;
+  min-width: 180px;
+}
+
+html.light .mention-suggestion-dropdown {
+  background-color: #ffffff;
+  border-color: #e5e7eb;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.mention-suggestion-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 6px 12px;
+  font-size: 0.875rem;
+  color: #d1d5db;
+  cursor: pointer;
+  border: none;
+  background: none;
+  text-align: left;
+  transition: background-color 0.1s;
+}
+
+html.light .mention-suggestion-item {
+  color: #374151;
+}
+
+.mention-suggestion-item:hover,
+.mention-suggestion-item.is-selected {
+  background-color: rgba(74, 222, 128, 0.15);
+  color: #f3f4f6;
+}
+
+html.light .mention-suggestion-item:hover,
+html.light .mention-suggestion-item.is-selected {
+  background-color: rgba(22, 163, 74, 0.1);
+  color: #111827;
+}
+
+.mention-suggestion-name {
+  font-weight: 500;
 }

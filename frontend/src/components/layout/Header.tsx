@@ -7,6 +7,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { DropdownMenu, DropdownItem, DropdownSeparator } from '@/components/ui/DropdownMenu';
 import { NotificationDropdown } from './NotificationDropdown';
 import { SearchDropdown } from './SearchDropdown';
+import { GlobalTimer } from './GlobalTimer';
 import { authApi } from '@/api/auth';
 
 export function Header() {
@@ -38,6 +39,7 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-1 sm:gap-2">
+        <GlobalTimer />
         <NotificationDropdown />
 
         <DropdownMenu

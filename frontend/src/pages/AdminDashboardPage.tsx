@@ -28,6 +28,7 @@ import {
   Paintbrush,
   Upload,
   Lock,
+  Pencil,
 } from 'lucide-react';
 import { adminApi, type AdminUser, type SmtpSettingsData, type OAuthProviderConfig, type UpsertAuthProviderData } from '@/api/admin';
 import { Card, CardBody } from '@/components/ui/Card';
@@ -58,11 +59,14 @@ function timeAgo(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString();
 }
 
-const ENTITY_TYPES = ['project', 'task', 'space', 'comment', 'workspace'];
+const ENTITY_TYPES = ['project', 'task', 'space', 'comment', 'workspace', 'user', 'label', 'attachment', 'settings'];
 const AUDIT_ACTIONS = [
   'created', 'updated', 'deleted', 'restored', 'hard_deleted',
   'commented', 'comment_deleted', 'member_added', 'member_removed',
   'member_role_changed', 'status_changed', 'assigned', 'unassigned',
+  'user_created', 'user_updated', 'user_deactivated', 'user_activated',
+  'user_deleted', 'password_reset', 'settings_updated', 'workspace_role_changed',
+  'label_created', 'label_deleted', 'attachment_uploaded', 'attachment_deleted',
 ];
 
 const WORKSPACE_ROLES = [
@@ -236,6 +240,22 @@ export function AdminDashboardPage() {
     },
     onError: (err) => {
       toast({ type: 'error', title: 'Failed to update user status', description: (err as Error).message });
+    },
+  });
+
+  // ── Edit user ────────────────────────────────────────────────────
+  const [editTarget, setEditTarget] = useState<AdminUser | null>(null);
+  const [editForm, setEditForm] = useState({ firstName: '', lastName: '', email: '', isActive: true });
+
+  const updateUserMutation = useMutation({
+    mutationFn: () => adminApi.updateUser(editTarget!.id, editForm),
+    onSuccess: () => {
+      toast({ type: 'success', title: 'User updated successfully' });
+      setEditTarget(null);
+      qc.invalidateQueries({ queryKey: ['admin', 'users'] });
+    },
+    onError: (err) => {
+      toast({ type: 'error', title: 'Failed to update user', description: (err as Error).message });
     },
   });
 
@@ -680,6 +700,21 @@ export function AdminDashboardPage() {
                           <div className="flex items-center justify-end gap-1">
                             <button
                               onClick={() => {
+                                setEditTarget(user);
+                                setEditForm({
+                                  firstName: user.firstName,
+                                  lastName: user.lastName,
+                                  email: user.email,
+                                  isActive: user.isActive,
+                                });
+                              }}
+                              title="Edit User"
+                              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-surface-400 hover:bg-surface-700 hover:text-surface-200 transition-colors"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => {
                                 setResetTarget(user);
                                 setResetPassword('');
                                 setShowResetPassword(false);
@@ -812,6 +847,71 @@ export function AdminDashboardPage() {
               </Card>
             </div>
           )}
+          {/* Edit user modal */}
+          {editTarget && (
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-4">
+              <Card className="w-full max-w-md">
+                <CardBody className="space-y-4">
+                  <h3 className="text-lg font-semibold text-surface-100">Edit User</h3>
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-surface-400">First Name</label>
+                      <input
+                        type="text"
+                        value={editForm.firstName}
+                        onChange={(e) => setEditForm((f) => ({ ...f, firstName: e.target.value }))}
+                        className="w-full rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                        autoFocus
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-surface-400">Last Name</label>
+                      <input
+                        type="text"
+                        value={editForm.lastName}
+                        onChange={(e) => setEditForm((f) => ({ ...f, lastName: e.target.value }))}
+                        className="w-full rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-surface-400">Email</label>
+                      <input
+                        type="email"
+                        value={editForm.email}
+                        onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
+                        className="w-full rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-surface-400">Status</label>
+                      <select
+                        value={editForm.isActive ? 'active' : 'inactive'}
+                        onChange={(e) => setEditForm((f) => ({ ...f, isActive: e.target.value === 'active' }))}
+                        className="w-full rounded-lg border border-surface-700 bg-surface-900 px-3 py-2 text-sm text-surface-300 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      >
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="secondary" size="sm" onClick={() => setEditTarget(null)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      disabled={!editForm.firstName.trim() || !editForm.lastName.trim() || !editForm.email.trim() || updateUserMutation.isPending}
+                      onClick={() => updateUserMutation.mutate()}
+                    >
+                      {updateUserMutation.isPending ? 'Saving...' : 'Save'}
+                    </Button>
+                  </div>
+                </CardBody>
+              </Card>
+            </div>
+          )}
+
           {/* Assign workspace modal */}
           {assignTarget && (
             <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-4">
@@ -1776,9 +1876,9 @@ export function AdminDashboardPage() {
                         <td className="px-4 py-3">
                           <span className={cn(
                             'inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium',
-                            log.action?.includes('delete') ? 'bg-red-500/10 text-red-400'
-                              : log.action?.includes('create') || log.action?.includes('restore') ? 'bg-green-500/10 text-green-400'
-                              : log.action?.includes('update') || log.action?.includes('change') ? 'bg-blue-500/10 text-blue-400'
+                            log.action?.includes('delete') || log.action?.includes('deactivat') ? 'bg-red-500/10 text-red-400'
+                              : log.action?.includes('create') || log.action?.includes('restore') || log.action?.includes('activat') || log.action?.includes('upload') ? 'bg-green-500/10 text-green-400'
+                              : log.action?.includes('update') || log.action?.includes('change') || log.action?.includes('reset') ? 'bg-blue-500/10 text-blue-400'
                               : 'bg-surface-700 text-surface-300',
                           )}>
                             {(log.action || '').replace(/_/g, ' ')}

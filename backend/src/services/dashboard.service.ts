@@ -1,5 +1,13 @@
 import { prisma } from '../prisma/client.js';
 
+export type DashboardFilter =
+  | 'active'
+  | 'completed'
+  | 'in_progress'
+  | 'overdue'
+  | 'due_this_week'
+  | 'unassigned';
+
 export class DashboardService {
   async getStats(workspaceId: string) {
     // Get all projects in the workspace
@@ -13,7 +21,7 @@ export class DashboardService {
     if (projectIds.length === 0) {
       return {
         summary: {
-          total: 0,
+          active: 0,
           completed: 0,
           inProgress: 0,
           overdue: 0,
@@ -61,6 +69,7 @@ export class DashboardService {
     const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
     // Summary counts
+    let activeCount = 0;
     let completed = 0;
     let inProgress = 0;
     let overdue = 0;
@@ -84,10 +93,10 @@ export class DashboardService {
       NONE: 0,
     };
 
-    // By assignee
+    // By assignee (only non-DONE, non-CANCELLED tasks)
     const assigneeCounts: Map<string, { name: string; avatarUrl: string | null; count: number }> = new Map();
 
-    // Project progress
+    // Project progress (only non-DONE, non-CANCELLED tasks)
     const projectTaskCounts: Map<string, { total: number; done: number }> = new Map();
     for (const p of projects) {
       projectTaskCounts.set(p.id, { total: 0, done: 0 });
@@ -96,19 +105,22 @@ export class DashboardService {
     for (const task of tasks) {
       const category = task.status?.category || 'NOT_STARTED';
 
-      // Status counts
+      // Status counts (all tasks)
       if (statusCounts[category] !== undefined) {
         statusCounts[category]++;
       }
 
-      // Priority counts
+      // Priority counts (all tasks)
       if (priorityCounts[task.priority] !== undefined) {
         priorityCounts[task.priority]++;
       }
 
       // Summary
+      if (category === 'ACTIVE') {
+        activeCount++;
+        inProgress++;
+      }
       if (category === 'DONE') completed++;
-      if (category === 'ACTIVE') inProgress++;
 
       // Only count overdue for non-completed tasks
       if (task.dueDate && new Date(task.dueDate) < now && category !== 'DONE' && category !== 'CANCELLED') {
@@ -123,18 +135,21 @@ export class DashboardService {
         }
       }
 
-      // Assignee tracking - use the assignees junction table
+      // Assignee tracking - only for non-DONE, non-CANCELLED tasks
+      const isActive = category !== 'DONE' && category !== 'CANCELLED';
       const taskAssignees = task.assignees || [];
+
       if (taskAssignees.length === 0) {
         unassigned++;
-        // Track unassigned
-        const existing = assigneeCounts.get('unassigned');
-        if (existing) {
-          existing.count++;
-        } else {
-          assigneeCounts.set('unassigned', { name: 'Unassigned', avatarUrl: null, count: 1 });
+        if (isActive) {
+          const existing = assigneeCounts.get('unassigned');
+          if (existing) {
+            existing.count++;
+          } else {
+            assigneeCounts.set('unassigned', { name: 'Unassigned', avatarUrl: null, count: 1 });
+          }
         }
-      } else {
+      } else if (isActive) {
         for (const a of taskAssignees) {
           const key = a.userId;
           const existing = assigneeCounts.get(key);
@@ -147,11 +162,12 @@ export class DashboardService {
         }
       }
 
-      // Project progress
-      const pc = projectTaskCounts.get(task.projectId);
-      if (pc) {
-        pc.total++;
-        if (category === 'DONE') pc.done++;
+      // Project progress - only count non-DONE, non-CANCELLED tasks
+      if (isActive) {
+        const pc = projectTaskCounts.get(task.projectId);
+        if (pc) {
+          pc.total++;
+        }
       }
     }
 
@@ -177,7 +193,7 @@ export class DashboardService {
       }))
       .sort((a, b) => b.count - a.count);
 
-    // Build projectProgress array
+    // Build projectProgress array (total = active tasks only)
     const projectProgress = projects
       .map((p: any) => {
         const pc = projectTaskCounts.get(p.id)!;
@@ -207,7 +223,7 @@ export class DashboardService {
 
     return {
       summary: {
-        total: tasks.length,
+        active: activeCount,
         completed,
         inProgress,
         overdue,
@@ -232,5 +248,82 @@ export class DashboardService {
         },
       })),
     };
+  }
+
+  async getFilteredTasks(workspaceId: string, filter: DashboardFilter) {
+    // Get all projects in the workspace
+    const projects = await prisma.project.findMany({
+      where: { workspaceId, deletedAt: null },
+      select: { id: true, name: true, key: true },
+    });
+
+    const projectIds = projects.map((p: any) => p.id);
+    if (projectIds.length === 0) return [];
+
+    const now = new Date();
+    const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    // Build where clause based on filter
+    const baseWhere: any = {
+      projectId: { in: projectIds },
+      deletedAt: null,
+    };
+
+    if (filter === 'active' || filter === 'in_progress') {
+      baseWhere.status = { category: 'ACTIVE' };
+    } else if (filter === 'completed') {
+      baseWhere.status = { category: 'DONE' };
+    } else if (filter === 'overdue') {
+      baseWhere.dueDate = { lt: now };
+      baseWhere.status = { category: { notIn: ['DONE', 'CANCELLED'] } };
+    } else if (filter === 'due_this_week') {
+      baseWhere.dueDate = { gte: now, lte: weekFromNow };
+      baseWhere.status = { category: { notIn: ['DONE', 'CANCELLED'] } };
+    } else if (filter === 'unassigned') {
+      baseWhere.assignees = { none: {} };
+    }
+
+    const tasks = await prisma.task.findMany({
+      where: baseWhere,
+      select: {
+        id: true,
+        title: true,
+        taskNumber: true,
+        priority: true,
+        dueDate: true,
+        projectId: true,
+        project: { select: { name: true, key: true } },
+        status: { select: { name: true, color: true, category: true } },
+        assignees: {
+          select: {
+            userId: true,
+            user: {
+              select: { id: true, firstName: true, lastName: true, avatarUrl: true },
+            },
+          },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: 100,
+    });
+
+    return tasks.map((t: any) => ({
+      id: t.id,
+      title: t.title,
+      taskNumber: t.taskNumber,
+      priority: t.priority,
+      dueDate: t.dueDate,
+      projectId: t.projectId,
+      projectName: t.project.name,
+      projectKey: t.project.key,
+      statusName: t.status.name,
+      statusColor: t.status.color,
+      statusCategory: t.status.category,
+      assignees: (t.assignees || []).map((a: any) => ({
+        userId: a.userId,
+        name: `${a.user.firstName} ${a.user.lastName}`.trim(),
+        avatarUrl: a.user.avatarUrl,
+      })),
+    }));
   }
 }

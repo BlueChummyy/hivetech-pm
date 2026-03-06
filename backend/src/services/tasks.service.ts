@@ -1,6 +1,6 @@
 import { prisma } from '../prisma/client.js';
 import { ApiError } from '../utils/api-error.js';
-import { emitToProject } from '../utils/socket.js';
+import { emitToProject, emitToWorkspace } from '../utils/socket.js';
 import { logAudit } from './audit.service.js';
 import { calculateNextRecurrence } from './recurrence.service.js';
 import { NotificationsService } from './notifications.service.js';
@@ -107,6 +107,11 @@ export class TasksService {
     });
 
     emitToProject(task.projectId, 'task:created', fullTask);
+
+    // Emit to workspace for sidebar task count updates
+    if (fullTask?.project?.workspaceId) {
+      emitToWorkspace(fullTask.project.workspaceId, 'task:created', { projectId: task.projectId });
+    }
 
     // Audit log
     const project = fullTask?.project || await prisma.project.findUnique({ where: { id: task.projectId }, select: { workspaceId: true, name: true } });
@@ -386,8 +391,13 @@ export class TasksService {
       emitToProject(task.projectId, 'task:updated', task);
     }
 
-    // Audit log
+    // Emit to workspace for sidebar updates
     const proj = await prisma.project.findUnique({ where: { id: task.projectId }, select: { workspaceId: true } });
+    if (proj) {
+      emitToWorkspace(proj.workspaceId, 'task:updated', { projectId: task.projectId });
+    }
+
+    // Audit log
     if (proj && updatedByUserId) {
       const changes: Record<string, unknown> = {};
       if (data.title !== undefined && data.title !== existing.title) changes.title = { from: existing.title, to: data.title };
@@ -512,6 +522,14 @@ export class TasksService {
     });
 
     emitToProject(task.projectId, 'task:deleted', { id: task.id });
+
+    // Emit to workspace for sidebar task count updates
+    {
+      const proj = await prisma.project.findUnique({ where: { id: task.projectId }, select: { workspaceId: true } });
+      if (proj) {
+        emitToWorkspace(proj.workspaceId, 'task:deleted', { projectId: task.projectId });
+      }
+    }
 
     // Audit log
     if (deletedByUserId) {
@@ -694,8 +712,14 @@ export class TasksService {
     emitToProject(task.projectId, 'task:deleted', { id: task.id });
     emitToProject(targetProjectId, 'task:created', result);
 
-    // Audit log
+    // Emit to workspace for sidebar task count updates (both source and target projects affected)
     const proj = await prisma.project.findUnique({ where: { id: targetProjectId }, select: { workspaceId: true } });
+    if (proj) {
+      emitToWorkspace(proj.workspaceId, 'task:deleted', { projectId: task.projectId });
+      emitToWorkspace(proj.workspaceId, 'task:created', { projectId: targetProjectId });
+    }
+
+    // Audit log
     if (proj) {
       logAudit({
         workspaceId: proj.workspaceId,
@@ -790,6 +814,7 @@ export class TasksService {
     // Audit log
     const proj = await prisma.project.findUnique({ where: { id: source.projectId }, select: { workspaceId: true } });
     if (proj) {
+      emitToWorkspace(proj.workspaceId, 'task:created', { projectId: source.projectId });
       logAudit({ workspaceId: proj.workspaceId, userId: clonedByUserId, action: 'cloned', entityType: 'task', entityId: clonedTask.id, metadata: { title: clonedTask.title, taskNumber: clonedTask.taskNumber, sourceTaskId: id } });
     }
 
@@ -867,6 +892,7 @@ export class TasksService {
     // Audit log
     const proj = await prisma.project.findUnique({ where: { id: task.projectId }, select: { workspaceId: true } });
     if (proj) {
+      emitToWorkspace(proj.workspaceId, 'task:updated', { projectId: task.projectId });
       logAudit({ workspaceId: proj.workspaceId, userId: closedByUserId, action: 'closed', entityType: 'task', entityId: task.id, metadata: { title: task.title, taskNumber: task.taskNumber } });
     }
 
@@ -940,6 +966,12 @@ export class TasksService {
         });
         emitToProject(task.projectId, 'task:updated', fullTask);
 
+        // Emit to workspace for sidebar updates
+        const bulkProj = await prisma.project.findUnique({ where: { id: task.projectId }, select: { workspaceId: true } });
+        if (bulkProj) {
+          emitToWorkspace(bulkProj.workspaceId, 'task:updated', { projectId: task.projectId });
+        }
+
         results.push({ taskId, success: true });
       } catch (err: any) {
         results.push({ taskId, success: false, error: err.message || 'Unknown error' });
@@ -976,6 +1008,13 @@ export class TasksService {
         });
 
         emitToProject(task.projectId, 'task:deleted', { id: task.id });
+
+        // Emit to workspace for sidebar updates
+        const bulkDelProj = await prisma.project.findUnique({ where: { id: task.projectId }, select: { workspaceId: true } });
+        if (bulkDelProj) {
+          emitToWorkspace(bulkDelProj.workspaceId, 'task:deleted', { projectId: task.projectId });
+        }
+
         results.push({ taskId, success: true });
       } catch (err: any) {
         results.push({ taskId, success: false, error: err.message || 'Unknown error' });
@@ -1010,6 +1049,7 @@ export class TasksService {
     // Audit log
     const proj = await prisma.project.findUnique({ where: { id: task.projectId }, select: { workspaceId: true } });
     if (proj) {
+      emitToWorkspace(proj.workspaceId, 'task:updated', { projectId: task.projectId });
       logAudit({ workspaceId: proj.workspaceId, userId: reopenedByUserId, action: 'reopened', entityType: 'task', entityId: task.id, metadata: { title: task.title, taskNumber: task.taskNumber } });
     }
 

@@ -4,6 +4,7 @@ import { prisma } from '../prisma/client.js';
 import { ApiError } from '../utils/api-error.js';
 import { env } from '../config/index.js';
 import { emitToProject } from '../utils/socket.js';
+import { logAudit } from './audit.service.js';
 
 export class AttachmentsService {
   async upload(taskId: string, userId: string, file: Express.Multer.File) {
@@ -47,6 +48,15 @@ export class AttachmentsService {
     });
 
     emitToProject(task.projectId, 'attachment:created', result);
+
+    logAudit({
+      workspaceId: task.project.workspaceId,
+      userId,
+      action: 'attachment_uploaded',
+      entityType: 'attachment',
+      entityId: result.id,
+      metadata: { taskId, filename: result.originalName, size: result.size },
+    });
 
     return result;
   }
@@ -112,6 +122,18 @@ export class AttachmentsService {
 
     if (task) {
       emitToProject(task.projectId, 'attachment:deleted', { id });
+
+      const projectForAudit = await prisma.project.findUnique({ where: { id: task.projectId }, select: { workspaceId: true } });
+      if (projectForAudit) {
+        logAudit({
+          workspaceId: projectForAudit.workspaceId,
+          userId,
+          action: 'attachment_deleted',
+          entityType: 'attachment',
+          entityId: id,
+          metadata: { taskId: attachment.taskId, filename: attachment.originalName },
+        });
+      }
     }
 
     return result;

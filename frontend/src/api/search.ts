@@ -1,5 +1,12 @@
 import { get } from './client';
 
+export interface SearchFilters {
+  statusCategory?: string;
+  priority?: string;
+  assigneeId?: string;
+  projectId?: string;
+}
+
 export interface SearchResults {
   tasks: {
     id: string;
@@ -28,6 +35,12 @@ export interface SearchResults {
 }
 
 export const searchApi = {
-  search: (q: string, workspaceId: string) =>
-    get<SearchResults>(`/search`, { params: { q, workspaceId } }).then((r) => r.data),
+  search: (q: string, workspaceId: string, filters?: SearchFilters) => {
+    const params: Record<string, string> = { q, workspaceId };
+    if (filters?.statusCategory) params.statusCategory = filters.statusCategory;
+    if (filters?.priority) params.priority = filters.priority;
+    if (filters?.assigneeId) params.assigneeId = filters.assigneeId;
+    if (filters?.projectId) params.projectId = filters.projectId;
+    return get<SearchResults>(`/search`, { params }).then((r) => r.data);
+  },
 };

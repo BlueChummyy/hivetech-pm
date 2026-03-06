@@ -1,21 +1,29 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, FileText, Folder, Users, Loader2 } from 'lucide-react';
+import { Search, FileText, Folder, Users, Loader2, SlidersHorizontal, X } from 'lucide-react';
 import { useSearch } from '@/hooks/useSearch';
 import { useWorkspaceStore } from '@/store/workspace.store';
 import { useUIStore } from '@/store/ui.store';
 import { Avatar } from '@/components/ui/Avatar';
+import type { SearchFilters } from '@/api/search';
+
+const STATUS_CATEGORIES = ['NOT_STARTED', 'ACTIVE', 'DONE', 'CANCELLED'] as const;
+const PRIORITIES = ['URGENT', 'HIGH', 'MEDIUM', 'LOW', 'NONE'] as const;
 
 export function SearchDropdown() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [open, setOpen] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState<SearchFilters>({});
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const workspaceId = useWorkspaceStore((s) => s.activeWorkspaceId) ?? '';
 
-  const { data: results, isLoading } = useSearch(debouncedQuery, workspaceId);
+  const hasActiveFilters = !!(filters.statusCategory || filters.priority);
+
+  const { data: results, isLoading } = useSearch(debouncedQuery, workspaceId, hasActiveFilters ? filters : undefined);
 
   // Debounce the search query
   useEffect(() => {
@@ -91,6 +99,11 @@ export function SearchDropdown() {
   const hasResults = results && (results.tasks.length > 0 || results.projects.length > 0 || results.people.length > 0);
   const noResults = results && !hasResults && debouncedQuery.length >= 2;
 
+  const clearFilters = useCallback(() => {
+    setFilters({});
+    setShowFilters(false);
+  }, []);
+
   return (
     <div ref={containerRef} className="relative w-full max-w-md">
       <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-surface-500" aria-hidden="true" />
@@ -104,10 +117,98 @@ export function SearchDropdown() {
         }}
         placeholder="Search...    Ctrl+K"
         aria-label="Global search"
-        className="w-full rounded-lg border border-surface-700 bg-surface-800 py-1.5 pl-9 pr-3 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+        className="w-full rounded-lg border border-surface-700 bg-surface-800 py-1.5 pl-9 pr-10 text-sm text-surface-200 placeholder-surface-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
       />
+      <button
+        type="button"
+        onMouseDown={(e) => {
+          e.preventDefault();
+          setShowFilters((prev) => !prev);
+          if (!open && debouncedQuery.length >= 2) setOpen(true);
+        }}
+        className={`absolute right-2 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded transition-colors ${
+          hasActiveFilters
+            ? 'text-primary-400 bg-primary-600/15'
+            : 'text-surface-500 hover:text-surface-300'
+        }`}
+        aria-label="Toggle search filters"
+      >
+        <SlidersHorizontal className="h-3.5 w-3.5" />
+      </button>
 
-      {open && (
+      {/* Filter panel */}
+      {showFilters && (
+        <div className="absolute left-0 right-0 z-50 mt-1 rounded-xl border border-surface-700 bg-surface-800 shadow-xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-semibold uppercase tracking-wider text-surface-500">Filters</span>
+            {hasActiveFilters && (
+              <button
+                onMouseDown={(e) => { e.preventDefault(); clearFilters(); }}
+                className="flex items-center gap-1 text-xs text-surface-400 hover:text-surface-200"
+              >
+                <X className="h-3 w-3" />
+                Clear
+              </button>
+            )}
+          </div>
+
+          {/* Status Category */}
+          <div className="mb-3">
+            <label className="block text-xs text-surface-400 mb-1.5">Status</label>
+            <div className="flex flex-wrap gap-1.5">
+              {STATUS_CATEGORIES.map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setFilters((f) => ({
+                      ...f,
+                      statusCategory: f.statusCategory === cat ? undefined : cat,
+                    }));
+                  }}
+                  className={`rounded px-2 py-0.5 text-xs font-medium transition-colors ${
+                    filters.statusCategory === cat
+                      ? 'bg-primary-600/20 text-primary-300 ring-1 ring-primary-500'
+                      : 'bg-surface-700 text-surface-300 hover:bg-surface-600'
+                  }`}
+                >
+                  {cat.replace('_', ' ')}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Priority */}
+          <div>
+            <label className="block text-xs text-surface-400 mb-1.5">Priority</label>
+            <div className="flex flex-wrap gap-1.5">
+              {PRIORITIES.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setFilters((f) => ({
+                      ...f,
+                      priority: f.priority === p ? undefined : p,
+                    }));
+                  }}
+                  className={`rounded px-2 py-0.5 text-xs font-medium transition-colors ${
+                    filters.priority === p
+                      ? 'bg-primary-600/20 text-primary-300 ring-1 ring-primary-500'
+                      : 'bg-surface-700 text-surface-300 hover:bg-surface-600'
+                  }`}
+                >
+                  {p.charAt(0) + p.slice(1).toLowerCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {open && !showFilters && (
         <div className="absolute left-0 right-0 z-50 mt-1 max-h-96 overflow-y-auto rounded-xl border border-surface-700 bg-surface-800 shadow-xl">
           {isLoading && (
             <div className="flex items-center justify-center px-4 py-6">

@@ -1,0 +1,392 @@
+/* TipTap Rich Text Editor Styles */
+
+.tiptap-editor .ProseMirror {
+  outline: none;
+  min-height: 100px;
+  padding: 12px;
+}
+
+.tiptap-editor.compact .ProseMirror {
+  min-height: 60px;
+  padding: 8px 12px;
+}
+
+/* Placeholder */
+.tiptap-editor .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  pointer-events: none;
+  height: 0;
+  color: #6b7280;
+}
+
+html.light .tiptap-editor .ProseMirror p.is-editor-empty:first-child::before {
+  color: #9ca3af;
+}
+
+/* Headings */
+.tiptap-editor .ProseMirror h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0.75rem 0 0.5rem;
+}
+
+.tiptap-editor .ProseMirror h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 0.75rem 0 0.5rem;
+}
+
+.tiptap-editor .ProseMirror h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 0.5rem 0 0.25rem;
+}
+
+/* Paragraphs */
+.tiptap-editor .ProseMirror p {
+  margin: 0.25rem 0;
+}
+
+/* Lists */
+.tiptap-editor .ProseMirror ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin: 0.25rem 0;
+}
+
+.tiptap-editor .ProseMirror ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+  margin: 0.25rem 0;
+}
+
+.tiptap-editor .ProseMirror li {
+  margin: 0.125rem 0;
+}
+
+.tiptap-editor .ProseMirror li p {
+  margin: 0;
+}
+
+/* Task lists */
+.tiptap-editor .ProseMirror ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+
+.tiptap-editor .ProseMirror ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.tiptap-editor .ProseMirror ul[data-type="taskList"] li > label {
+  flex-shrink: 0;
+  user-select: none;
+  margin-top: 0.2rem;
+}
+
+.tiptap-editor .ProseMirror ul[data-type="taskList"] li > label input[type="checkbox"] {
+  accent-color: #22c55e;
+  cursor: pointer;
+}
+
+.tiptap-editor .ProseMirror ul[data-type="taskList"] li > div {
+  flex: 1;
+}
+
+/* Blockquote */
+.tiptap-editor .ProseMirror blockquote {
+  border-left: 3px solid #374151;
+  padding-left: 1rem;
+  margin: 0.5rem 0;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+html.light .tiptap-editor .ProseMirror blockquote {
+  border-left-color: #d1d5db;
+  color: #6b7280;
+}
+
+/* Code */
+.tiptap-editor .ProseMirror code {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 0.15rem 0.4rem;
+  font-size: 0.875em;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+html.light .tiptap-editor .ProseMirror code {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+/* Code block */
+.tiptap-editor .ProseMirror pre {
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin: 0.5rem 0;
+  overflow-x: auto;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.875em;
+  line-height: 1.5;
+}
+
+html.light .tiptap-editor .ProseMirror pre {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.tiptap-editor .ProseMirror pre code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+}
+
+/* Links */
+.tiptap-editor .ProseMirror a {
+  color: #4ade80;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.tiptap-editor .ProseMirror a:hover {
+  color: #86efac;
+}
+
+html.light .tiptap-editor .ProseMirror a {
+  color: #16a34a;
+}
+
+html.light .tiptap-editor .ProseMirror a:hover {
+  color: #15803d;
+}
+
+/* Highlight */
+.tiptap-editor .ProseMirror mark {
+  background-color: rgba(250, 204, 21, 0.4);
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+/* Horizontal rule */
+.tiptap-editor .ProseMirror hr {
+  border: none;
+  border-top: 1px solid #374151;
+  margin: 1rem 0;
+}
+
+html.light .tiptap-editor .ProseMirror hr {
+  border-top-color: #e5e7eb;
+}
+
+/* Strikethrough */
+.tiptap-editor .ProseMirror s {
+  text-decoration: line-through;
+}
+
+/* Text alignment */
+.tiptap-editor .ProseMirror .text-left { text-align: left; }
+.tiptap-editor .ProseMirror .text-center { text-align: center; }
+.tiptap-editor .ProseMirror .text-right { text-align: right; }
+
+/* Mention */
+.tiptap-editor .ProseMirror .mention,
+.tiptap-editor .ProseMirror span[data-type="mention"] {
+  display: inline;
+  background-color: rgba(74, 222, 128, 0.2);
+  border-radius: 4px;
+  padding: 0.1rem 0.3rem;
+  color: #86efac;
+  font-weight: 500;
+  box-decoration-break: clone;
+}
+
+html.light .tiptap-editor .ProseMirror .mention,
+html.light .tiptap-editor .ProseMirror span[data-type="mention"] {
+  background-color: rgba(22, 163, 74, 0.15);
+  color: #16a34a;
+}
+
+/* ---- RichTextDisplay styles ---- */
+
+.rich-text-display h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0.75rem 0 0.5rem;
+}
+
+.rich-text-display h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 0.75rem 0 0.5rem;
+}
+
+.rich-text-display h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 0.5rem 0 0.25rem;
+}
+
+.rich-text-display p {
+  margin: 0.25rem 0;
+}
+
+.rich-text-display ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin: 0.25rem 0;
+}
+
+.rich-text-display ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+  margin: 0.25rem 0;
+}
+
+.rich-text-display li {
+  margin: 0.125rem 0;
+}
+
+.rich-text-display li p {
+  margin: 0;
+}
+
+/* Task lists in display */
+.rich-text-display ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+
+.rich-text-display ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.rich-text-display ul[data-type="taskList"] li > label {
+  flex-shrink: 0;
+  user-select: none;
+  margin-top: 0.2rem;
+}
+
+.rich-text-display ul[data-type="taskList"] li > label input[type="checkbox"] {
+  accent-color: #22c55e;
+}
+
+.rich-text-display ul[data-type="taskList"] li > div {
+  flex: 1;
+}
+
+.rich-text-display blockquote {
+  border-left: 3px solid #374151;
+  padding-left: 1rem;
+  margin: 0.5rem 0;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+html.light .rich-text-display blockquote {
+  border-left-color: #d1d5db;
+  color: #6b7280;
+}
+
+.rich-text-display code {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 0.15rem 0.4rem;
+  font-size: 0.875em;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+html.light .rich-text-display code {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+.rich-text-display pre {
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin: 0.5rem 0;
+  overflow-x: auto;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.875em;
+  line-height: 1.5;
+}
+
+html.light .rich-text-display pre {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.rich-text-display pre code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+}
+
+.rich-text-display a {
+  color: #4ade80;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.rich-text-display a:hover {
+  color: #86efac;
+}
+
+html.light .rich-text-display a {
+  color: #16a34a;
+}
+
+html.light .rich-text-display a:hover {
+  color: #15803d;
+}
+
+.rich-text-display mark {
+  background-color: rgba(250, 204, 21, 0.4);
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+.rich-text-display hr {
+  border: none;
+  border-top: 1px solid #374151;
+  margin: 1rem 0;
+}
+
+html.light .rich-text-display hr {
+  border-top-color: #e5e7eb;
+}
+
+.rich-text-display s {
+  text-decoration: line-through;
+}
+
+.rich-text-display .mention,
+.rich-text-display span[data-type="mention"],
+.rich-text-display span[data-mention] {
+  display: inline;
+  background-color: rgba(74, 222, 128, 0.2);
+  border-radius: 4px;
+  padding: 0.1rem 0.3rem;
+  color: #86efac;
+  font-weight: 500;
+}
+
+html.light .rich-text-display .mention,
+html.light .rich-text-display span[data-type="mention"],
+html.light .rich-text-display span[data-mention] {
+  background-color: rgba(22, 163, 74, 0.15);
+  color: #16a34a;
+}

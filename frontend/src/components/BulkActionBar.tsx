@@ -6,6 +6,7 @@ import { useSelectionStore } from '@/store/selection.store';
 import { useBulkUpdateTasks, useBulkDeleteTasks } from '@/hooks/useTasks';
 import { useStatuses } from '@/hooks/useStatuses';
 import { useProjectMembers } from '@/hooks/useMembers';
+import { useToast } from '@/components/ui/Toast';
 import { Avatar } from '@/components/ui/Avatar';
 import type { Priority, ProjectMember } from '@/types/models.types';
 
@@ -43,6 +44,7 @@ export function BulkActionBar() {
   const { data: statuses } = useStatuses(projectId ?? '');
   const { data: members } = useProjectMembers(projectId ?? '');
 
+  const { toast } = useToast();
   const statusDD = useDropdown();
   const priorityDD = useDropdown();
   const assigneeDD = useDropdown();
@@ -65,26 +67,35 @@ export function BulkActionBar() {
   const handleStatusChange = useCallback((statusId: string) => {
     bulkUpdate.mutate(
       { taskIds, updates: { statusId } },
-      { onSuccess: () => clearSelection() },
+      {
+        onSuccess: () => { clearSelection(); toast({ type: 'success', title: `Updated ${count} task${count !== 1 ? 's' : ''}` }); },
+        onError: () => toast({ type: 'error', title: 'Failed to update tasks' }),
+      },
     );
     statusDD.setOpen(false);
-  }, [taskIds, bulkUpdate, clearSelection, statusDD]);
+  }, [taskIds, count, bulkUpdate, clearSelection, statusDD, toast]);
 
   const handlePriorityChange = useCallback((priority: string) => {
     bulkUpdate.mutate(
       { taskIds, updates: { priority } },
-      { onSuccess: () => clearSelection() },
+      {
+        onSuccess: () => { clearSelection(); toast({ type: 'success', title: `Updated ${count} task${count !== 1 ? 's' : ''}` }); },
+        onError: () => toast({ type: 'error', title: 'Failed to update tasks' }),
+      },
     );
     priorityDD.setOpen(false);
-  }, [taskIds, bulkUpdate, clearSelection, priorityDD]);
+  }, [taskIds, count, bulkUpdate, clearSelection, priorityDD, toast]);
 
   const handleAssigneeChange = useCallback((assigneeIds: string[]) => {
     bulkUpdate.mutate(
       { taskIds, updates: { assigneeIds } },
-      { onSuccess: () => clearSelection() },
+      {
+        onSuccess: () => { clearSelection(); toast({ type: 'success', title: `Updated ${count} task${count !== 1 ? 's' : ''}` }); },
+        onError: () => toast({ type: 'error', title: 'Failed to update tasks' }),
+      },
     );
     assigneeDD.setOpen(false);
-  }, [taskIds, bulkUpdate, clearSelection, assigneeDD]);
+  }, [taskIds, count, bulkUpdate, clearSelection, assigneeDD, toast]);
 
   const handleDelete = useCallback(() => {
     if (!confirmDelete) {
@@ -97,10 +108,12 @@ export function BulkActionBar() {
         onSuccess: () => {
           clearSelection();
           setConfirmDelete(false);
+          toast({ type: 'success', title: `Deleted ${count} task${count !== 1 ? 's' : ''}` });
         },
+        onError: () => toast({ type: 'error', title: 'Failed to delete tasks' }),
       },
     );
-  }, [confirmDelete, taskIds, bulkDelete, clearSelection]);
+  }, [confirmDelete, taskIds, count, bulkDelete, clearSelection, toast]);
 
   if (count === 0) return null;
 

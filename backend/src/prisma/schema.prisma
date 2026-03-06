@@ -95,6 +95,7 @@ model User {
   activityLogs     ActivityLog[]
   taskTemplates    TaskTemplate[]
   timeEntries      TimeEntry[]     @relation("TimeEntryUser")
+  activeTimer      ActiveTimer?    @relation("ActiveTimerUser")
 
   @@index([providerId])
   @@map("users")
@@ -288,6 +289,8 @@ model Task {
   attachments    Attachment[]
   assignees      TaskAssignee[]
   timeEntries    TimeEntry[]
+  checklistItems ChecklistItem[]
+  activeTimers   ActiveTimer[]
 
   @@unique([projectId, taskNumber])
   @@index([projectId])
@@ -486,4 +489,33 @@ model OAuthProvider {
   updatedAt    DateTime     @updatedAt @map("updated_at")
 
   @@map("oauth_providers")
+}
+
+model ChecklistItem {
+  id        String   @id @default(cuid())
+  taskId    String   @map("task_id")
+  title     String
+  isChecked Boolean  @default(false) @map("is_checked")
+  position  Float    @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@map("checklist_items")
+}
+
+model ActiveTimer {
+  id        String   @id @default(cuid())
+  taskId    String   @map("task_id")
+  userId    String   @map("user_id")
+  startedAt DateTime @default(now()) @map("started_at")
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation("ActiveTimerUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId])
+  @@index([taskId])
+  @@map("active_timers")
 }

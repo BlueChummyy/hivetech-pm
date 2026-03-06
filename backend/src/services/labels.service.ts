@@ -2,6 +2,7 @@ import { prisma } from '../prisma/client.js';
 import { ApiError } from '../utils/api-error.js';
 import { requireProjectMember } from '../utils/authorization.js';
 import { emitToProject } from '../utils/socket.js';
+import { logAudit } from './audit.service.js';
 
 export class LabelsService {
   async create(data: { projectId: string; name: string; color: string }, userId: string) {
@@ -23,6 +24,19 @@ export class LabelsService {
     });
 
     emitToProject(data.projectId, 'label:created', result);
+
+    // Audit log
+    const project = await prisma.project.findUnique({ where: { id: data.projectId }, select: { workspaceId: true } });
+    if (project) {
+      logAudit({
+        workspaceId: project.workspaceId,
+        userId,
+        action: 'label_created',
+        entityType: 'label',
+        entityId: result.id,
+        metadata: { name: data.name, color: data.color, projectId: data.projectId },
+      });
+    }
 
     return result;
   }
@@ -61,6 +75,19 @@ export class LabelsService {
     await prisma.label.delete({ where: { id } });
 
     emitToProject(label.projectId, 'label:deleted', { id });
+
+    // Audit log
+    const projectForDelete = await prisma.project.findUnique({ where: { id: label.projectId }, select: { workspaceId: true } });
+    if (projectForDelete) {
+      logAudit({
+        workspaceId: projectForDelete.workspaceId,
+        userId,
+        action: 'label_deleted',
+        entityType: 'label',
+        entityId: id,
+        metadata: { name: label.name, projectId: label.projectId },
+      });
+    }
   }
 
   async attachToTask(labelId: string, taskId: string, userId: string) {

@@ -580,10 +580,11 @@ interface TaskTableRowProps {
   onToggleExpand?: () => void;
   subtaskCount?: number;
   isSelected?: boolean;
-  onToggleSelect?: () => void;
+  onToggleSelect?: (e?: React.MouseEvent) => void;
+  isFocused?: boolean;
 }
 
-export function TaskTableRow({ task, statuses, dragEnabled, overlay, depth = 0, hasChildren, isExpanded, onToggleExpand, subtaskCount, isSelected, onToggleSelect }: TaskTableRowProps) {
+export function TaskTableRow({ task, statuses, dragEnabled, overlay, depth = 0, hasChildren, isExpanded, onToggleExpand, subtaskCount, isSelected, onToggleSelect, isFocused }: TaskTableRowProps) {
   const {
     attributes,
     listeners,
@@ -606,6 +607,7 @@ export function TaskTableRow({ task, statuses, dragEnabled, overlay, depth = 0, 
     <tr
       ref={overlay ? undefined : setNodeRef}
       style={overlay ? undefined : style}
+      data-task-id={task.id}
       onClick={handleRowClick}
       draggable={!overlay}
       onDragStart={(e) => {
@@ -618,6 +620,7 @@ export function TaskTableRow({ task, statuses, dragEnabled, overlay, depth = 0, 
         overlay && 'bg-[#1E1E26] shadow-xl shadow-black/40 border border-white/[0.08]',
         task.closedAt && 'opacity-50',
         isSelected && 'bg-primary-500/[0.08]',
+        isFocused && 'ring-1 ring-inset ring-primary-500/50 bg-primary-500/[0.04]',
       )}
     >
       {/* Drag handle */}
@@ -639,7 +642,7 @@ export function TaskTableRow({ task, statuses, dragEnabled, overlay, depth = 0, 
       <td className="w-8 px-1 py-2.5" onClick={(e) => e.stopPropagation()}>
         {!overlay && onToggleSelect && (
           <button
-            onClick={onToggleSelect}
+            onClick={(e) => onToggleSelect(e)}
             className="flex items-center justify-center"
             aria-label={isSelected ? 'Deselect task' : 'Select task'}
           >

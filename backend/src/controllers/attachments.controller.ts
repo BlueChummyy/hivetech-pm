@@ -1,4 +1,5 @@
 import path from 'node:path';
+import fs from 'node:fs';
 import type { Request, Response, NextFunction } from 'express';
 import { AttachmentsService } from '../services/attachments.service.js';
 import { requireProjectMember } from '../utils/authorization.js';
@@ -92,6 +93,41 @@ export class AttachmentsController {
       } else {
         res.download(attachment.storagePath, attachment.originalName);
       }
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async thumbnail(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const id = req.params.id as string;
+      const attachment = await attachmentsService.getById(id);
+
+      // Get task to check project membership
+      const task = await prisma.task.findFirst({
+        where: { id: attachment.taskId, deletedAt: null },
+        select: { projectId: true },
+      });
+      if (!task) throw ApiError.notFound('Task not found');
+      await requireProjectMember(task.projectId, req.user!.id);
+
+      const isImage = attachment.mimeType?.startsWith('image/');
+      if (!isImage) {
+        throw ApiError.badRequest('Thumbnails are only available for images');
+      }
+
+      const filePath = path.resolve(attachment.storagePath);
+      if (!fs.existsSync(filePath)) {
+        throw ApiError.notFound('File not found on disk');
+      }
+
+      // Serve the image inline — browser handles sizing via img tag
+      res.setHeader('Content-Type', attachment.mimeType || 'image/jpeg');
+      res.setHeader('Content-Disposition', `inline; filename="${attachment.originalName}"`);
+      res.setHeader('Cache-Control', 'private, max-age=86400');
+      res.sendFile(filePath, (err) => {
+        if (err && !res.headersSent) next(err);
+      });
     } catch (err) {
       next(err);
     }

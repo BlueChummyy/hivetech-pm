@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
   CheckSquare,
@@ -30,12 +30,29 @@ import { PriorityChart } from '@/components/dashboard/PriorityChart';
 import { AssigneeChart } from '@/components/dashboard/AssigneeChart';
 import { ProjectProgress } from '@/components/dashboard/ProjectProgress';
 import { RecentActivity } from '@/components/dashboard/RecentActivity';
+import { TaskListModal } from '@/components/dashboard/TaskListModal';
+import { RecentlyViewed, getRecentlyViewed } from '@/components/dashboard/RecentlyViewed';
+import type { DashboardFilter } from '@/api/dashboard';
 
 export function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
   const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false);
   const [projectModalOpen, setProjectModalOpen] = useState(false);
+  const [taskListFilter, setTaskListFilter] = useState<DashboardFilter | null>(null);
+  const [taskListTitle, setTaskListTitle] = useState('');
+
+  const recentlyViewedItems = getRecentlyViewed();
+
+  const openTaskList = useCallback((filter: DashboardFilter, title: string) => {
+    setTaskListFilter(filter);
+    setTaskListTitle(title);
+  }, []);
+
+  const closeTaskList = useCallback(() => {
+    setTaskListFilter(null);
+    setTaskListTitle('');
+  }, []);
 
   const { data: workspaces, isLoading: workspacesLoading } = useWorkspaces();
 
@@ -125,10 +142,11 @@ export function DashboardPage() {
         <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
           <StatCard
             icon={<ListChecks className="h-5 w-5 text-primary-400" />}
-            label="Total Tasks"
-            value={stats?.summary.total ?? 0}
+            label="Active Tasks"
+            value={stats?.summary.active ?? 0}
             color="bg-primary-600/15"
             loading={statsLoading}
+            onClick={() => openTaskList('active', 'Active Tasks')}
           />
           <StatCard
             icon={<CheckSquare className="h-5 w-5 text-emerald-400" />}
@@ -136,6 +154,7 @@ export function DashboardPage() {
             value={stats?.summary.completed ?? 0}
             color="bg-emerald-500/15"
             loading={statsLoading}
+            onClick={() => openTaskList('completed', 'Completed Tasks')}
           />
           <StatCard
             icon={<Activity className="h-5 w-5 text-blue-400" />}
@@ -143,6 +162,7 @@ export function DashboardPage() {
             value={stats?.summary.inProgress ?? 0}
             color="bg-blue-500/15"
             loading={statsLoading}
+            onClick={() => openTaskList('in_progress', 'In Progress Tasks')}
           />
           <StatCard
             icon={<AlertTriangle className="h-5 w-5 text-red-400" />}
@@ -150,6 +170,7 @@ export function DashboardPage() {
             value={stats?.summary.overdue ?? 0}
             color="bg-red-500/15"
             loading={statsLoading}
+            onClick={() => openTaskList('overdue', 'Overdue Tasks')}
           />
           <StatCard
             icon={<CalendarClock className="h-5 w-5 text-amber-400" />}
@@ -157,6 +178,7 @@ export function DashboardPage() {
             value={stats?.summary.dueThisWeek ?? 0}
             color="bg-amber-500/15"
             loading={statsLoading}
+            onClick={() => openTaskList('due_this_week', 'Due This Week')}
           />
           <StatCard
             icon={<UserX className="h-5 w-5 text-surface-400" />}
@@ -164,8 +186,14 @@ export function DashboardPage() {
             value={stats?.summary.unassigned ?? 0}
             color="bg-surface-600/30"
             loading={statsLoading}
+            onClick={() => openTaskList('unassigned', 'Unassigned Tasks')}
           />
         </div>
+      )}
+
+      {/* Recently Viewed */}
+      {recentlyViewedItems.length > 0 && (
+        <RecentlyViewed items={recentlyViewedItems} />
       )}
 
       {/* Charts Section */}
@@ -279,6 +307,16 @@ export function DashboardPage() {
           workspaceId={activeWorkspaceId}
           open={projectModalOpen}
           onClose={() => setProjectModalOpen(false)}
+        />
+      )}
+
+      {activeWorkspaceId && taskListFilter && (
+        <TaskListModal
+          open={!!taskListFilter}
+          onClose={closeTaskList}
+          workspaceId={activeWorkspaceId}
+          filter={taskListFilter}
+          title={taskListTitle}
         />
       )}
     </div>

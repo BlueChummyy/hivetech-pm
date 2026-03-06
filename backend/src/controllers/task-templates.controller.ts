@@ -2,7 +2,8 @@ import type { Request, Response, NextFunction } from 'express';
 import { TaskTemplatesService } from '../services/task-templates.service.js';
 import { requireProjectMember } from '../utils/authorization.js';
 import { successResponse } from '../utils/api-response.js';
-import { emitToProject } from '../utils/socket.js';
+import { emitToProject, emitToWorkspace } from '../utils/socket.js';
+import { prisma } from '../prisma/client.js';
 
 const service = new TaskTemplatesService();
 
@@ -99,6 +100,13 @@ export class TaskTemplatesController {
       });
 
       emitToProject(projectId, 'task:created', task);
+
+      // Emit to workspace for sidebar updates
+      const tmplProj = await prisma.project.findUnique({ where: { id: projectId }, select: { workspaceId: true } });
+      if (tmplProj) {
+        emitToWorkspace(tmplProj.workspaceId, 'task:created', { projectId });
+      }
+
       res.status(201).json(successResponse(task));
     } catch (err) {
       next(err);
