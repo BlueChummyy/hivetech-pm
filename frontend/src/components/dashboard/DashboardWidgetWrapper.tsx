@@ -43,11 +43,13 @@ export function DashboardWidgetWrapper({
     isDragging,
   } = useSortable({ id, disabled: !editing });
 
+  const isSquare = colSpan === rowSpan;
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
     gridColumn: `span ${colSpan}`,
     gridRow: `span ${rowSpan}`,
+    ...(isSquare ? { aspectRatio: '1 / 1' } : {}),
   };
 
   // Close size picker on outside click
