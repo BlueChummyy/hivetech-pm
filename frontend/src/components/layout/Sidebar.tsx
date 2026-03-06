@@ -156,6 +156,8 @@ export function Sidebar() {
                   {ws.name}
                 </DropdownItem>
               ))}
+              {isGlobalAdmin && (
+              <>
               <DropdownSeparator />
               <DropdownItem
                 icon={<Plus className="h-4 w-4" />}
@@ -163,6 +165,8 @@ export function Sidebar() {
               >
                 Create Workspace
               </DropdownItem>
+              </>
+              )}
             </DropdownMenu>
           </div>
         )}
