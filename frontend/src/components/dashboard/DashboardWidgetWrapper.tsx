@@ -43,13 +43,11 @@ export function DashboardWidgetWrapper({
     isDragging,
   } = useSortable({ id, disabled: !editing });
 
-  const isSquare = colSpan === rowSpan;
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
     gridColumn: `span ${colSpan}`,
     gridRow: `span ${rowSpan}`,
-    ...(isSquare ? { aspectRatio: '1 / 1' } : {}),
   };
 
   // Close size picker on outside click
@@ -66,8 +64,7 @@ export function DashboardWidgetWrapper({
 
   if (!visible && !editing) return null;
 
-  const allowedSizes = ALLOWED_SIZES[widgetType] || ['1x1', '2x2'];
-  const isCompact = rowSpan === 1 && colSpan <= 2;
+  const allowedSizes = ALLOWED_SIZES[widgetType] || ['1x1', '2x1'];
 
   return (
     <div
@@ -185,7 +182,7 @@ export function DashboardWidgetWrapper({
 
       {/* Normal-mode title */}
       {!editing && (
-        <div className={isCompact ? 'px-3 pt-2 pb-0 shrink-0' : 'px-4 pt-3 pb-0 shrink-0'}>
+        <div className="px-4 pt-3 pb-0 shrink-0">
           <h3 className="text-xs font-medium text-surface-400 uppercase tracking-wide">
             {title}
           </h3>
@@ -193,7 +190,7 @@ export function DashboardWidgetWrapper({
       )}
 
       {/* Widget content */}
-      <div className={`flex-1 min-h-0 overflow-y-auto ${isCompact ? 'p-3' : 'p-4'}`}>
+      <div className="flex-1 min-h-0 overflow-y-auto p-4">
         {children}
       </div>
     </div>

@@ -283,15 +283,15 @@ export function DashboardPage() {
               if (editing) return;
               openTaskList(filterKey, widget.title);
             }}
-            className="flex items-center gap-3 w-full text-left group"
+            className="flex items-center justify-center gap-4 w-full h-full text-left group"
           >
             <div
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${colors.bg}`}
+              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${colors.bg}`}
             >
-              <IconComponent className={`h-5 w-5 ${colors.text}`} />
+              <IconComponent className={`h-6 w-6 ${colors.text}`} />
             </div>
             <div>
-              <p className="text-2xl font-bold tabular-nums text-surface-100">
+              <p className="text-3xl font-bold tabular-nums text-surface-100">
                 {value}
               </p>
             </div>
@@ -302,9 +302,9 @@ export function DashboardPage() {
       case 'donut': {
         const chartData = getChartData(config?.dataSource, stats);
         const total = chartData.reduce((s, d) => s + d.value, 0);
-        if (statsLoading) return <Skeleton className="h-40" />;
-        const isSmallDonut = colSpan <= 1 && rowSpan <= 1;
-        const donutSize = isSmallDonut ? 70 : Math.min(130 + (rowSpan - 2) * 40 + (colSpan - 2) * 20, 240);
+        if (statsLoading) return <Skeleton className="h-full" />;
+        const isSmallDonut = colSpan <= 1;
+        const donutSize = isSmallDonut ? 120 : 140;
         return (
           <div className="flex items-center justify-center h-full">
             <DonutChart
@@ -312,7 +312,7 @@ export function DashboardPage() {
               size={donutSize}
               thickness={Math.round(donutSize * 0.17)}
               centerValue={total}
-              centerLabel={isSmallDonut ? undefined : 'Total'}
+              centerLabel="Total"
               showLegend={!isSmallDonut}
             />
           </div>
@@ -321,10 +321,10 @@ export function DashboardPage() {
 
       case 'hbar': {
         const chartData = getChartData(config?.dataSource, stats);
-        if (statsLoading) return <Skeleton className="h-32" />;
-        const hbarMax = colSpan >= 4 ? 12 : colSpan <= 1 ? 3 : config?.maxItems || 8;
+        if (statsLoading) return <Skeleton className="h-full" />;
+        const hbarMax = colSpan >= 4 ? 12 : colSpan <= 1 ? 5 : config?.maxItems || 8;
         return (
-          <div className="flex items-center justify-center h-full">
+          <div className="flex items-center h-full">
             <div className="w-full">
               <HBarChart data={chartData} maxItems={hbarMax} />
             </div>
@@ -334,15 +334,15 @@ export function DashboardPage() {
 
       case 'vbar': {
         const chartData = getChartData(config?.dataSource, stats);
-        if (statsLoading) return <Skeleton className="h-40" />;
-        const vbarHeight = colSpan <= 1 && rowSpan <= 1 ? 60 : 100 + (rowSpan - 1) * 60;
+        if (statsLoading) return <Skeleton className="h-full" />;
+        const vbarHeight = Math.max(100, rowSpan * 140);
         return (
           <div className="flex items-center justify-center h-full">
             <div className="w-full">
               <VBarChart
                 data={chartData}
                 height={vbarHeight}
-                maxItems={colSpan <= 1 ? 4 : config?.maxItems || 8}
+                maxItems={colSpan <= 1 ? 5 : config?.maxItems || 8}
               />
             </div>
           </div>
@@ -698,7 +698,7 @@ export function DashboardPage() {
         >
           <div
             className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4"
-            style={{ gridAutoRows: 'minmax(80px, auto)' }}
+            style={{ gridAutoRows: '220px' }}
           >
             {displayWidgets.map((widget) => (
               <DashboardWidgetWrapper

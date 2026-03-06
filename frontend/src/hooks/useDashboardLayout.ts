@@ -11,32 +11,28 @@ export type WidgetType =
   | 'recently-viewed'
   | 'projects';
 
-export type WidgetSize = '1x1' | '1x2' | '1x4' | '2x1' | '2x2' | '2x4' | '4x1' | '4x2' | '4x4';
+export type WidgetSize = '1x1' | '2x1' | '4x1' | '2x2' | '4x2';
 
-export const SIZE_MAP: Record<WidgetSize, { cols: number; rows: number }> = {
-  '1x1': { cols: 1, rows: 1 },
-  '1x2': { cols: 1, rows: 2 },
-  '1x4': { cols: 1, rows: 4 },
-  '2x1': { cols: 2, rows: 1 },
-  '2x2': { cols: 2, rows: 2 },
-  '2x4': { cols: 2, rows: 4 },
-  '4x1': { cols: 4, rows: 1 },
-  '4x2': { cols: 4, rows: 2 },
-  '4x4': { cols: 4, rows: 4 },
+export const SIZE_MAP: Record<WidgetSize, { cols: number; rows: number; label: string }> = {
+  '1x1': { cols: 1, rows: 1, label: '1 col' },
+  '2x1': { cols: 2, rows: 1, label: '2 col' },
+  '4x1': { cols: 4, rows: 1, label: '4 col' },
+  '2x2': { cols: 2, rows: 2, label: '2 col tall' },
+  '4x2': { cols: 4, rows: 2, label: '4 col tall' },
 };
 
-export const ALL_SIZES: WidgetSize[] = ['1x1', '1x2', '1x4', '2x1', '2x2', '2x4', '4x1', '4x2', '4x4'];
+export const ALL_SIZES: WidgetSize[] = ['1x1', '2x1', '4x1', '2x2', '4x2'];
 
 /** Which sizes are available per widget type */
 export const ALLOWED_SIZES: Record<WidgetType, WidgetSize[]> = {
   number:           ['1x1', '2x1'],
-  donut:            ['1x1', '2x2', '2x4', '4x2', '4x4'],
-  hbar:             ['1x1', '2x1', '2x2', '4x1', '4x2'],
-  vbar:             ['1x1', '2x2', '2x4', '4x2', '4x4'],
-  progress:         ['2x1', '2x2', '4x1', '4x2'],
-  activity:         ['2x2', '2x4', '4x2', '4x4'],
-  'recently-viewed':['2x2', '2x4', '4x2', '4x4'],
-  projects:         ['2x2', '2x4', '4x2', '4x4'],
+  donut:            ['1x1', '2x1', '4x1', '2x2', '4x2'],
+  hbar:             ['1x1', '2x1', '4x1', '2x2', '4x2'],
+  vbar:             ['1x1', '2x1', '4x1', '2x2', '4x2'],
+  progress:         ['2x1', '4x1', '2x2', '4x2'],
+  activity:         ['2x1', '4x1', '2x2', '4x2'],
+  'recently-viewed':['2x1', '4x1', '2x2', '4x2'],
+  projects:         ['2x1', '4x1', '2x2', '4x2'],
 };
 
 export interface WidgetInstance {
@@ -63,34 +59,38 @@ const DEFAULT_WIDGETS: WidgetInstance[] = [
   { id: 'num-due-week', type: 'number', title: 'Due This Week', colSpan: 1, rowSpan: 1, visible: true, config: { filter: 'due_this_week', color: 'amber', icon: 'CalendarClock' } },
   { id: 'num-completed', type: 'number', title: 'Completed', colSpan: 1, rowSpan: 1, visible: true, config: { filter: 'completed', color: 'emerald', icon: 'CheckSquare' } },
   { id: 'num-unassigned', type: 'number', title: 'Unassigned', colSpan: 1, rowSpan: 1, visible: true, config: { filter: 'unassigned', color: 'surface', icon: 'UserX' } },
-  { id: 'donut-status', type: 'donut', title: 'Tasks by Status', colSpan: 2, rowSpan: 2, visible: true, config: { dataSource: 'byStatus' } },
-  { id: 'donut-priority', type: 'donut', title: 'Tasks by Priority', colSpan: 2, rowSpan: 2, visible: true, config: { dataSource: 'byPriority' } },
+  { id: 'donut-status', type: 'donut', title: 'Tasks by Status', colSpan: 2, rowSpan: 1, visible: true, config: { dataSource: 'byStatus' } },
+  { id: 'donut-priority', type: 'donut', title: 'Tasks by Priority', colSpan: 2, rowSpan: 1, visible: true, config: { dataSource: 'byPriority' } },
   { id: 'hbar-assignee', type: 'hbar', title: 'Assignee Workload', colSpan: 2, rowSpan: 1, visible: true, config: { dataSource: 'byAssignee' } },
-  { id: 'progress-projects', type: 'progress', title: 'Project Progress', colSpan: 2, rowSpan: 2, visible: true },
+  { id: 'progress-projects', type: 'progress', title: 'Project Progress', colSpan: 2, rowSpan: 1, visible: true },
   { id: 'feed-activity', type: 'activity', title: 'Recent Activity', colSpan: 2, rowSpan: 2, visible: true },
-  { id: 'grid-projects', type: 'projects', title: 'Recent Projects', colSpan: 2, rowSpan: 2, visible: true },
+  { id: 'grid-projects', type: 'projects', title: 'Recent Projects', colSpan: 2, rowSpan: 1, visible: true },
 ];
 
 export const WIDGET_CATALOG: WidgetInstance[] = [
   ...DEFAULT_WIDGETS,
   { id: 'hbar-status', type: 'hbar', title: 'Status Breakdown', colSpan: 2, rowSpan: 1, visible: true, config: { dataSource: 'byStatus' } },
   { id: 'hbar-priority', type: 'hbar', title: 'Priority Breakdown', colSpan: 2, rowSpan: 1, visible: true, config: { dataSource: 'byPriority' } },
-  { id: 'vbar-assignee', type: 'vbar', title: 'Assignee Chart', colSpan: 2, rowSpan: 2, visible: true, config: { dataSource: 'byAssignee' } },
-  { id: 'vbar-priority', type: 'vbar', title: 'Priority Chart', colSpan: 2, rowSpan: 2, visible: true, config: { dataSource: 'byPriority' } },
-  { id: 'vbar-status', type: 'vbar', title: 'Status Chart', colSpan: 2, rowSpan: 2, visible: true, config: { dataSource: 'byStatus' } },
-  { id: 'donut-assignee', type: 'donut', title: 'Tasks per Assignee', colSpan: 2, rowSpan: 2, visible: true, config: { dataSource: 'byAssignee' } },
-  { id: 'list-recent', type: 'recently-viewed', title: 'Recently Viewed', colSpan: 2, rowSpan: 2, visible: true },
+  { id: 'vbar-assignee', type: 'vbar', title: 'Assignee Chart', colSpan: 2, rowSpan: 1, visible: true, config: { dataSource: 'byAssignee' } },
+  { id: 'vbar-priority', type: 'vbar', title: 'Priority Chart', colSpan: 2, rowSpan: 1, visible: true, config: { dataSource: 'byPriority' } },
+  { id: 'vbar-status', type: 'vbar', title: 'Status Chart', colSpan: 2, rowSpan: 1, visible: true, config: { dataSource: 'byStatus' } },
+  { id: 'donut-assignee', type: 'donut', title: 'Tasks per Assignee', colSpan: 2, rowSpan: 1, visible: true, config: { dataSource: 'byAssignee' } },
+  { id: 'list-recent', type: 'recently-viewed', title: 'Recently Viewed', colSpan: 2, rowSpan: 1, visible: true },
 ];
 
 function buildKey(userId: string | undefined): string {
-  return `dashboard-layout-v3-${userId || 'default'}`;
+  return `dashboard-layout-v4-${userId || 'default'}`;
 }
 
 function migrateWidget(w: any): WidgetInstance {
-  return {
-    ...w,
-    rowSpan: w.rowSpan ?? (w.type === 'number' ? 1 : w.type === 'hbar' ? 1 : 2),
-  };
+  // Clamp rowSpan: 1 for standard, 2 for tall — no other values
+  let rowSpan = w.rowSpan ?? 1;
+  if (rowSpan > 2) rowSpan = 2;
+  // Clamp colSpan to valid values
+  let colSpan = w.colSpan ?? 1;
+  if (colSpan === 3) colSpan = 2;
+  if (colSpan > 4) colSpan = 4;
+  return { ...w, colSpan, rowSpan };
 }
 
 function loadLayout(key: string): WidgetInstance[] {
