@@ -30,19 +30,21 @@ export function hasMinRole(userRole: string | null, requiredRole: string): boole
 }
 
 export function useProjectPermissions(projectId: string | undefined) {
+  const { user } = useAuth();
   const role = useProjectRole(projectId);
+  const isGlobalAdmin = user?.isGlobalAdmin === true;
 
   return useMemo(() => ({
     role,
-    canView: hasMinRole(role, 'GUEST'),
-    canComment: hasMinRole(role, 'TEAM_MEMBER'),
-    canEditTasks: hasMinRole(role, 'TEAM_MEMBER'),
-    canChangeStatus: hasMinRole(role, 'TEAM_MEMBER'),
-    canCompleteTasks: hasMinRole(role, 'PROJECT_MANAGER'),
-    canCreateTasks: hasMinRole(role, 'TEAM_MEMBER'),
-    canAssignTasks: hasMinRole(role, 'PROJECT_MANAGER'),
-    canAssignDates: hasMinRole(role, 'PROJECT_MANAGER'),
-    canDeleteTasks: hasMinRole(role, 'PROJECT_MANAGER'),
-    canManageProject: hasMinRole(role, 'ADMIN'),
-  }), [role]);
+    canView: isGlobalAdmin || hasMinRole(role, 'GUEST'),
+    canComment: isGlobalAdmin || hasMinRole(role, 'TEAM_MEMBER'),
+    canEditTasks: isGlobalAdmin || hasMinRole(role, 'TEAM_MEMBER'),
+    canChangeStatus: isGlobalAdmin || hasMinRole(role, 'TEAM_MEMBER'),
+    canCompleteTasks: isGlobalAdmin || hasMinRole(role, 'PROJECT_MANAGER'),
+    canCreateTasks: isGlobalAdmin || hasMinRole(role, 'TEAM_MEMBER'),
+    canAssignTasks: isGlobalAdmin || hasMinRole(role, 'PROJECT_MANAGER'),
+    canAssignDates: isGlobalAdmin || hasMinRole(role, 'PROJECT_MANAGER'),
+    canDeleteTasks: isGlobalAdmin || hasMinRole(role, 'PROJECT_MANAGER'),
+    canManageProject: isGlobalAdmin || hasMinRole(role, 'ADMIN'),
+  }), [role, isGlobalAdmin]);
 }
